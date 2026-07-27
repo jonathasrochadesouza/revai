@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RevAI · Dashboard — Mock 06 "Neo-Brutalist"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MOCK 06 — "NEO-BRUTALIST"
+   Direção visual: bordas grossas pretas, sombras sólidas
+   deslocadas, cores chapadas saturadas, zero gradiente, zero
+   blur. Ousado, memorável, muito "open source com personalidade".
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#f4f1e8;      /* papel creme */
+  --ink:#111111;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a80;
+  --card:#ffffff;
+  --lime:#c9f31d;
+  --pink:#ff5c8a;
+  --cyan:#4dd0e1;
+  --orange:#ff8c42;
+  --violet:#a78bfa;
+  --red:#ff3b30;
+  --sh:4px 4px 0 var(--ink);
+  --sh-lg:7px 7px 0 var(--ink);
+  --font:'Space Grotesk',system-ui,sans-serif;
+  --mono:'Space Mono',monospace;
+}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--ink);min-height:100vh;
+  background-image:radial-gradient(circle,rgba(17,17,17,.055) 1px,transparent 1px);
+  background-size:22px 22px;
+}
+
+/* ================= TOPO ================= */
+.nav{
+  background:var(--ink);color:var(--bg);border-bottom:3px solid var(--ink);
+  padding:0 26px;height:62px;display:flex;align-items:center;gap:18px;
+  position:sticky;top:0;z-index:40;
+}
+.lg{display:flex;align-items:center;gap:11px;font-weight:700;font-size:19px;letter-spacing:-.7px}
+.lg-b{
+  width:32px;height:32px;background:var(--lime);border:2px solid var(--bg);
+  display:grid;place-items:center;transform:rotate(-4deg);
+}
+.lg-b svg{width:17px;height:17px;stroke:var(--ink);stroke-width:3;fill:none}
+.tabs{display:flex;gap:3px;margin-left:22px}
+.tab{
+  padding:8px 15px;font-family:var(--font);font-size:13.5px;font-weight:600;
+  border:2px solid transparent;background:transparent;color:rgba(244,241,232,.6);cursor:pointer;
+}
+.tab:hover{color:var(--bg)}
+.tab.on{background:var(--lime);color:var(--ink);border-color:var(--bg)}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.pillx{
+  font-family:var(--mono);font-size:11px;border:2px solid var(--bg);padding:5px 11px;
+  display:flex;align-items:center;gap:7px;
+}
+.pillx i{width:7px;height:7px;background:var(--lime);border-radius:50%}
+.nbtn{
+  padding:9px 17px;background:var(--lime);border:2px solid var(--bg);color:var(--ink);
+  font-family:var(--font);font-size:13.5px;font-weight:700;cursor:pointer;
+  box-shadow:3px 3px 0 var(--bg);transition:.1s;
+}
+.nbtn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--bg)}
+.nbtn:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--bg)}
+
+/* ================= LAYOUT ================= */
+.wrap{max-width:1340px;margin:0 auto;padding:30px 26px 60px}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:22px;margin-bottom:26px;flex-wrap:wrap}
+.hero h1{font-size:42px;font-weight:700;letter-spacing:-2px;line-height:1;margin-bottom:8px}
+.hero h1 mark{background:var(--lime);padding:0 8px;box-decoration-break:clone}
+.hero p{font-size:15px;color:var(--ink-2);max-width:56ch;line-height:1.6}
+.range{display:flex;border:2px solid var(--ink);box-shadow:var(--sh);background:var(--card)}
+.rg{padding:9px 15px;border:0;border-right:2px solid var(--ink);background:transparent;font-family:var(--mono);font-size:12px;cursor:pointer;font-weight:700}
+.rg:last-child{border-right:0}
+.rg.on{background:var(--ink);color:var(--bg)}
+
+/* ---- KPIs ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.kpi{
+  background:var(--card);border:3px solid var(--ink);box-shadow:var(--sh-lg);
+  padding:19px;position:relative;overflow:hidden;transition:.12s;
+}
+.kpi:hover{transform:translate(-2px,-2px);box-shadow:9px 9px 0 var(--ink)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:8px}
+.kpi.a::before{background:var(--pink)}
+.kpi.b::before{background:var(--cyan)}
+.kpi.c::before{background:var(--orange)}
+.kpi.d::before{background:var(--violet)}
+.kpi-l{
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin:9px 0 11px;
+}
+.kpi-v{font-size:40px;font-weight:700;letter-spacing:-2.2px;line-height:1;margin-bottom:9px}
+.kpi-v sup{font-size:17px;letter-spacing:-.5px;vertical-align:super}
+.kpi-f{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;font-weight:700}
+.delta{padding:2px 8px;border:2px solid var(--ink);display:flex;align-items:center;gap:4px}
+.delta.up{background:var(--lime)}
+.delta.dn{background:var(--pink);color:var(--ink)}
+.delta svg{width:10px;height:10px;stroke:currentColor;stroke-width:3.5;fill:none}
+.kpi-f span{color:var(--ink-3)}
+
+/* ---- grade de gráficos ---- */
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px}
+.box{background:var(--card);border:3px solid var(--ink);box-shadow:var(--sh-lg)}
+.box-h{
+  padding:15px 19px;border-bottom:3px solid var(--ink);display:flex;align-items:center;gap:12px;
+}
+.box-h h2{font-size:16px;font-weight:700;letter-spacing:-.4px}
+.box-h .sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-left:auto}
+.box-b{padding:19px}
+
+/* gráfico de barras */
+.chart{display:flex;align-items:flex-end;gap:8px;height:190px;padding-bottom:26px;position:relative}
+.chart::after{content:'';position:absolute;left:0;right:0;bottom:24px;height:2px;background:var(--ink)}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;position:relative;height:100%}
+.bar .seg{border:2px solid var(--ink);border-bottom:0}
+.bar .seg:last-of-type{border-bottom:2px solid var(--ink)}
+.bar .c{background:var(--red)}
+.bar .m{background:var(--orange)}
+.bar .l{background:var(--cyan)}
+.bar .lb{
+  position:absolute;bottom:-24px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:10px;font-weight:700;color:var(--ink-3);
+}
+.bar:hover .seg{filter:brightness(1.08)}
+.bar .tip{
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:11px;font-weight:700;
+}
+.leg{display:flex;gap:16px;margin-top:8px;padding-top:14px;border-top:2px solid var(--ink)}
+.leg span{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;font-weight:700}
+.leg i{width:13px;height:13px;border:2px solid var(--ink);display:block}
+
+/* donut / lista */
+.donut{display:flex;align-items:center;gap:20px;margin-bottom:18px}
+svg.dn{width:112px;height:112px;flex-shrink:0;transform:rotate(-90deg)}
+.dn circle{fill:none;stroke-width:19}
+.dn .t{stroke:var(--red);stroke-dasharray:88 213}
+.dn .u{stroke:var(--orange);stroke-dasharray:63 238;stroke-dashoffset:-88}
+.dn .p{stroke:var(--cyan);stroke-dasharray:50 251;stroke-dashoffset:-151}
+.dn .s{stroke:var(--violet);stroke-dasharray:100 201;stroke-dashoffset:-201}
+.dn-c{flex:1}
+.dn-r{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13px;font-weight:600}
+.dn-r i{width:13px;height:13px;border:2px solid var(--ink);flex-shrink:0}
+.dn-r b{margin-left:auto;font-family:var(--mono);font-size:13px}
+
+/* tabela */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+  font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  text-align:left;padding:11px 19px;border-bottom:3px solid var(--ink);color:var(--ink-3);
+}
+.tbl td{padding:14px 19px;border-bottom:2px solid #e8e4d8;font-size:13.5px}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:#faf8f2}
+.rp{display:flex;align-items:center;gap:11px}
+.rp-i{
+  width:32px;height:32px;border:2px solid var(--ink);display:grid;place-items:center;
+  font-family:var(--mono);font-weight:700;font-size:12px;flex-shrink:0;
+}
+.rp-i.a{background:var(--cyan)}.rp-i.b{background:var(--pink)}
+.rp-i.c{background:var(--lime)}.rp-i.d{background:var(--orange)}
+.rp b{font-weight:600;display:block}
+.rp span{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.mini{display:flex;gap:2px;align-items:flex-end;height:26px}
+.mini i{width:6px;background:var(--ink);display:block;border:1px solid var(--ink)}
+.mini i.hi{background:var(--lime)}
+.score{
+  display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-weight:700;font-size:13px;
+  border:2px solid var(--ink);padding:3px 10px;
+}
+.score.g{background:var(--lime)}
+.score.y{background:var(--orange)}
+.score.r{background:var(--pink)}
+.trend{font-family:var(--mono);font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px}
+.trend.up{color:#1a7f37}.trend.dn{color:var(--red)}
+.trend svg{width:12px;height:12px;stroke:currentColor;stroke-width:3.5;fill:none}
+
+/* faixa de dívida técnica */
+.debt{
+  background:var(--ink);color:var(--bg);border:3px solid var(--ink);box-shadow:var(--sh-lg);
+  padding:22px 26px;margin-bottom:20px;display:grid;grid-template-columns:1fr auto;gap:26px;align-items:center;
+}
+.debt h3{font-size:22px;font-weight:700;letter-spacing:-.8px;margin-bottom:7px}
+.debt h3 mark{background:var(--lime);color:var(--ink);padding:0 7px}
+.debt p{font-size:13.5px;color:rgba(244,241,232,.7);line-height:1.6;max-width:62ch}
+.debt-n{display:flex;gap:26px}
+.dn2{text-align:right}
+.dn2 b{display:block;font-size:32px;font-weight:700;letter-spacing:-1.5px;line-height:1}
+.dn2 span{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(244,241,232,.55)}
+.dn2.lime b{color:var(--lime)}
+.dn2.pink b{color:var(--pink)}
+.dn2.cyan b{color:var(--cyan)}
+
+.legend{text-align:center;margin-top:26px;font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.legend b{color:var(--ink)}
+
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.debt{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ================= NAV ================= -->
+<nav class="nav">
+  <div class="lg"><span class="lg-b"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z" stroke-linejoin="round"/></svg></span> REVAI</div>
+  <div class="tabs">
+    <button class="tab">Projects</button>
+    <button class="tab on">Insights</button>
+    <button class="tab">History</button>
+    <button class="tab">Rules</button>
+  </div>
+  <div class="nav-r">
+    <span class="pillx"><i></i> COPILOT CLI</span>
+    <button class="nbtn">+ NEW REVIEW</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- hero -->
+  <div class="hero">
+    <div>
+      <h1>Code health,<br/><mark>measured.</mark></h1>
+      <p>Every review you ran, aggregated. No cloud, no account — these numbers come straight from the YAML files on your disk.</p>
+    </div>
+    <div class="range">
+      <button class="rg">7D</button>
+      <button class="rg on">30D</button>
+      <button class="rg">90D</button>
+      <button class="rg">ALL</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi a">
+      <div class="kpi-l">Reviews run</div>
+      <div class="kpi-v">38</div>
+      <div class="kpi-f"><span class="delta up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>+12</span><span>vs last 30d</span></div>
+    </div>
+    <div class="kpi b">
+      <div class="kpi-l">Issues caught</div>
+      <div class="kpi-v">614</div>
+      <div class="kpi-f"><span class="delta up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>+87</span><span>41 critical</span></div>
+    </div>
+    <div class="kpi c">
+      <div class="kpi-l">Total spend</div>
+      <div class="kpi-v"><sup>$</sup>9.84</div>
+      <div class="kpi-f"><span class="delta dn"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>−63%</span><span>after hybrid</span></div>
+    </div>
+    <div class="kpi d">
+      <div class="kpi-l">Median duration</div>
+      <div class="kpi-v">2<sup>m</sup>11<sup>s</sup></div>
+      <div class="kpi-f"><span class="delta dn"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>−48s</span><span>faster</span></div>
+    </div>
+  </div>
+
+  <!-- gráficos -->
+  <div class="grid">
+    <div class="box">
+      <div class="box-h"><h2>Findings over time</h2><span class="sub">last 12 reviews</span></div>
+      <div class="box-b">
+        <div class="chart">
+          <div class="bar"><div class="seg c" style="height:14%"></div><div class="seg m" style="height:22%"></div><div class="seg l" style="height:18%"></div><span class="lb">R27</span></div>
+          <div class="bar"><div class="seg c" style="height:9%"></div><div class="seg m" style="height:31%"></div><div class="seg l" style="height:24%"></div><span class="lb">R28</span></div>
+          <div class="bar"><div class="seg c" style="height:20%"></div><div class="seg m" style="height:26%"></div><div class="seg l" style="height:14%"></div><span class="lb">R29</span></div>
+          <div class="bar"><div class="seg c" style="height:6%"></div><div class="seg m" style="height:18%"></div><div class="seg l" style="height:21%"></div><span class="lb">R30</span></div>
+          <div class="bar"><div class="seg c" style="height:11%"></div><div class="seg m" style="height:24%"></div><div class="seg l" style="height:16%"></div><span class="lb">R31</span></div>
+          <div class="bar"><div class="seg c" style="height:24%"></div><div class="seg m" style="height:34%"></div><div class="seg l" style="height:19%"></div><span class="lb">R32</span></div>
+          <div class="bar"><div class="seg c" style="height:8%"></div><div class="seg m" style="height:20%"></div><div class="seg l" style="height:26%"></div><span class="lb">R33</span></div>
+          <div class="bar"><div class="seg c" style="height:5%"></div><div class="seg m" style="height:15%"></div><div class="seg l" style="height:18%"></div><span class="lb">R34</span></div>
+          <div class="bar"><div class="seg c" style="height:13%"></div><div class="seg m" style="height:22%"></div><div class="seg l" style="height:20%"></div><span class="lb">R35</span></div>
+          <div class="bar"><div class="seg c" style="height:7%"></div><div class="seg m" style="height:17%"></div><div class="seg l" style="height:23%"></div><span class="lb">R36</span></div>
+          <div class="bar"><div class="seg c" style="height:4%"></div><div class="seg m" style="height:14%"></div><div class="seg l" style="height:17%"></div><span class="lb">R37</span></div>
+          <div class="bar"><span class="tip">23</span><div class="seg c" style="height:11%"></div><div class="seg m" style="height:25%"></div><div class="seg l" style="height:28%"></div><span class="lb">R38</span></div>
+        </div>
+        <div class="leg">
+          <span><i style="background:var(--red)"></i> Critical</span>
+          <span><i style="background:var(--orange)"></i> Medium</span>
+          <span><i style="background:var(--cyan)"></i> Low</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="box-h"><h2>By category</h2></div>
+      <div class="box-b">
+        <div class="donut">
+          <svg class="dn" viewBox="0 0 80 80">
+            <circle class="t" cx="40" cy="40" r="34"/>
+            <circle class="u" cx="40" cy="40" r="34"/>
+            <circle class="p" cx="40" cy="40" r="34"/>
+            <circle class="s" cx="40" cy="40" r="34"/>
+          </svg>
+          <div class="dn-c">
+            <div class="dn-r"><i style="background:var(--red)"></i> Security <b>29%</b></div>
+            <div class="dn-r"><i style="background:var(--orange)"></i> Maintainability <b>21%</b></div>
+            <div class="dn-r"><i style="background:var(--cyan)"></i> Performance <b>17%</b></div>
+            <div class="dn-r"><i style="background:var(--violet)"></i> Style &amp; naming <b>33%</b></div>
+          </div>
+        </div>
+        <div style="border-top:2px solid var(--ink);padding-top:14px">
+          <div class="dn-r" style="font-family:var(--mono);font-size:12px"><span>Auto-fixed by RevAI</span><b>218</b></div>
+          <div class="dn-r" style="font-family:var(--mono);font-size:12px"><span>Marked false positive</span><b>31</b></div>
+          <div class="dn-r" style="font-family:var(--mono);font-size:12px"><span>False positive rate</span><b style="color:#1a7f37">5.0%</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- dívida técnica -->
+  <div class="debt">
+    <div>
+      <h3>Technical debt is <mark>trending down</mark></h3>
+      <p>Across 4 tracked repositories, unresolved critical findings dropped from 68 to 41 in the last 30 days. The biggest win came from fixing RxJS teardown patterns in <b style="color:var(--cyan)">web-frontend</b>.</p>
+    </div>
+    <div class="debt-n">
+      <div class="dn2 pink"><b>41</b><span>Open critical</span></div>
+      <div class="dn2 lime"><b>218</b><span>Resolved</span></div>
+      <div class="dn2 cyan"><b>84%</b><span>Fix rate</span></div>
+    </div>
+  </div>
+
+  <!-- tabela -->
+  <div class="box">
+    <div class="box-h"><h2>Repository breakdown</h2><span class="sub">4 tracked</span></div>
+    <table class="tbl">
+      <thead><tr><th>Repository</th><th>Reviews</th><th>Trend</th><th>Open critical</th><th>Health score</th><th>Change</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><div class="rp"><span class="rp-i a">BM</span><div><b>bomos-core</b><span>java · angular</span></div></div></td>
+          <td style="font-family:var(--mono);font-weight:700">17</td>
+          <td><div class="mini"><i style="height:40%"></i><i style="height:65%"></i><i style="height:48%"></i><i style="height:72%"></i><i style="height:55%"></i><i class="hi" style="height:34%"></i></div></td>
+          <td style="font-family:var(--mono);font-weight:700;color:var(--red)">4</td>
+          <td><span class="score y">72</span></td>
+          <td><span class="trend up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>+8</span></td>
+        </tr>
+        <tr>
+          <td><div class="rp"><span class="rp-i b">PY</span><div><b>payments-api</b><span>java · spring</span></div></div></td>
+          <td style="font-family:var(--mono);font-weight:700">11</td>
+          <td><div class="mini"><i style="height:30%"></i><i style="height:44%"></i><i style="height:60%"></i><i style="height:78%"></i><i style="height:88%"></i><i class="hi" style="height:95%"></i></div></td>
+          <td style="font-family:var(--mono);font-weight:700;color:var(--red)">6</td>
+          <td><span class="score r">48</span></td>
+          <td><span class="trend dn"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>−14</span></td>
+        </tr>
+        <tr>
+          <td><div class="rp"><span class="rp-i c">WF</span><div><b>web-frontend</b><span>typescript · angular</span></div></div></td>
+          <td style="font-family:var(--mono);font-weight:700">8</td>
+          <td><div class="mini"><i style="height:82%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:38%"></i><i style="height:24%"></i><i class="hi" style="height:15%"></i></div></td>
+          <td style="font-family:var(--mono);font-weight:700">0</td>
+          <td><span class="score g">94</span></td>
+          <td><span class="trend up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>+22</span></td>
+        </tr>
+        <tr>
+          <td><div class="rp"><span class="rp-i d">IN</span><div><b>infra-terraform</b><span>hcl · shell</span></div></div></td>
+          <td style="font-family:var(--mono);font-weight:700">2</td>
+          <td><div class="mini"><i style="height:20%"></i><i style="height:20%"></i><i style="height:20%"></i><i style="height:20%"></i><i style="height:52%"></i><i class="hi" style="height:44%"></i></div></td>
+          <td style="font-family:var(--mono);font-weight:700;color:var(--red)">31</td>
+          <td><span class="score r">31</span></td>
+          <td><span class="trend up"><svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>new</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="legend"><b>Mock 06 · "Neo-Brutalist"</b> — thick black borders, hard offset shadows, flat saturated colour. Bold and memorable; strong open-source personality.</p>
+</div>
+
+</body>
+</html>
