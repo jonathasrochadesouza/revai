@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RevAI · Paper Light — concepts merged</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MOCK 08 — "PAPER LIGHT" as the design system
+   Shows the concepts you liked from mocks 01/04/07 RE-SKINNED
+   into the Paper Light language. Same information, calm surface.
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#fafafa; --paper:#ffffff;
+  --ink:#09090b; --ink-2:#52525b; --ink-3:#a1a1aa;
+  --line:#e4e4e7; --line-2:#d4d4d8;
+  --blue:#2563eb; --blue-bg:#eff6ff;
+  --red:#dc2626;  --red-bg:#fef2f2;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --green:#059669;--green-bg:#ecfdf5;
+  --font:'Geist',system-ui,-apple-system,sans-serif;
+  --mono:'Geist Mono',ui-monospace,monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;font-size:14px}
+
+/* ---------- top bar ---------- */
+.bar{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.bar-in{max-width:1180px;margin:0 auto;padding:0 28px;height:56px;display:flex;align-items:center;gap:18px}
+.mark{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;letter-spacing:-.3px}
+.mark-i{width:26px;height:26px;border-radius:7px;background:var(--ink);display:grid;place-items:center}
+.mark-i svg{width:14px;height:14px;stroke:#fff;stroke-width:2.5;fill:none}
+.sep{width:1px;height:18px;background:var(--line-2)}
+.tabs{display:flex;gap:2px}
+.tb{padding:6px 12px;border-radius:7px;border:0;background:0;font-family:var(--font);font-size:13px;font-weight:500;color:var(--ink-3);cursor:pointer}
+.tb:hover{background:var(--bg);color:var(--ink-2)}
+.tb.on{background:var(--bg);color:var(--ink);font-weight:600}
+.bar-r{margin-left:auto;display:flex;gap:9px}
+.chip{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);border:1px solid var(--line);border-radius:7px;padding:5px 10px}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:34px 28px 70px}
+
+.sect{margin-bottom:42px}
+.sect-h{margin-bottom:16px}
+.sect-h .kick{
+  font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--blue);margin-bottom:6px;display:flex;align-items:center;gap:8px;
+}
+.sect-h .kick .from{
+  background:var(--blue-bg);border:1px solid rgba(37,99,235,.18);color:var(--blue);
+  padding:2px 7px;border-radius:5px;letter-spacing:0;text-transform:none;font-family:var(--mono);font-size:10px;
+}
+.sect-h h2{font-size:20px;font-weight:650;letter-spacing:-.5px;margin-bottom:5px}
+.sect-h p{font-size:13.5px;color:var(--ink-2);line-height:1.65;max-width:74ch}
+
+.card{border:1px solid var(--line);border-radius:11px;background:var(--paper);overflow:hidden}
+.card-hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}
+.card-hd svg{width:15px;height:15px;stroke:var(--ink-2);stroke-width:2;fill:none}
+.card-hd .r{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-weight:400;font-family:var(--mono)}
+.card-b{padding:18px}
+
+/* ---------- 07 · engine mode ---------- */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:18px}
+.mode{border:1px solid var(--line);border-radius:10px;padding:15px;cursor:pointer;transition:.15s;background:var(--paper)}
+.mode:hover{border-color:var(--line-2)}
+.mode.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.mode-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mode-i{width:28px;height:28px;border-radius:8px;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0}
+.mode-i svg{width:14px;height:14px;stroke:var(--ink-2);stroke-width:2;fill:none}
+.mode.on .mode-i{background:var(--ink);border-color:var(--ink)}
+.mode.on .mode-i svg{stroke:#fff}
+.mode-h b{font-size:13.5px;font-weight:600}
+.mode-h .rd{margin-left:auto;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-2)}
+.mode.on .rd{border:5px solid var(--ink)}
+.mode p{font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.mode .badge{display:inline-block;margin-top:9px;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2.5px 7px;border-radius:5px;background:var(--green-bg);color:var(--green);border:1px solid rgba(5,150,105,.2)}
+
+/* ---------- 07 · detected providers ---------- */
+.prov{display:flex;align-items:center;gap:13px;padding:12px 0;border-bottom:1px solid var(--line)}
+.prov:last-child{border-bottom:0;padding-bottom:0}
+.prov:first-child{padding-top:0}
+.pv-i{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex-shrink:0;border:1px solid var(--line)}
+.pv-i.an{background:#d97757;border-color:#d97757}
+.pv-i.gh{background:var(--ink);border-color:var(--ink)}
+.pv-i.ki{background:#7c3aed;border-color:#7c3aed}
+.pv-i.ol{background:var(--bg)}
+.pv-i svg{width:17px;height:17px}
+.pv-b{flex:1;min-width:0}
+.pv-b b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px}
+.pv-b span{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.st{font-size:11px;font-weight:600;padding:3.5px 9px;border-radius:20px;display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid}
+.st i{width:5px;height:5px;border-radius:50%;background:currentColor}
+.st.ok{background:var(--green-bg);color:var(--green);border-color:rgba(5,150,105,.2)}
+.st.warn{background:var(--amber-bg);color:var(--amber);border-color:rgba(217,119,6,.2)}
+.st.no{background:var(--bg);color:var(--ink-3);border-color:var(--line)}
+.pbtn{padding:6px 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--paper);color:var(--ink-2);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;flex-shrink:0}
+.pbtn:hover{background:var(--bg);color:var(--ink)}
+.note-row{margin-top:14px;padding:11px 13px;background:var(--amber-bg);border:1px solid rgba(217,119,6,.18);border-radius:8px;font-size:12px;color:#92400e;line-height:1.6;display:flex;gap:9px}
+.note-row svg{width:14px;height:14px;stroke:var(--amber);stroke-width:2;fill:none;flex-shrink:0;margin-top:1px}
+
+/* ---------- 01 · fallback key ---------- */
+.fld{margin-bottom:14px}
+.fld:last-child{margin-bottom:0}
+.fld label{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:500;color:var(--ink-2);margin-bottom:7px}
+.fld label .opt{margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:400}
+.inp-row{display:flex;gap:9px}
+.inp{flex:1;border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;color:var(--ink);outline:none;background:var(--paper)}
+.inp:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(9,9,11,.06)}
+.help{font-size:11.5px;color:var(--ink-3);margin-top:7px;line-height:1.55}
+.help code{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.help a{color:var(--blue);text-decoration:none}
+
+/* ---------- 04 · pipeline ---------- */
+.pipe{padding:4px 0}
+.stg{position:relative;padding-left:28px;padding-bottom:18px}
+.stg:last-child{padding-bottom:0}
+.stg::before{content:'';position:absolute;left:8px;top:20px;bottom:0;width:1px;background:var(--line)}
+.stg:last-child::before{display:none}
+.stg.done::before{background:var(--green)}
+.sd{position:absolute;left:0;top:2px;width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line-2);background:var(--paper);display:grid;place-items:center}
+.stg.done .sd{background:var(--green);border-color:var(--green)}
+.stg.done .sd svg{width:9px;height:9px;stroke:#fff;stroke-width:3.5;fill:none}
+.stg.now .sd{border-color:var(--ink);border-width:2px}
+.stg.now .sd::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--ink);animation:p 1.3s infinite}
+@keyframes p{50%{opacity:.3}}
+.stg-h{display:flex;align-items:baseline;gap:10px;margin-bottom:3px}
+.stg-h b{font-size:13.5px;font-weight:600}
+.stg.wait .stg-h b{color:var(--ink-3);font-weight:500}
+.stg-h .t{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.stg p{font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.stg.wait p{color:var(--ink-3)}
+.pbar{height:3px;background:var(--line);border-radius:20px;margin-top:8px;overflow:hidden;max-width:340px}
+.pbar i{display:block;height:100%;width:62%;background:var(--ink);border-radius:20px}
+.stg.done .pbar i{width:100%;background:var(--green)}
+.stg-tags{display:flex;gap:5px;margin-top:8px}
+.stag{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink-3);background:var(--bg)}
+.stag.g{color:var(--green);border-color:rgba(5,150,105,.22);background:var(--green-bg)}
+.stag.a{color:var(--amber);border-color:rgba(217,119,6,.22);background:var(--amber-bg)}
+
+/* ---------- 04 · event stream ---------- */
+.ev-h{display:flex;gap:3px;margin-left:auto}
+.ef{font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid transparent;background:0;color:var(--ink-3);cursor:pointer;font-family:var(--mono)}
+.ef.on{background:var(--bg);border-color:var(--line);color:var(--ink)}
+.ev{font-family:var(--mono);font-size:12px;line-height:1.9;max-height:230px;overflow-y:auto}
+.ev-ln{display:flex;gap:11px;align-items:baseline;padding:1px 0}
+.ev-ln .ts{color:var(--ink-3);flex-shrink:0;font-size:11px}
+.ev-ln .dt{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dt.i{background:var(--blue)}.dt.o{background:var(--green)}.dt.w{background:var(--amber)}.dt.a{background:var(--ink)}
+.ev-ln .lv{flex-shrink:0;width:38px;font-size:10.5px;font-weight:500;letter-spacing:.03em}
+.lv.i{color:var(--blue)}.lv.o{color:var(--green)}.lv.w{color:var(--amber)}.lv.a{color:var(--ink-2)}
+.ev-ln .ms{color:var(--ink-2);min-width:0}
+.ev-ln .ms b{color:var(--ink);font-weight:500}
+.cur{display:inline-block;width:6px;height:12px;background:var(--ink);vertical-align:-1px;animation:bk 1s step-end infinite}
+@keyframes bk{50%{opacity:0}}
+
+/* ---------- 07 · export & data ---------- */
+.row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0;padding-bottom:0}
+.row:first-child{padding-top:0}
+.row-t{flex:1;min-width:0}
+.row-t b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px}
+.row-t span{font-size:12px;color:var(--ink-3);line-height:1.55}
+.row-t span code{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.fmt{display:flex;gap:7px}
+.fmtb{
+  padding:7px 13px;border:1px solid var(--line-2);border-radius:8px;background:var(--paper);
+  font-family:var(--font);font-size:12.5px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:7px;
+}
+.fmtb:hover{background:var(--bg)}
+.fmtb svg{width:13px;height:13px;stroke:var(--ink-2);stroke-width:2;fill:none}
+.fmtb.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.fmtb.pri svg{stroke:#fff}
+
+/* ---------- save bar ---------- */
+.save{
+  position:sticky;bottom:22px;margin-top:16px;background:var(--paper);
+  border:1px solid var(--line-2);border-radius:11px;padding:13px 18px;
+  display:flex;align-items:center;gap:14px;box-shadow:0 8px 26px -12px rgba(0,0,0,.22);
+}
+.save .m{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:9px}
+.save .m svg{width:15px;height:15px;stroke:var(--amber);stroke-width:2;fill:none}
+.save .a{margin-left:auto;display:flex;gap:9px}
+.sb{padding:9px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--line-2);background:var(--paper);color:var(--ink-2)}
+.sb:hover{background:var(--bg);color:var(--ink)}
+.sb.pri{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600;display:flex;align-items:center;gap:8px}
+.sb.pri svg{width:14px;height:14px;stroke:#fff;stroke-width:2.2;fill:none}
+
+.legend{text-align:center;font-size:12px;color:var(--ink-3);margin-top:8px;line-height:1.7}
+.legend b{color:var(--ink-2)}
+
+@media(max-width:900px){.modes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="mark"><span class="mark-i"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z" stroke-linejoin="round"/></svg></span> RevAI</div>
+    <div class="sep"></div>
+    <div class="tabs">
+      <button class="tb">Projects</button>
+      <button class="tb">Insights</button>
+      <button class="tb on">Settings</button>
+    </div>
+    <div class="bar-r"><span class="chip"><i></i> Anthropic API</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 07 · ENGINE MODE ============ -->
+  <div class="sect">
+    <div class="sect-h">
+      <div class="kick">Concept kept <span class="from">from mock 07</span></div>
+      <h2>Model API ⇄ Local CLI agent</h2>
+      <p>The same selector you liked, rebuilt in Paper Light. The active card is marked with a near-black border rather than a coloured glow — the emphasis comes from contrast, not from colour.</p>
+    </div>
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg> Execution mode</div>
+      <div class="card-b">
+        <div class="modes">
+          <label class="mode on">
+            <div class="mode-h">
+              <span class="mode-i"><svg viewBox="0 0 24 24"><path d="M21 2 13 10M15 2h6v6M11 6H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-6"/></svg></span>
+              <b>Model API</b><span class="rd"></span>
+            </div>
+            <p>Bring your own key and call the provider directly. Full cost and token telemetry, guaranteed structured output.</p>
+            <span class="badge">Recommended</span>
+          </label>
+          <label class="mode">
+            <div class="mode-h">
+              <span class="mode-i"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg></span>
+              <b>Local CLI agent</b><span class="rd"></span>
+            </div>
+            <p>Reuse an agent CLI already installed and signed in on this machine. Billed to your existing subscription.</p>
+          </label>
+        </div>
+
+        <!-- 01 · fallback key -->
+        <div class="fld">
+          <label>API key <span class="opt">stored with chmod 600</span></label>
+          <div class="inp-row">
+            <input class="inp" type="password" value="sk-ant-api03-x7Kd••••••••••••••••••••••••" />
+            <button class="pbtn">Test</button>
+          </div>
+        </div>
+        <div class="fld">
+          <label>Fallback key <span class="opt">from mock 01 — used when the primary fails</span></label>
+          <div class="inp-row">
+            <input class="inp" type="password" placeholder="sk-… optional" />
+            <button class="pbtn">Test</button>
+          </div>
+          <p class="help">Secrets live in <code>~/.revai/credentials.yaml</code>, never in the project folder and never in git. <a href="#">Security notes →</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 07 · DETECTED PROVIDERS ============ -->
+  <div class="sect">
+    <div class="sect-h">
+      <div class="kick">Concept kept <span class="from">from mock 07</span></div>
+      <h2>Detected providers</h2>
+      <p>Real detection results from this machine. Status is honest — note that Copilot CLI has no <code style="font-family:var(--mono);font-size:12px">whoami</code> command, so its auth state genuinely cannot be known without a probe call.</p>
+    </div>
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg> Detected on PATH <span class="r">last scan 2s ago</span></div>
+      <div class="card-b">
+        <div class="prov">
+          <span class="pv-i an"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2 4 20h3.4l1.6-3.8h6l1.6 3.8H20L12 2Zm-1.8 11.4L12 8.6l1.8 4.8h-3.6Z"/></svg></span>
+          <div class="pv-b"><b>Anthropic API</b><span>claude-sonnet-4-6 · key configured</span></div>
+          <span class="st ok"><i></i> Active</span>
+        </div>
+        <div class="prov">
+          <span class="pv-i gh"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.4-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0C17.2 4.8 18.2 5.1 18.2 5.1c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6A11.5 11.5 0 0 0 12 .5Z"/></svg></span>
+          <div class="pv-b"><b>GitHub Copilot CLI</b><span>v1.0.69 · auth state unknown</span></div>
+          <span class="st ok"><i></i> Detected</span>
+          <button class="pbtn">Probe</button>
+        </div>
+        <div class="prov">
+          <span class="pv-i ki"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4 3h3v7.2L14.4 3H19l-7.8 8L19 21h-4.6L7 12.6V21H4V3Z"/></svg></span>
+          <div class="pv-b"><b>Kiro CLI</b><span>v0.12.333 · not signed in</span></div>
+          <span class="st warn"><i></i> Login needed</span>
+          <button class="pbtn">Sign in</button>
+        </div>
+        <div class="prov">
+          <span class="pv-i ol"><svg viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="10" r="1.3" fill="#a1a1aa"/><circle cx="15" cy="10" r="1.3" fill="#a1a1aa"/><path d="M9 15h6"/></svg></span>
+          <div class="pv-b"><b>Claude Code</b><span>not found on PATH</span></div>
+          <span class="st no"><i></i> Missing</span>
+          <button class="pbtn">Install</button>
+        </div>
+
+        <div class="note-row">
+          <svg viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+          <div><b>Kiro CLI returns plain text, not JSON.</b> Findings are extracted from prose, so results are less reliable than the API path. RevAI marks reviews produced this way.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 04 · PIPELINE + EVENT STREAM ============ -->
+  <div class="sect">
+    <div class="sect-h">
+      <div class="kick">Concept kept <span class="from">from mock 04</span></div>
+      <h2>Pipeline &amp; Event stream</h2>
+      <p>You liked the idea but not the dark, dense treatment. Here it is on white: the same stages and the same live log, with colour used only for state — green for done, amber for warnings, near-black for the active step.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/></svg> Pipeline <span class="r">stage 4 of 6 · 01:47 elapsed</span></div>
+      <div class="card-b">
+        <div class="pipe">
+          <div class="stg done"><span class="sd"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <div class="stg-h"><b>Collect diff</b><span class="t">0.4s</span></div>
+            <p>git diff develop…HEAD · 18 files</p>
+          </div>
+          <div class="stg done"><span class="sd"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <div class="stg-h"><b>Filter noise</b><span class="t">0.2s</span></div>
+            <p>6 files dropped — lockfiles, generated, binary</p>
+            <div class="stg-tags"><span class="stag g">−6 files</span><span class="stag g">−41k tokens</span></div>
+          </div>
+          <div class="stg done"><span class="sd"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            <div class="stg-h"><b>Static analysis</b><span class="t">6.1s</span></div>
+            <p>semgrep · checkstyle · eslint · gitleaks</p>
+            <div class="stg-tags"><span class="stag a">19 findings</span><span class="stag g">0 tokens</span></div>
+          </div>
+          <div class="stg now"><span class="sd"></span>
+            <div class="stg-h"><b>AI deep review</b><span class="t">01:41</span></div>
+            <p>Analysing TokenService.java — hunk 3 of 5</p>
+            <div class="pbar"><i></i></div>
+            <div class="stg-tags"><span class="stag">9/12 files</span><span class="stag">$0.19 spent</span></div>
+          </div>
+          <div class="stg wait"><span class="sd"></span>
+            <div class="stg-h"><b>Deduplicate &amp; rank</b><span class="t">—</span></div>
+            <p>pandas merge · cross-source dedupe</p>
+          </div>
+          <div class="stg wait"><span class="sd"></span>
+            <div class="stg-h"><b>Build report</b><span class="t">—</span></div>
+            <p>JSON · Markdown · standalone HTML</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg> Event stream
+        <span class="ev-h"><button class="ef on">all</button><button class="ef">ai</button><button class="ef">warn</button></span>
+      </div>
+      <div class="card-b" style="padding-top:12px">
+        <div class="ev">
+          <div class="ev-ln"><span class="ts">01:31.8</span><span class="dt o"></span><span class="lv o">done</span><span class="ms">semgrep completed — <b>19</b> rules matched across <b>12</b> files</span></div>
+          <div class="ev-ln"><span class="ts">01:32.4</span><span class="dt i"></span><span class="lv i">info</span><span class="ms">chunking by symbol — <b>28</b> hunks selected, 19 skipped as trivial</span></div>
+          <div class="ev-ln"><span class="ts">01:33.0</span><span class="dt a"></span><span class="lv a">ai</span><span class="ms">request sent · budget <b>32k</b> tokens</span></div>
+          <div class="ev-ln"><span class="ts">01:38.7</span><span class="dt a"></span><span class="lv a">ai</span><span class="ms">AuthController.java → <b>3</b> findings (1 critical)</span></div>
+          <div class="ev-ln"><span class="ts">01:44.2</span><span class="dt w"></span><span class="lv w">warn</span><span class="ms">user-list.component.ts — RxJS subscription without teardown</span></div>
+          <div class="ev-ln"><span class="ts">01:46.5</span><span class="dt i"></span><span class="lv i">info</span><span class="ms">TokenService.java · hunk 3/5 · lines 88–142</span></div>
+          <div class="ev-ln"><span class="ts">01:47.1</span><span class="dt a"></span><span class="lv a">ai</span><span class="ms">streaming response<span class="cur"></span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 07 · EXPORT & DATA ============ -->
+  <div class="sect">
+    <div class="sect-h">
+      <div class="kick">Concept kept <span class="from">from mock 07</span></div>
+      <h2>Export &amp; data</h2>
+      <p>Reviews export as JSON, Markdown or a standalone offline HTML file — the same self-contained report the current PowerShell version produces, so nothing your team relies on is lost.</p>
+    </div>
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export &amp; data</div>
+      <div class="card-b">
+        <div class="row">
+          <div class="row-t"><b>Export this review</b><span>Findings, metadata, token usage and cost.</span></div>
+          <div class="fmt">
+            <button class="fmtb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> JSON</button>
+            <button class="fmtb"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> Markdown</button>
+            <button class="fmtb pri"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> HTML</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-t"><b>Review history</b><span>38 reviews · 4.2 MB · <code>~/.revai/reviews/</code></span></div>
+          <button class="pbtn">Open folder</button>
+        </div>
+        <div class="row">
+          <div class="row-t"><b>Export everything</b><span>One archive with config, rules and every review as JSON.</span></div>
+          <button class="pbtn">Export .zip</button>
+        </div>
+        <div class="row">
+          <div class="row-t"><b>Legacy format compatibility</b><span>Also writes <code>{branch}-review-data.json</code> for the existing PowerShell HTML template.</span></div>
+          <span style="font-size:12px;color:var(--green);font-weight:600">Enabled</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 07 · SAVE BAR ============ -->
+  <div class="save">
+    <span class="m"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg> 3 unsaved changes</span>
+    <div class="a">
+      <button class="sb">Discard</button>
+      <button class="sb pri"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Save to config.yaml</button>
+    </div>
+  </div>
+
+  <p class="legend"><b>Mock 08 · Paper Light as the design system</b> — every concept you liked from mocks 01, 04 and 07,<br/>re-skinned into the language of mock 03. Same information, calm surface.</p>
+</div>
+</body>
+</html>

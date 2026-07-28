@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RevAI · Running — Mock 04 "Mission Control"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MOCK 04 — "MISSION CONTROL"
+   Direção visual: painel de telemetria industrial. Azul-petróleo
+   escuro, dados densos, medidores, pipeline em tempo real.
+   Inspirado em Datadog / Grafana / consoles de voo.
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0b1118;
+  --p1:#111a24;
+  --p2:#16212d;
+  --line:#1f2d3a;
+  --line-2:#2b3d4d;
+  --txt:#e2e8f0;
+  --txt-2:#8fa3b5;
+  --txt-3:#5a7185;
+  --cyan:#06b6d4;
+  --teal:#14b8a6;
+  --lime:#84cc16;
+  --amber:#f59e0b;
+  --red:#ef4444;
+  --violet:#8b5cf6;
+  --font:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px}
+
+/* ================= BARRA SUPERIOR ================= */
+.hdr{
+  background:var(--p1);border-bottom:1px solid var(--line);
+  padding:0 22px;height:54px;display:flex;align-items:center;gap:16px;
+  position:sticky;top:0;z-index:30;
+}
+.lg{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px}
+.lg-i{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,var(--cyan),var(--teal));display:grid;place-items:center}
+.lg-i svg{width:14px;height:14px;stroke:#0b1118;stroke-width:2.8;fill:none}
+.vs{width:1px;height:20px;background:var(--line-2)}
+.run-id{font-family:var(--mono);font-size:12px;color:var(--txt-2)}
+.run-id b{color:var(--txt)}
+.livebadge{
+  display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--cyan);
+  background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.28);
+  padding:4px 11px;border-radius:5px;
+}
+.livebadge i{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pl 1.3s infinite}
+@keyframes pl{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(6,182,212,.5)}70%{opacity:.6;box-shadow:0 0 0 6px transparent}}
+.hdr-r{margin-left:auto;display:flex;align-items:center;gap:9px}
+.hb{
+  padding:7px 13px;border-radius:6px;font-family:var(--font);font-size:12.5px;font-weight:500;
+  cursor:pointer;border:1px solid var(--line-2);background:var(--p2);color:var(--txt-2);
+  display:flex;align-items:center;gap:7px;transition:.15s;
+}
+.hb:hover{color:var(--txt);border-color:var(--txt-3)}
+.hb svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none}
+.hb.stop{border-color:rgba(239,68,68,.35);color:var(--red);background:rgba(239,68,68,.08)}
+.hb.stop:hover{background:rgba(239,68,68,.15);border-color:var(--red)}
+
+/* ================= FAIXA DE MÉTRICAS ================= */
+.strip{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:1px;
+  background:var(--line);border-bottom:1px solid var(--line);
+}
+.met{background:var(--p1);padding:14px 18px}
+.met-l{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--txt-3);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.met-l svg{width:11px;height:11px;stroke:currentColor;stroke-width:2;fill:none}
+.met-v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.6px;line-height:1;display:flex;align-items:baseline;gap:5px}
+.met-v small{font-size:11px;font-weight:400;color:var(--txt-3);letter-spacing:0}
+.met-v.cy{color:var(--cyan)}.met-v.li{color:var(--lime)}.met-v.am{color:var(--amber)}.met-v.rd{color:var(--red)}.met-v.vi{color:var(--violet)}
+.met-d{font-size:10.5px;color:var(--txt-3);margin-top:5px;font-family:var(--mono)}
+.met-d .up{color:var(--lime)}
+/* mini sparkline */
+.spark{display:flex;align-items:flex-end;gap:2px;height:16px;margin-top:6px}
+.spark i{flex:1;background:var(--line-2);border-radius:1px}
+.spark i.hi{background:var(--cyan)}
+
+/* ================= CORPO ================= */
+.body{display:grid;grid-template-columns:300px 1fr 320px;gap:1px;background:var(--line);min-height:calc(100vh - 54px - 84px)}
+.col{background:var(--bg);padding:18px;overflow-y:auto}
+
+.ct{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--txt-3);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ct .n{margin-left:auto;font-family:var(--mono);color:var(--txt-2);letter-spacing:0;text-transform:none;font-size:11px}
+
+/* ---- pipeline ---- */
+.stage{position:relative;padding-left:26px;padding-bottom:20px}
+.stage::before{content:'';position:absolute;left:7px;top:19px;bottom:0;width:1.5px;background:var(--line-2)}
+.stage:last-child::before{display:none}
+.stage.done::before{background:var(--lime)}
+.sdot{
+  position:absolute;left:0;top:3px;width:15px;height:15px;border-radius:50%;
+  border:2px solid var(--line-2);background:var(--bg);display:grid;place-items:center;
+}
+.stage.done .sdot{background:var(--lime);border-color:var(--lime)}
+.stage.done .sdot svg{width:8px;height:8px;stroke:#0b1118;stroke-width:4;fill:none}
+.stage.now .sdot{border-color:var(--cyan);box-shadow:0 0 0 4px rgba(6,182,212,.14)}
+.stage.now .sdot::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:pl 1.2s infinite}
+.stage-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px}
+.stage-h b{font-size:13px;font-weight:600}
+.stage.wait .stage-h b{color:var(--txt-3);font-weight:500}
+.stage-h .t{font-family:var(--mono);font-size:10.5px;color:var(--txt-3)}
+.stage p{font-size:11.5px;color:var(--txt-2);line-height:1.5}
+.stage.wait p{color:var(--txt-3)}
+.sbar{height:3px;background:var(--line);border-radius:20px;margin-top:8px;overflow:hidden}
+.sbar i{display:block;height:100%;border-radius:20px;background:var(--cyan);width:64%;
+  background-image:linear-gradient(90deg,transparent 0 8px,rgba(255,255,255,.22) 8px 16px);
+  background-size:16px 100%;animation:mv .7s linear infinite}
+@keyframes mv{to{background-position:16px 0}}
+.stage.done .sbar i{width:100%;background:var(--lime);animation:none;background-image:none}
+.stage-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.stag{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:var(--p2);border:1px solid var(--line);color:var(--txt-2)}
+.stag.g{color:var(--lime);border-color:rgba(132,204,22,.25)}
+.stag.a{color:var(--amber);border-color:rgba(245,158,11,.25)}
+
+/* ---- stream central ---- */
+.stream{background:var(--p1);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.stream-h{
+  display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--p2);font-size:11.5px;
+}
+.stream-h b{font-weight:600}
+.stream-h .fl{margin-left:auto;display:flex;gap:3px}
+.fltr{font-size:10.5px;padding:3px 9px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--txt-3);cursor:pointer;font-family:var(--mono)}
+.fltr.on{background:var(--bg);color:var(--txt);border-color:var(--line-2)}
+.stream-b{padding:12px 14px;font-family:var(--mono);font-size:11.5px;line-height:1.95;max-height:300px;overflow-y:auto}
+.lg-ln{display:flex;gap:11px}
+.lg-ln .ts{color:var(--txt-3);flex-shrink:0}
+.lg-ln .lv{flex-shrink:0;width:42px;font-weight:600}
+.lv.inf{color:var(--cyan)}.lv.ok{color:var(--lime)}.lv.wrn{color:var(--amber)}.lv.err{color:var(--red)}.lv.ai{color:var(--violet)}
+.lg-ln .ms{color:var(--txt-2);min-width:0}
+.lg-ln .ms b{color:var(--txt);font-weight:500}
+.cur{display:inline-block;width:7px;height:13px;background:var(--cyan);vertical-align:-2px;animation:bk 1s step-end infinite}
+@keyframes bk{50%{opacity:0}}
+
+/* ---- arquivo atual ---- */
+.cur-file{background:var(--p1);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.cf-h{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:var(--p2)}
+.cf-h svg{width:14px;height:14px;stroke:var(--cyan);stroke-width:2;fill:none}
+.cf-h b{font-family:var(--mono);font-size:12px;font-weight:500}
+.cf-h .ln{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--txt-3)}
+.code{padding:12px 0;font-family:var(--mono);font-size:11.5px;line-height:1.85;overflow-x:auto}
+.cl{display:flex;padding:0 14px}
+.cl .no{width:34px;color:var(--txt-3);flex-shrink:0;text-align:right;padding-right:14px;user-select:none}
+.cl.add{background:rgba(132,204,22,.07)}
+.cl.add .no{color:rgba(132,204,22,.55)}
+.cl.del{background:rgba(239,68,68,.07)}
+.cl.del .no{color:rgba(239,68,68,.5)}
+.cl.hl{background:rgba(245,158,11,.1);box-shadow:inset 2px 0 0 var(--amber)}
+.tk{color:var(--txt-2)}
+.k{color:#c792ea}.s{color:#c3e88d}.f{color:#82aaff}.c{color:var(--txt-3);font-style:italic}.n{color:#f78c6c}
+
+/* ---- achados ao vivo (direita) ---- */
+.find{
+  background:var(--p1);border:1px solid var(--line);border-radius:7px;
+  padding:12px 13px;margin-bottom:9px;cursor:pointer;transition:.15s;
+  border-left-width:3px;
+}
+.find:hover{background:var(--p2);transform:translateX(-2px)}
+.find.crit{border-left-color:var(--red)}
+.find.med{border-left-color:var(--amber)}
+.find.low{border-left-color:var(--cyan)}
+.find.new{animation:slidein .45s ease-out}
+@keyframes slidein{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.f-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sv{font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px}
+.sv.crit{background:rgba(239,68,68,.14);color:var(--red)}
+.sv.med{background:rgba(245,158,11,.14);color:var(--amber)}
+.sv.low{background:rgba(6,182,212,.14);color:var(--cyan)}
+.f-h .src{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--txt-3);border:1px solid var(--line-2);padding:1.5px 6px;border-radius:4px}
+.find b{display:block;font-size:12.5px;font-weight:600;line-height:1.4;margin-bottom:5px}
+.find .loc{font-family:var(--mono);font-size:10.5px;color:var(--txt-3);display:flex;align-items:center;gap:6px}
+.find .loc svg{width:10px;height:10px;stroke:currentColor;stroke-width:2;fill:none}
+
+/* medidor de custo */
+.gauge{background:var(--p1);border:1px solid var(--line);border-radius:8px;padding:15px;margin-bottom:16px}
+.g-t{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-3);margin-bottom:12px}
+.g-ring{display:flex;align-items:center;gap:16px}
+svg.ring{width:78px;height:78px;flex-shrink:0;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:7;stroke-linecap:round}
+.ring .bg{stroke:var(--line)}
+.ring .fg{stroke:var(--violet);stroke-dasharray:201;stroke-dashoffset:126}
+.g-v{flex:1}
+.g-v .big{font-family:var(--mono);font-size:23px;font-weight:600;color:var(--violet);letter-spacing:-.7px}
+.g-v .sm{font-size:11px;color:var(--txt-3);margin-top:3px;line-height:1.5}
+.g-rows{margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
+.g-row{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;font-family:var(--mono)}
+.g-row span{color:var(--txt-3)}
+.g-row b{font-weight:500}
+
+.legend{padding:16px 22px;text-align:center;font-size:11px;color:var(--txt-3);border-top:1px solid var(--line);background:var(--p1)}
+.legend b{color:var(--txt-2)}
+
+@media(max-width:1300px){.body{grid-template-columns:1fr}.strip{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="hdr">
+  <div class="lg"><span class="lg-i"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z" stroke-linejoin="round"/></svg></span> RevAI</div>
+  <div class="vs"></div>
+  <span class="run-id">run <b>#a7f3c210</b> · bomos-core · feature/jira-5178</span>
+  <span class="livebadge"><i></i> Live</span>
+  <div class="hdr-r">
+    <button class="hb"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg> Pause</button>
+    <button class="hb stop"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></svg> Abort</button>
+  </div>
+</header>
+
+<!-- ================= MÉTRICAS ================= -->
+<div class="strip">
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Elapsed</div>
+    <div class="met-v">01:47<small>/ ~2:40</small></div>
+    <div class="met-d">stage 4 of 6</div>
+  </div>
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> Files</div>
+    <div class="met-v cy">9<small>/ 12</small></div>
+    <div class="spark"><i style="height:40%"></i><i style="height:65%"></i><i style="height:50%"></i><i style="height:85%"></i><i class="hi" style="height:70%"></i><i class="hi" style="height:100%"></i><i class="hi" style="height:60%"></i></div>
+  </div>
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Findings</div>
+    <div class="met-v am">17</div>
+    <div class="met-d"><span style="color:var(--red)">4 crit</span> · <span style="color:var(--amber)">8 med</span> · <span style="color:var(--cyan)">5 low</span></div>
+  </div>
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg> Tokens</div>
+    <div class="met-v vi">18.2k<small>in</small></div>
+    <div class="met-d">4.1k out · <span class="up">↓69% filtered</span></div>
+  </div>
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9.4a3.5 3.5 0 0 0-6 2.6c0 3 6 2 6 5a3.5 3.5 0 0 1-6 2.6M12 6v12"/></svg> Cost</div>
+    <div class="met-v li">$0.19</div>
+    <div class="met-d">budget $0.50</div>
+  </div>
+  <div class="met">
+    <div class="met-l"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3"/></svg> Engine</div>
+    <div class="met-v" style="font-size:15px;padding-top:5px">Copilot CLI</div>
+    <div class="met-d">gpt-5.2-codex · effort:high</div>
+  </div>
+</div>
+
+<!-- ================= CORPO ================= -->
+<div class="body">
+
+  <!-- pipeline -->
+  <div class="col">
+    <div class="ct">Pipeline <span class="n">6 stages</span></div>
+
+    <div class="stage done">
+      <span class="sdot"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+      <div class="stage-h"><b>Collect diff</b><span class="t">0.4s</span></div>
+      <p>git diff develop…HEAD · 18 files</p>
+      <div class="sbar"><i></i></div>
+    </div>
+
+    <div class="stage done">
+      <span class="sdot"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+      <div class="stage-h"><b>Filter noise</b><span class="t">0.2s</span></div>
+      <p>6 files dropped — lockfiles, generated, binary</p>
+      <div class="sbar"><i></i></div>
+      <div class="stage-tags"><span class="stag g">−6 files</span><span class="stag g">−41k tokens</span></div>
+    </div>
+
+    <div class="stage done">
+      <span class="sdot"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+      <div class="stage-h"><b>Static analysis</b><span class="t">6.1s</span></div>
+      <p>semgrep · checkstyle · eslint · gitleaks</p>
+      <div class="sbar"><i></i></div>
+      <div class="stage-tags"><span class="stag a">19 findings</span><span class="stag g">0 tokens</span></div>
+    </div>
+
+    <div class="stage now">
+      <span class="sdot"></span>
+      <div class="stage-h"><b>AI deep review</b><span class="t">01:41</span></div>
+      <p>Analysing TokenService.java — hunk 3 of 5</p>
+      <div class="sbar"><i></i></div>
+      <div class="stage-tags"><span class="stag">9/12 files</span><span class="stag">28 hunks</span></div>
+    </div>
+
+    <div class="stage wait">
+      <span class="sdot"></span>
+      <div class="stage-h"><b>Deduplicate &amp; rank</b><span class="t">—</span></div>
+      <p>pandas merge · cross-source dedupe</p>
+    </div>
+
+    <div class="stage wait">
+      <span class="sdot"></span>
+      <div class="stage-h"><b>Build report</b><span class="t">—</span></div>
+      <p>HTML · JSON · Markdown export</p>
+    </div>
+  </div>
+
+  <!-- centro -->
+  <div class="col">
+    <div class="stream">
+      <div class="stream-h">
+        <b>Event stream</b>
+        <span class="fl">
+          <button class="fltr on">all</button>
+          <button class="fltr">ai</button>
+          <button class="fltr">warn</button>
+          <button class="fltr">error</button>
+        </span>
+      </div>
+      <div class="stream-b">
+        <div class="lg-ln"><span class="ts">01:31.8</span><span class="lv ok">DONE</span><span class="ms">semgrep completed — <b>19</b> rules matched across <b>12</b> files</span></div>
+        <div class="lg-ln"><span class="ts">01:32.1</span><span class="lv inf">INFO</span><span class="ms">building context bundle · budget <b>32k</b> tokens</span></div>
+        <div class="lg-ln"><span class="ts">01:32.4</span><span class="lv inf">INFO</span><span class="ms">chunking by symbol — <b>28</b> hunks selected, 19 skipped as trivial</span></div>
+        <div class="lg-ln"><span class="ts">01:33.0</span><span class="lv ai">AI</span><span class="ms">spawn <b>copilot -p --output-format json</b> · session 4b81…</span></div>
+        <div class="lg-ln"><span class="ts">01:38.7</span><span class="lv ai">AI</span><span class="ms">AuthController.java → <b>3</b> findings (1 critical)</span></div>
+        <div class="lg-ln"><span class="ts">01:44.2</span><span class="lv wrn">WARN</span><span class="ms">user-list.component.ts — RxJS subscription without teardown</span></div>
+        <div class="lg-ln"><span class="ts">01:45.9</span><span class="lv ai">AI</span><span class="ms">user-list.component.ts → <b>4</b> findings (1 critical, 2 medium)</span></div>
+        <div class="lg-ln"><span class="ts">01:46.5</span><span class="lv inf">INFO</span><span class="ms">TokenService.java · hunk 3/5 · lines 88–142</span></div>
+        <div class="lg-ln"><span class="ts">01:47.1</span><span class="lv ai">AI</span><span class="ms">streaming response<span class="cur"></span></span></div>
+      </div>
+    </div>
+
+    <div class="cur-file">
+      <div class="cf-h">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <b>src/main/java/auth/TokenService.java</b>
+        <span class="ln">hunk 3/5 · lines 88–142</span>
+      </div>
+      <div class="code">
+        <div class="cl"><span class="no">96</span><span class="tk"><span class="k">public</span> <span class="f">String</span> <span class="f">issueToken</span>(<span class="f">User</span> user) {</span></div>
+        <div class="cl del"><span class="no">97</span><span class="tk">−   <span class="k">return</span> Jwts.builder()</span></div>
+        <div class="cl del"><span class="no">98</span><span class="tk">−       .signWith(SignatureAlgorithm.<span class="n">HS256</span>, <span class="s">"s3cr3t-key"</span>)</span></div>
+        <div class="cl add hl"><span class="no">99</span><span class="tk">+   <span class="c">// TODO: rotate before release</span></span></div>
+        <div class="cl add hl"><span class="no">100</span><span class="tk">+   <span class="k">return</span> Jwts.builder()</span></div>
+        <div class="cl add hl"><span class="no">101</span><span class="tk">+       .signWith(SignatureAlgorithm.<span class="n">HS256</span>, System.getenv(<span class="s">"JWT_KEY"</span>))</span></div>
+        <div class="cl add"><span class="no">102</span><span class="tk">+       .setExpiration(<span class="k">new</span> Date(now + <span class="n">86400000</span>))</span></div>
+        <div class="cl"><span class="no">103</span><span class="tk">        .compact();</span></div>
+        <div class="cl"><span class="no">104</span><span class="tk">}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- achados -->
+  <div class="col">
+    <div class="gauge">
+      <div class="g-t">Token budget</div>
+      <div class="g-ring">
+        <svg class="ring" viewBox="0 0 78 78">
+          <circle class="bg" cx="39" cy="39" r="32"/>
+          <circle class="fg" cx="39" cy="39" r="32"/>
+        </svg>
+        <div class="g-v">
+          <div class="big">37%</div>
+          <div class="sm">22.3k of 60k<br/>consumed</div>
+        </div>
+      </div>
+      <div class="g-rows">
+        <div class="g-row"><span>input</span><b>18,214</b></div>
+        <div class="g-row"><span>output</span><b>4,097</b></div>
+        <div class="g-row"><span>cached</span><b style="color:var(--lime)">11,802</b></div>
+        <div class="g-row"><span>cost so far</span><b style="color:var(--violet)">$0.1938</b></div>
+      </div>
+    </div>
+
+    <div class="ct">Live findings <span class="n">17</span></div>
+
+    <div class="find crit new">
+      <div class="f-h"><span class="sv crit">Critical</span><span class="src">ai</span></div>
+      <b>Hardcoded signing key replaced by env var without null check</b>
+      <span class="loc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> TokenService.java : 99–101</span>
+    </div>
+
+    <div class="find crit">
+      <div class="f-h"><span class="sv crit">Critical</span><span class="src">semgrep</span></div>
+      <b>RxJS subscription never unsubscribed — memory leak on route change</b>
+      <span class="loc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> user-list.component.ts : 41</span>
+    </div>
+
+    <div class="find med">
+      <div class="f-h"><span class="sv med">Medium</span><span class="src">ai</span></div>
+      <b>Magic number 86400000 should be a named constant</b>
+      <span class="loc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> TokenService.java : 102</span>
+    </div>
+
+    <div class="find med">
+      <div class="f-h"><span class="sv med">Medium</span><span class="src">checkstyle</span></div>
+      <b>Cyclomatic complexity 14 exceeds threshold of 10</b>
+      <span class="loc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> AuthController.java : 45–120</span>
+    </div>
+
+    <div class="find low">
+      <div class="f-h"><span class="sv low">Low</span><span class="src">eslint</span></div>
+      <b>Missing trackBy on *ngFor degrades change detection</b>
+      <span class="loc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> user-list.component.html : 12</span>
+    </div>
+  </div>
+
+</div>
+
+<p class="legend"><b>Mock 04 · "Mission Control"</b> — dense telemetry panel, live pipeline, streaming logs and cost gauges. Datadog / Grafana school. Shows exactly what the engine is doing and what it is spending.</p>
+
+</body>
+</html>

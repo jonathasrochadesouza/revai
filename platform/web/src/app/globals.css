@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   RevAI — "Paper Light" design system
+   ----------------------------------------------------------------------------
+   Ported from platform/mocks/03-review-config.html, the approved direction.
+
+   Principles, in order of importance:
+     1. Colour carries meaning, never decoration. Emphasis comes from contrast.
+     2. Hairline 1px borders. No gradients, no blur, no coloured shadows.
+     3. Generous whitespace.
+     4. Numbers, paths and code are always monospaced.
+
+   Dark mode ships later by remapping these same names under a selector — no
+   component has to change.
+   ========================================================================= */
+
+@theme {
+  /* --- surfaces --------------------------------------------------------- */
+  --color-canvas: #fafafa; /* page background */
+  --color-paper: #ffffff; /* cards, panels */
+  --color-sunken: #fcfcfc; /* table headers, inset areas */
+
+  /* --- ink -------------------------------------------------------------- */
+  --color-ink: #09090b; /* primary text, primary buttons */
+  --color-ink-muted: #52525b; /* body copy */
+  --color-ink-subtle: #a1a1aa; /* captions, placeholders */
+
+  /* --- lines ------------------------------------------------------------ */
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+
+  /* --- semantic: severity ----------------------------------------------- */
+  --color-critical: #dc2626;
+  --color-critical-surface: #fef2f2;
+  --color-critical-line: #fecaca;
+
+  --color-medium: #d97706;
+  --color-medium-surface: #fffbeb;
+  --color-medium-line: #fde68a;
+
+  --color-low: #2563eb;
+  --color-low-surface: #eff6ff;
+  --color-low-line: #bfdbfe;
+
+  /* --- semantic: state -------------------------------------------------- */
+  --color-info: #2563eb;
+  --color-info-surface: #eff6ff;
+  --color-success: #059669;
+  --color-success-surface: #ecfdf5;
+  --color-success-line: #a7f3d0;
+
+  /* --- type ------------------------------------------------------------- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- radius -----------------------------------------------------------
+     A deliberate scale, not arbitrary values. Two rules govern it:
+
+     1. NESTING. A child must always be rounder-by-less than its parent,
+        otherwise the corners visibly fight each other. The relationship is
+        `inner = outer − padding`, which is what makes a nested element look
+        concentric with the panel containing it.
+
+          panel (11px) ─ padding 3px ─► nested control (8px)
+          control (8px) ─ padding 2px ─► nested icon box (6px)
+
+     2. SIZE. Larger surfaces need larger radii to read as "soft"; small
+        controls need smaller ones or they turn into pills by accident.
+
+     Sourced from mocks/03-review-config.html, which used 11px panels,
+     10px cards, 9px inputs and 8px buttons.
+     -------------------------------------------------------------------- */
+  --radius-xs: 0.25rem; /*  4px — inline code, dots, tiny tags */
+  --radius-sm: 0.375rem; /*  6px — icon boxes, swatches, kbd */
+  --radius-md: 0.5rem; /*  8px — buttons, inputs, list rows */
+  --radius-lg: 0.625rem; /* 10px — inner cards, nested panels */
+  --radius-xl: 0.6875rem; /* 11px — top-level panels (the workhorse) */
+  --radius-2xl: 0.875rem; /* 14px — hero surfaces, modals */
+
+  /* Semantic aliases. Components reference these, never raw sizes, so the
+     whole product re-proportions from one place. */
+  --radius-panel: var(--radius-xl);
+  --radius-card: var(--radius-lg);
+  --radius-control: var(--radius-md);
+  --radius-chip: var(--radius-sm);
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------ */
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tabular figures keep numeric columns aligned across rows. */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Visible focus for keyboard users only. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: #e4e4e7;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities used across screens. Kept small on purpose — anything reused more
+   than twice becomes a real component instead.
+   ------------------------------------------------------------------------ */
+@layer utilities {
+  /* The standard panel: white, hairline border, soft radius. */
+  .surface {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+  }
+
+  /* A surface nested inside another one. One step down the scale so the
+     corners stay concentric with the parent instead of clashing. */
+  .surface-nested {
+    background-color: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+  }
+
+  /* Inset area — table headers, code blocks, read-only regions. */
+  .surface-sunken {
+    background-color: var(--color-sunken);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-control);
+  }
+
+  /* A header or footer that sits flush against the top or bottom of a panel.
+     Without this the panel's own radius clips the child's square corners and
+     leaves a visible sliver of background in each corner. */
+  .flush-top {
+    border-top-left-radius: calc(var(--radius-panel) - 1px);
+    border-top-right-radius: calc(var(--radius-panel) - 1px);
+  }
+
+  .flush-bottom {
+    border-bottom-left-radius: calc(var(--radius-panel) - 1px);
+    border-bottom-right-radius: calc(var(--radius-panel) - 1px);
+  }
+
+  /* Section label: uppercase, tracked out, subtle. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-ink-subtle);
+  }
+
+  /* Numeric display — monospaced and tabular. */
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}

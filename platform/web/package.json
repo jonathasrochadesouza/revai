@@ -1,0 +1,34 @@
+{
+  "name": "revai-web",
+  "version": "3.0.0-alpha.0",
+  "private": true,
+  "description": "RevAI Platform web app — Paper Light design system",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "audit:prod": "npm audit --omit=dev"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "//overrides": "Hand-pinned patched transitives. `npm audit fix --force` would 'fix' these by downgrading Next.js to 9.3.3 — far worse than the advisories it resolves. See SECURITY-NOTES.md for the brace-expansion situation.",
+  "overrides": {
+    "postcss": "^8.5.18",
+    "sharp": "^0.35.0"
+  }
+}

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RevAI · Configure Review — Mock 03 "Paper Light"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MOCK 03 — "PAPER LIGHT"
+   Direção visual: light mode editorial, alto contraste, muito
+   espaço em branco, bordas finas, zero gradiente. Inspirado em
+   Linear / Vercel / Stripe docs. Foco: legibilidade e calma.
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#fafafa;
+  --paper:#ffffff;
+  --ink:#09090b;
+  --ink-2:#52525b;
+  --ink-3:#a1a1aa;
+  --line:#e4e4e7;
+  --line-2:#d4d4d8;
+  --accent:#111827;
+  --blue:#2563eb;
+  --blue-bg:#eff6ff;
+  --red:#dc2626;
+  --red-bg:#fef2f2;
+  --amber:#d97706;
+  --amber-bg:#fffbeb;
+  --green:#059669;
+  --green-bg:#ecfdf5;
+  --font:'Geist',system-ui,-apple-system,sans-serif;
+  --mono:'Geist Mono',ui-monospace,monospace;
+}
+
+body{
+  font-family:var(--font);background:var(--bg);color:var(--ink);
+  -webkit-font-smoothing:antialiased;min-height:100vh;
+}
+
+/* ================= TOPO ================= */
+.bar{
+  background:var(--paper);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:20;
+}
+.bar-in{max-width:1180px;margin:0 auto;padding:0 28px;height:56px;display:flex;align-items:center;gap:18px}
+.mark{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;letter-spacing:-.3px}
+.mark-i{width:26px;height:26px;border-radius:7px;background:var(--ink);display:grid;place-items:center}
+.mark-i svg{width:14px;height:14px;stroke:#fff;stroke-width:2.5;fill:none}
+.sep{width:1px;height:18px;background:var(--line-2)}
+.crumb{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink-2)}
+.crumb b{color:var(--ink);font-weight:600}
+.crumb svg{width:13px;height:13px;stroke:var(--ink-3);stroke-width:2;fill:none}
+.bar-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.chip{
+  display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);
+  border:1px solid var(--line);border-radius:7px;padding:5px 10px;background:var(--paper);
+}
+.chip i{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.chip svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none}
+
+/* ================= LAYOUT ================= */
+.wrap{max-width:1180px;margin:0 auto;padding:36px 28px 60px;display:grid;grid-template-columns:1fr 320px;gap:34px;align-items:start}
+
+.hd{margin-bottom:30px}
+.hd h1{font-size:29px;font-weight:700;letter-spacing:-.9px;margin-bottom:7px}
+.hd p{font-size:14.5px;color:var(--ink-2);line-height:1.65;max-width:64ch}
+
+/* blocos */
+.block{margin-bottom:34px}
+.block-hd{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+.block-n{
+  width:21px;height:21px;border-radius:50%;background:var(--ink);color:#fff;
+  display:grid;place-items:center;font-size:11px;font-weight:600;flex-shrink:0;
+  transform:translateY(2px);
+}
+.block-hd h2{font-size:16px;font-weight:650;letter-spacing:-.3px}
+.block-hd span{font-size:12.5px;color:var(--ink-3);margin-left:auto}
+
+/* escolha de escopo */
+.scopes{display:flex;flex-direction:column;gap:10px}
+.scope{
+  display:flex;gap:14px;padding:16px 18px;border:1px solid var(--line);
+  border-radius:10px;background:var(--paper);cursor:pointer;transition:.15s;
+  position:relative;
+}
+.scope:hover{border-color:var(--line-2)}
+.scope.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink),0 1px 3px rgba(0,0,0,.05)}
+.radio{
+  width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line-2);
+  flex-shrink:0;margin-top:2px;display:grid;place-items:center;transition:.15s;
+}
+.scope.on .radio{border-color:var(--ink);border-width:5px}
+.scope-b{flex:1;min-width:0}
+.scope-b h3{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.tag{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:2.5px 7px;border-radius:5px}
+.tag.rec{background:var(--green-bg);color:var(--green);border:1px solid rgba(5,150,105,.2)}
+.tag.cost{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(217,119,6,.2)}
+.scope-b p{font-size:13px;color:var(--ink-2);line-height:1.6}
+.scope-m{
+  display:flex;gap:16px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--ink-3);font-family:var(--mono);
+}
+.scope-m b{color:var(--ink-2);font-weight:500}
+
+/* seletor de branch */
+.branchsel{display:grid;grid-template-columns:1fr 26px 1fr;gap:11px;align-items:center;margin-top:12px}
+.bs{
+  border:1px solid var(--line);border-radius:9px;padding:11px 13px;background:var(--paper);
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+}
+.bs:hover{border-color:var(--line-2)}
+.bs svg{width:14px;height:14px;stroke:var(--ink-3);stroke-width:2;fill:none;flex-shrink:0}
+.bs div{min-width:0;flex:1}
+.bs label{display:block;font-size:10.5px;color:var(--ink-3);margin-bottom:2px;letter-spacing:.04em;text-transform:uppercase}
+.bs b{font-size:13px;font-family:var(--mono);font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arrow{display:grid;place-items:center;color:var(--ink-3)}
+.arrow svg{width:15px;height:15px;stroke:currentColor;stroke-width:2;fill:none}
+
+/* árvore de arquivos */
+.tree{border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+.tree-hd{
+  display:flex;align-items:center;gap:11px;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:#fcfcfc;
+}
+.tree-hd .cb{margin:0}
+.tree-hd b{font-size:12px;font-weight:600}
+.tree-hd span{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+.tree-body{max-height:260px;overflow-y:auto}
+.node{
+  display:flex;align-items:center;gap:10px;padding:7px 14px;font-size:12.5px;
+  cursor:pointer;transition:.1s;
+}
+.node:hover{background:#fafafa}
+.node.dir{font-weight:550}
+.node.ind1{padding-left:32px}
+.node.ind2{padding-left:50px}
+.cb{
+  width:15px;height:15px;border-radius:4px;border:1.5px solid var(--line-2);
+  flex-shrink:0;display:grid;place-items:center;background:var(--paper);
+}
+.cb.on{background:var(--ink);border-color:var(--ink)}
+.cb.on svg{width:9px;height:9px;stroke:#fff;stroke-width:3.5;fill:none}
+.cb.part{background:var(--ink);border-color:var(--ink);position:relative}
+.cb.part::after{content:'';width:7px;height:1.8px;background:#fff;border-radius:2px}
+.node svg.ic{width:14px;height:14px;stroke:var(--ink-3);stroke-width:1.8;fill:none;flex-shrink:0}
+.node .nm{font-family:var(--mono);font-size:12px}
+.node .diffn{margin-left:auto;display:flex;gap:8px;font-family:var(--mono);font-size:11px}
+.node .diffn .a{color:var(--green)}
+.node .diffn .d{color:var(--red)}
+.node .skip{margin-left:auto;font-size:10.5px;color:var(--ink-3);background:#f4f4f5;padding:1.5px 7px;border-radius:5px}
+
+/* switches / análise */
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.check{
+  display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--line);
+  border-radius:9px;background:var(--paper);cursor:pointer;transition:.15s;
+}
+.check:hover{border-color:var(--line-2)}
+.sw{width:34px;height:19px;border-radius:20px;background:var(--line-2);position:relative;flex-shrink:0;transition:.18s}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.22);transition:.18s}
+.check.on .sw{background:var(--ink)}
+.check.on .sw::after{left:17px}
+.check div{flex:1;min-width:0}
+.check b{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.check span{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.check .free{font-size:9.5px;font-weight:600;color:var(--green);background:var(--green-bg);padding:1.5px 6px;border-radius:4px;margin-left:6px;letter-spacing:.03em}
+
+/* ================= ASIDE ================= */
+.aside{position:sticky;top:92px;display:flex;flex-direction:column;gap:14px}
+.card{border:1px solid var(--line);border-radius:11px;background:var(--paper);overflow:hidden}
+.card-hd{padding:13px 16px;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:650;display:flex;align-items:center;gap:8px}
+.card-hd svg{width:14px;height:14px;stroke:var(--ink-2);stroke-width:2;fill:none}
+.card-b{padding:16px}
+
+.kv{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid #f4f4f5}
+.kv:last-of-type{border-bottom:0}
+.kv span{color:var(--ink-2)}
+.kv b{font-family:var(--mono);font-weight:500}
+.kv.total{margin-top:8px;padding-top:13px;border-top:1px solid var(--line);border-bottom:0}
+.kv.total span{font-weight:600;color:var(--ink)}
+.kv.total b{font-size:17px;font-weight:600}
+
+.est{
+  background:var(--blue-bg);border:1px solid rgba(37,99,235,.16);border-radius:9px;
+  padding:12px 14px;margin-bottom:14px;
+}
+.est-t{font-size:11px;color:var(--blue);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:7px}
+.est-v{font-size:24px;font-weight:700;letter-spacing:-.8px;margin-bottom:3px}
+.est-s{font-size:11.5px;color:var(--ink-2);line-height:1.5}
+.est-s del{color:var(--ink-3)}
+
+.savebar{height:5px;border-radius:20px;background:#dbeafe;overflow:hidden;margin:11px 0 7px}
+.savebar i{display:block;height:100%;width:31%;background:var(--blue);border-radius:20px}
+.savetx{font-size:11px;color:var(--ink-2);display:flex;justify-content:space-between;font-family:var(--mono)}
+
+.btn{
+  width:100%;padding:11px;border-radius:9px;border:1px solid var(--ink);background:var(--ink);
+  color:#fff;font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;
+}
+.btn:hover{background:#27272a}
+.btn svg{width:15px;height:15px;stroke:currentColor;stroke-width:2.3;fill:none}
+.btn.sec{background:var(--paper);color:var(--ink);border-color:var(--line-2);margin-top:8px}
+.btn.sec:hover{background:#fafafa}
+
+.note{font-size:11.5px;color:var(--ink-3);line-height:1.6;margin-top:12px;display:flex;gap:8px}
+.note svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;flex-shrink:0;margin-top:2px}
+
+.legend{max-width:1180px;margin:0 auto;padding:0 28px 40px;text-align:center;font-size:11.5px;color:var(--ink-3)}
+.legend b{color:var(--ink-2)}
+
+@media(max-width:1000px){.wrap{grid-template-columns:1fr}.aside{position:static}.checks{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ================= TOPO ================= -->
+<header class="bar">
+  <div class="bar-in">
+    <div class="mark"><span class="mark-i"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z" stroke-linejoin="round"/></svg></span> RevAI</div>
+    <div class="sep"></div>
+    <div class="crumb">
+      <b>bomos-core</b>
+      <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      <span>New review</span>
+    </div>
+    <div class="bar-r">
+      <span class="chip"><i></i> Copilot CLI</span>
+      <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V7a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= COLUNA PRINCIPAL ================= -->
+  <div>
+    <div class="hd">
+      <h1>Configure review</h1>
+      <p>Pick what RevAI should look at. Deterministic analysis runs first at zero token cost — the model only sees what actually needs judgement.</p>
+    </div>
+
+    <!-- 1. escopo -->
+    <div class="block">
+      <div class="block-hd"><span class="block-n">1</span><h2>Review scope</h2></div>
+      <div class="scopes">
+
+        <label class="scope on">
+          <span class="radio"></span>
+          <div class="scope-b">
+            <h3>Branch diff <span class="tag rec">Recommended</span></h3>
+            <p>Compare the working branch against its base and review only the lines that changed. This is what your team already does today.</p>
+            <div class="branchsel">
+              <div class="bs">
+                <svg viewBox="0 0 24 24"><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9v3a3 3 0 0 1-3 3H9"/><path d="M6 15V6"/></svg>
+                <div><label>Base</label><b>develop</b></div>
+              </div>
+              <span class="arrow"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span>
+              <div class="bs">
+                <svg viewBox="0 0 24 24"><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9v3a3 3 0 0 1-3 3H9"/><path d="M6 15V6"/></svg>
+                <div><label>Compare</label><b>feature/jira-5178</b></div>
+              </div>
+            </div>
+            <div class="scope-m"><span><b>18</b> files</span><span><b>+742</b> / <b>−213</b> lines</span><span><b>11</b> commits</span></div>
+          </div>
+        </label>
+
+        <label class="scope">
+          <span class="radio"></span>
+          <div class="scope-b">
+            <h3>Selected files</h3>
+            <p>Hand-pick exactly which files or folders to review. Useful for a focused deep-dive on one module.</p>
+            <div class="scope-m"><span><b>6</b> of 18 selected</span><span>~<b>1.4k</b> lines</span></div>
+          </div>
+        </label>
+
+        <label class="scope">
+          <span class="radio"></span>
+          <div class="scope-b">
+            <h3>Whole project <span class="tag cost">High cost</span></h3>
+            <p>Full-repository audit. Best run once as a baseline, then switch to branch diffs for day-to-day work.</p>
+            <div class="scope-m"><span><b>1,284</b> files</span><span>~<b>186k</b> lines</span><span>est. <b>18 min</b></span></div>
+          </div>
+        </label>
+
+      </div>
+    </div>
+
+    <!-- 2. arquivos -->
+    <div class="block">
+      <div class="block-hd"><span class="block-n">2</span><h2>Files in scope</h2><span>6 excluded automatically</span></div>
+      <div class="tree">
+        <div class="tree-hd">
+          <span class="cb part"></span>
+          <b>feature/jira-5178 · 18 changed files</b>
+          <span>12 selected</span>
+        </div>
+        <div class="tree-body">
+          <div class="node dir"><span class="cb on"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><svg class="ic" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg><span class="nm">src/main/java/auth</span></div>
+          <div class="node ind1"><span class="cb on"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">AuthController.java</span><span class="diffn"><span class="a">+128</span><span class="d">−34</span></span></div>
+          <div class="node ind1"><span class="cb on"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">TokenService.java</span><span class="diffn"><span class="a">+96</span><span class="d">−12</span></span></div>
+          <div class="node ind1"><span class="cb"></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">AuthControllerTest.java</span><span class="diffn"><span class="a">+204</span><span class="d">−0</span></span></div>
+          <div class="node dir"><span class="cb part"></span><svg class="ic" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg><span class="nm">src/app/components</span></div>
+          <div class="node ind1"><span class="cb on"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">user-list.component.ts</span><span class="diffn"><span class="a">+87</span><span class="d">−41</span></span></div>
+          <div class="node ind1"><span class="cb on"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">user-list.component.html</span><span class="diffn"><span class="a">+31</span><span class="d">−18</span></span></div>
+          <div class="node ind1"><span class="cb"></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">package-lock.json</span><span class="skip">lockfile · skipped</span></div>
+          <div class="node ind1"><span class="cb"></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">api.generated.ts</span><span class="skip">generated · skipped</span></div>
+          <div class="node ind1"><span class="cb"></span><svg class="ic" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="nm">logo@2x.png</span><span class="skip">binary · skipped</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. análise -->
+    <div class="block">
+      <div class="block-hd"><span class="block-n">3</span><h2>Analysis pipeline</h2><span>runs top to bottom</span></div>
+      <div class="checks">
+        <label class="check on"><span class="sw"></span><div><b>Static linters <span class="free">0 tokens</span></b><span>ruff · eslint · checkstyle</span></div></label>
+        <label class="check on"><span class="sw"></span><div><b>Security scan <span class="free">0 tokens</span></b><span>semgrep · bandit · gitleaks</span></div></label>
+        <label class="check on"><span class="sw"></span><div><b>AST complexity <span class="free">0 tokens</span></b><span>tree-sitter · cyclomatic</span></div></label>
+        <label class="check on"><span class="sw"></span><div><b>AI deep review</b><span>architecture, SOLID, intent</span></div></label>
+        <label class="check"><span class="sw"></span><div><b>Test coverage gaps</b><span>suggest missing unit tests</span></div></label>
+        <label class="check"><span class="sw"></span><div><b>Architecture diagram</b><span>Mermaid graph of the change</span></div></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ASIDE ================= -->
+  <aside class="aside">
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Estimate</div>
+      <div class="card-b">
+        <div class="est">
+          <div class="est-t">Projected cost</div>
+          <div class="est-v">$0.31</div>
+          <div class="est-s">Down from <del>$1.02</del> — the deterministic stage removes 69% of the input before the model runs.</div>
+          <div class="savebar"><i></i></div>
+          <div class="savetx"><span>~24.8k tokens</span><span>was 79.4k</span></div>
+        </div>
+
+        <div class="kv"><span>Files analysed</span><b>12</b></div>
+        <div class="kv"><span>Hunks after filter</span><b>47</b></div>
+        <div class="kv"><span>Linter findings</span><b>19</b></div>
+        <div class="kv"><span>Sent to model</span><b>28</b></div>
+        <div class="kv total"><span>Estimated time</span><b>~2m 40s</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 15h6"/></svg> Active rule set</div>
+      <div class="card-b" style="padding-top:12px">
+        <div class="kv"><span>Java 17 conventions</span><b style="color:var(--green)">on</b></div>
+        <div class="kv"><span>Angular v8 / RxJS</span><b style="color:var(--green)">on</b></div>
+        <div class="kv"><span>OWASP Top 10</span><b style="color:var(--green)">on</b></div>
+        <div class="kv"><span>Custom team rules</span><b>12</b></div>
+        <button class="btn sec" style="margin-top:14px">Edit rules</button>
+      </div>
+    </div>
+
+    <div>
+      <button class="btn">
+        <svg viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg>
+        Start review
+      </button>
+      <p class="note">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+        RevAI never writes to your repository. Fixes are proposed as patches you review and apply yourself.
+      </p>
+    </div>
+  </aside>
+</div>
+
+<p class="legend"><b>Mock 03 · "Paper Light"</b> — editorial light mode, hairline borders, generous whitespace. Linear / Vercel / Stripe school. Optimised for long reading sessions.</p>
+
+</body>
+</html>
