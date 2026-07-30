@@ -16,12 +16,15 @@ dependencies = [
     # Phase 2: the OpenRouter adapter. Chosen over `requests` for real async
     # streaming — the pipeline consumes provider output as it arrives.
     "httpx>=0.27.0",
+    # Phase 4: reliable unified-diff parsing for the deterministic pipeline.
+    "unidiff>=0.7.5",
+    # 0.x bundles grammars in its wheels, keeping local reviews offline.
+    "tree-sitter-language-pack>=0.10.0,<1.0",
 ]
 
 [project.optional-dependencies]
 # Added incrementally by later phases, kept here so the roadmap is visible.
 pipeline = [
-    "unidiff>=0.7.5",
     "pandas>=2.2.0",
     "tiktoken>=0.8.0",
 ]

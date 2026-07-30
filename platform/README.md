@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-0%20·%20skeleton-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-4%20·%20deterministic%20pipeline-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -112,9 +112,9 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 0 | Skeleton — scaffold, theme, health check | ✅ |
 | 1 | Storage & config — YAML repositories, atomic writes | ✅ |
 | 2 | Providers — OpenRouter, detection, onboarding | ✅ |
-| 3 | Projects & git — open local, clone, diff preview | next |
-| 4 | Deterministic pipeline — linters, AST, **zero tokens** | |
-| 5 | AI stage — streaming, pipeline & event stream | |
+| 3 | Projects & git — open local, clone, diff preview | ✅ |
+| 4 | Deterministic pipeline — linters, AST, **zero tokens** | ✅ |
+| 5 | AI stage — streaming, pipeline & event stream | next |
 | 6 | Results — findings, split diff, patches | |
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | |
 | 8 | CLI adapters — Claude Code, Copilot, Kiro | |
@@ -123,7 +123,8 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
-[`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md).
+[`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
+[`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

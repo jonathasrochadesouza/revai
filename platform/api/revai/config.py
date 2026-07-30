@@ -44,6 +44,11 @@ class Settings(BaseSettings):
             "http://127.0.0.1:3000",
         ]
     )
+    # The web server may choose a fallback port when 3000 is occupied. Keep the
+    # API private by accepting those browser origins only on loopback hosts.
+    cors_origin_regex: str = (
+        r"^https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$"
+    )
 
     # --- storage ------------------------------------------------------------
     # Overridable so tests can point at a temporary directory.
@@ -71,6 +76,11 @@ class Settings(BaseSettings):
         return self.data_dir / "reviews"
 
     @property
+    def repositories_dir(self) -> Path:
+        """Repositories cloned and managed by RevAI."""
+        return self.data_dir / "repositories"
+
+    @property
     def rules_dir(self) -> Path:
         return self.data_dir / "rules"
 
@@ -88,6 +98,7 @@ class Settings(BaseSettings):
             self.data_dir,
             self.projects_dir,
             self.reviews_dir,
+            self.repositories_dir,
             self.rules_dir,
             self.cache_dir,
         ):

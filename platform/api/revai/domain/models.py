@@ -144,6 +144,8 @@ class ReviewStats(_Base):
     files_skipped: int = 0
     hunks_total: int = 0
     hunks_sent_to_ai: int = 0
+    chunks_prepared: int = 0
+    estimated_context_tokens: int = 0
 
     tokens_input: int = 0
     tokens_output: int = 0

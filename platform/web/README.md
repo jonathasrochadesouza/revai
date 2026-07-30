@@ -62,8 +62,9 @@ src/
 ├── app/
 │   ├── globals.css      the design system
 │   ├── layout.tsx       fonts + metadata
-│   └── page.tsx         phase 0 landing page
+│   └── page.tsx         projects workspace
 ├── components/
+│   ├── projects/        repository entry, list, tree and diff inspector
 │   ├── ui/              badge · card
 │   ├── logo.tsx
 │   └── top-bar.tsx
@@ -71,4 +72,7 @@ src/
     └── api.ts           typed API client
 ```
 
-Current phase: **0 — skeleton**. See `../docs/ARCHITECTURE.md` for the full plan.
+Current phase: **4 — deterministic pipeline**. The project inspector runs zero-token
+checks and renders pipeline stages, analyzer availability, review metrics, and
+normalized findings alongside the Git diff. See
+[`../docs/PHASE-4.md`](../docs/PHASE-4.md).

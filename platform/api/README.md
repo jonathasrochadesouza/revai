@@ -47,10 +47,13 @@ revai/
 ├── domain/          Pydantic models (phase 1)
 ├── storage/         YAML repositories (phase 1)
 ├── providers/       OpenRouter, then CLIs (phase 2)
+├── git/             repository metadata, trees and diff previews (phase 3)
 ├── pipeline/        review stages (phases 4–5)
 ├── analyzers/       linters and AST tooling (phase 4)
 └── export/          JSON · Markdown · HTML (phase 7)
 ```
 
-Current phase: **0 — skeleton**. Only `/api/health` and `/api/runtime` are implemented.
-See `../docs/ARCHITECTURE.md` for the full plan.
+Current phase: **4 — deterministic pipeline**. The API collects and filters Git
+changes, parses exact changed lines, runs available static analyzers, prepares
+AST-aligned context chunks, and persists zero-token reviews. See
+[`../docs/PHASE-4.md`](../docs/PHASE-4.md) for the contract and verification.

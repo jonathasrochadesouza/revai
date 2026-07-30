@@ -297,7 +297,8 @@ GET    /api/projects                   POST · GET/{id} · DELETE
 POST   /api/projects/open-local        path validation + git detection
 POST   /api/projects/clone             remote → local clone
 GET    /api/projects/{id}/branches
-POST   /api/projects/{id}/diff-preview file list + line counts + cost estimate
+GET    /api/projects/{id}/tree         tracked files at a Git ref
+GET    /api/projects/{id}/diff         patch + line counts + token/cost estimate
 POST   /api/reviews                    starts a run, returns immediately
 GET    /api/reviews/{id}
 POST   /api/reviews/{id}/abort

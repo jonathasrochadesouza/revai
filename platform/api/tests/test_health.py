@@ -59,6 +59,36 @@ def test_openapi_schema_is_generated(client: TestClient) -> None:
     assert "/api/health" in schema["paths"]
 
 
+def test_cors_allows_web_app_on_another_loopback_port(client: TestClient) -> None:
+    response = client.get(
+        "/api/health",
+        headers={"Origin": "http://localhost:3010"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3010"
+
+
+def test_cors_allows_loopback_preflight_without_allowing_remote_origins(
+    client: TestClient,
+) -> None:
+    response = client.options(
+        "/api/projects/pick-folder",
+        headers={
+            "Origin": "http://127.0.0.1:4173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    remote_response = client.get(
+        "/api/health",
+        headers={"Origin": "https://example.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:4173"
+    assert "access-control-allow-origin" not in remote_response.headers
+
+
 def test_ensure_dirs_creates_the_whole_tree(tmp_path: Path) -> None:
     settings = Settings(data_dir=tmp_path / "fresh")
 

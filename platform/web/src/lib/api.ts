@@ -138,6 +138,155 @@ export interface ProvidersResponse {
   active_is_usable: boolean;
 }
 
+// --- projects and Git (phase 3) -------------------------------------------
+
+export interface Project {
+  id: string;
+  name: string;
+  path: string;
+  remote_url: string | null;
+  base_branch: string;
+  current_branch: string | null;
+  branches: string[];
+  languages: string[];
+  archived: boolean;
+  created_at: string;
+  last_reviewed_at: string | null;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+}
+
+export interface FolderPickerResponse {
+  path: string | null;
+}
+
+export interface ProjectTree {
+  ref: string;
+  files: string[];
+}
+
+export interface DiffFile {
+  path: string;
+  additions: number;
+  deletions: number;
+  binary: boolean;
+}
+
+export interface DiffPreview {
+  base: string;
+  head: string;
+  files: DiffFile[];
+  additions: number;
+  deletions: number;
+  estimated_tokens: number;
+  estimated_cost_usd: number;
+  patch: string;
+  truncated: boolean;
+}
+
+// --- deterministic reviews (phase 4) --------------------------------------
+
+export type Severity = "critical" | "medium" | "low";
+export type FindingCategory =
+  | "security"
+  | "bug"
+  | "performance"
+  | "maintainability"
+  | "style";
+export type FindingSource =
+  | "ai"
+  | "semgrep"
+  | "ruff"
+  | "eslint"
+  | "gitleaks"
+  | "checkstyle"
+  | "treesitter";
+
+export interface Finding {
+  id: string;
+  severity: Severity;
+  category: FindingCategory;
+  title: string;
+  description: string;
+  rationale: string;
+  file: string;
+  line_start: number;
+  line_end: number | null;
+  source: FindingSource;
+  rule_id: string | null;
+  confidence: number;
+  suggested_patch: string | null;
+  status: "open" | "fixed" | "dismissed" | "false_positive";
+}
+
+export interface ReviewStats {
+  files_analysed: number;
+  files_skipped: number;
+  hunks_total: number;
+  hunks_sent_to_ai: number;
+  chunks_prepared: number;
+  estimated_context_tokens: number;
+  tokens_input: number;
+  tokens_output: number;
+  tokens_cached: number;
+  cost_usd: number;
+  cost_is_estimated: boolean;
+  duration_ms: number;
+}
+
+export interface Review {
+  id: string;
+  project_id: string;
+  scope: "branch_diff" | "selected_files" | "whole_project";
+  status: "queued" | "running" | "completed" | "failed" | "aborted";
+  base_branch: string | null;
+  head_branch: string | null;
+  selected_files: string[];
+  provider_id: ProviderId | null;
+  model: string | null;
+  findings: Finding[];
+  stats: ReviewStats;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface PipelineStage {
+  name: "collect" | "filter" | "parse" | "static" | "chunk";
+  status: "completed" | "failed";
+  duration_ms: number;
+  detail: string | null;
+}
+
+export interface AnalyzerRun {
+  name: string;
+  status: "completed" | "unavailable" | "failed";
+  findings: number;
+  duration_ms: number;
+  detail: string | null;
+}
+
+export interface ReviewChunk {
+  file: string;
+  symbol: string | null;
+  line_start: number;
+  line_end: number;
+  estimated_tokens: number;
+}
+
+export interface DeterministicReview {
+  review: Review;
+  stages: PipelineStage[];
+  analyzers: AnalyzerRun[];
+  chunks: ReviewChunk[];
+}
+
+export interface ReviewsResponse {
+  reviews: Review[];
+}
+
 /** A provider is usable only if the adapter exists *and* the state allows it. */
 export function isUsable(health: ProviderHealth): boolean {
   return health.adapter_ready && (health.state === "ready" || health.state === "unknown");
@@ -236,6 +385,39 @@ export const api = {
     request<ProvidersResponse>(`/api/providers${kind ? `?kind=${kind}` : ""}`),
   verifyProvider: (providerId: ProviderId) =>
     request<ProviderHealth>(`/api/providers/${providerId}/verify`, { method: "POST" }),
+
+  getProjects: () => request<ProjectsResponse>("/api/projects"),
+  getProject: (projectId: string) =>
+    request<Project>(`/api/projects/${projectId}`),
+  openProject: (path: string) =>
+    request<Project>("/api/projects/open", json("POST", { path })),
+  cloneProject: (remoteUrl: string, destinationPath: string) =>
+    request<Project>(
+      "/api/projects/clone",
+      json("POST", {
+        remote_url: remoteUrl,
+        destination_path: destinationPath,
+      }),
+    ),
+  pickProjectFolder: () =>
+    request<FolderPickerResponse>("/api/projects/pick-folder", {
+      method: "POST",
+    }),
+  getProjectTree: (projectId: string, ref = "HEAD") =>
+    request<ProjectTree>(
+      `/api/projects/${projectId}/tree?ref=${encodeURIComponent(ref)}`,
+    ),
+  getProjectDiff: (projectId: string, base: string, head: string) =>
+    request<DiffPreview>(
+      `/api/projects/${projectId}/diff?base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`,
+    ),
+  runDeterministicReview: (projectId: string, base: string, head: string) =>
+    request<DeterministicReview>(
+      `/api/projects/${projectId}/reviews/deterministic`,
+      json("POST", { base, head }),
+    ),
+  getProjectReviews: (projectId: string) =>
+    request<ReviewsResponse>(`/api/projects/${projectId}/reviews`),
 };
 
 /** Result of probing the backend, used to render the connection panel. */
