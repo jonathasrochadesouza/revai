@@ -72,7 +72,7 @@ src/
     └── api.ts           typed API client
 ```
 
-Current phase: **4 — deterministic pipeline**. The project inspector runs zero-token
-checks and renders pipeline stages, analyzer availability, review metrics, and
-normalized findings alongside the Git diff. See
-[`../docs/PHASE-4.md`](../docs/PHASE-4.md).
+Current phase: **5 — AI review stage**. The project inspector consumes the review
+stream, renders all seven stages and provider events live, supports cancellation,
+and retains analyzer results, token/cost metrics, and merged findings after
+completion. See [`../docs/PHASE-5.md`](../docs/PHASE-5.md).

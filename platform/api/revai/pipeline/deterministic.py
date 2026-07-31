@@ -151,6 +151,7 @@ def build_chunks(
     """Build symbol-aligned context chunks without exceeding the review budget."""
     chunks: list[CodeChunk] = []
     remaining = max_tokens
+    seen_boundaries: set[tuple[str, int, int]] = set()
     for hunk in hunks:
         if _is_trivial(hunk.changed_text):
             continue
@@ -159,27 +160,37 @@ def build_chunks(
             continue
         text = source.read_text(encoding="utf-8", errors="replace")
         lines = text.splitlines()
-        changed_line = min(hunk.added_lines or {hunk.target_start})
-        symbol, line_start, line_end = _symbol_boundary(source, text, changed_line)
-        content = "\n".join(lines[line_start - 1 : line_end])
-        token_count = math.ceil(len(content) / 4) if content else 0
-        if remaining is not None:
-            if remaining <= 0:
-                break
-            if token_count > remaining:
-                content = content[: remaining * 4]
-                token_count = remaining
-            remaining -= token_count
-        chunks.append(
-            CodeChunk(
-                path=hunk.path,
-                symbol=symbol,
-                line_start=line_start,
-                line_end=line_end,
-                content=content,
-                estimated_tokens=token_count,
+        changed_lines = [
+            line
+            for line in sorted(hunk.added_lines or {hunk.target_start})
+            if 1 <= line <= len(lines) and not _is_trivial(lines[line - 1])
+        ]
+        for changed_line in changed_lines or [hunk.target_start]:
+            symbol, line_start, line_end = _symbol_boundary(source, text, changed_line)
+            boundary = (hunk.path, line_start, line_end)
+            if boundary in seen_boundaries:
+                continue
+            seen_boundaries.add(boundary)
+
+            content = "\n".join(lines[line_start - 1 : line_end])
+            token_count = math.ceil(len(content) / 4) if content else 0
+            if remaining is not None:
+                if remaining <= 0:
+                    return chunks
+                if token_count > remaining:
+                    content = content[: remaining * 4]
+                    token_count = remaining
+                remaining -= token_count
+            chunks.append(
+                CodeChunk(
+                    path=hunk.path,
+                    symbol=symbol,
+                    line_start=line_start,
+                    line_end=line_end,
+                    content=content,
+                    estimated_tokens=token_count,
+                )
             )
-        )
     return chunks
 
 

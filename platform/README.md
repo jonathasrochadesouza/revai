@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-4%20·%20deterministic%20pipeline-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-5%20·%20AI%20review-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -25,7 +25,8 @@ half and removes a lot of false positives.
 **Guarantees:**
 
 - Runs on `127.0.0.1`. No account, no telemetry, no cloud.
-- Your source code never leaves the machine.
+- The full repository stays local. Only filtered, changed-code chunks are sent
+  to the AI provider you configure.
 - Never writes to your repository — fixes are patches you review and apply.
 - State is plain YAML you can read, diff and version.
 
@@ -44,6 +45,22 @@ uv run revai-api            # → http://127.0.0.1:8799
 # terminal 2 — frontend
 cd platform/web
 npm install
+## Phase 5 in action
+
+The project inspector now runs the full hybrid review and keeps its evidence in
+one view: seven pipeline stages, live provider events, analyzer results, token
+and cost accounting, and merged findings.
+
+![Phase 5 live AI review](docs/images/phase-5-ai-review.png)
+
+The same workflow remains usable on a narrow viewport, with stages and metrics
+wrapping into stable rows.
+
+![Phase 5 AI review on mobile](docs/images/phase-5-ai-review-mobile.png)
+
+The API stream and event examples are documented in
+[`docs/PHASE-5.md`](docs/PHASE-5.md).
+
 npm run dev                 # → http://localhost:3000
 ```
 
@@ -114,8 +131,8 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 2 | Providers — OpenRouter, detection, onboarding | ✅ |
 | 3 | Projects & git — open local, clone, diff preview | ✅ |
 | 4 | Deterministic pipeline — linters, AST, **zero tokens** | ✅ |
-| 5 | AI stage — streaming, pipeline & event stream | next |
-| 6 | Results — findings, split diff, patches | |
+| 5 | AI stage — streaming, pipeline & event stream | ✅ |
+| 6 | Results — findings, split diff, patches | next |
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | |
 | 8 | CLI adapters — Claude Code, Copilot, Kiro | |
 | 9 | Packaging — Docker, CLI entrypoint, CI | |
@@ -124,7 +141,8 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
 [`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
-[`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md).
+[`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md) ·
+[`docs/PHASE-5.md`](docs/PHASE-5.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

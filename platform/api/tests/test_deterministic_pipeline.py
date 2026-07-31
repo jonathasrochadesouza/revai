@@ -85,7 +85,36 @@ def test_chunker_uses_python_symbol_boundaries_and_honours_budget(
     assert chunks[0].estimated_tokens <= 20
 
 
+
+def test_chunker_covers_each_changed_symbol_in_one_hunk(tmp_path: Path) -> None:
+    source = tmp_path / "app.py"
+    source.write_text(
+        "import os\n\ndef auth(token):\n    return eval(token)\n",
+        encoding="utf-8",
+    )
+    patch = """\
+diff --git a/app.py b/app.py
+index 1111111..2222222 100644
+--- a/app.py
++++ b/app.py
+@@ -1 +1,4 @@
+-answer = 42
++import os
++
++def auth(token):
++    return eval(token)
+"""
+    hunks = parse_unified_diff(patch, allowed_paths={"app.py"})
+
+    chunks = build_chunks(tmp_path, hunks, max_tokens=100)
+
+    assert [(chunk.symbol, chunk.line_start, chunk.line_end) for chunk in chunks] == [
+        (None, 1, 1),
+        ("auth", 3, 4),
+    ]
+
 def test_chunker_uses_tree_sitter_boundaries_for_typescript(tmp_path: Path) -> None:
+
     source = tmp_path / "src" / "calculator.ts"
     source.parent.mkdir()
     source.write_text(
