@@ -53,7 +53,8 @@ revai/
 └── export/          JSON · Markdown · HTML (phase 7)
 ```
 
-Current phase: **4 — deterministic pipeline**. The API collects and filters Git
-changes, parses exact changed lines, runs available static analyzers, prepares
-AST-aligned context chunks, and persists zero-token reviews. See
-[`../docs/PHASE-4.md`](../docs/PHASE-4.md) for the contract and verification.
+Current phase: **5 — AI review stage**. The API streams deterministic progress,
+validated provider output, usage, and terminal state over SSE. It enforces cost
+and context limits before a provider call, merges AI and analyzer findings, and
+persists completed, failed, or aborted reviews. See
+[`../docs/PHASE-5.md`](../docs/PHASE-5.md) for the contract and verification.

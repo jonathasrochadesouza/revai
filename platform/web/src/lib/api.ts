@@ -186,7 +186,7 @@ export interface DiffPreview {
   truncated: boolean;
 }
 
-// --- deterministic reviews (phase 4) --------------------------------------
+// --- hybrid review pipeline (phases 4-5) ----------------------------------
 
 export type Severity = "critical" | "medium" | "low";
 export type FindingCategory =
@@ -254,7 +254,7 @@ export interface Review {
 }
 
 export interface PipelineStage {
-  name: "collect" | "filter" | "parse" | "static" | "chunk";
+  name: "collect" | "filter" | "parse" | "static" | "chunk" | "ai" | "merge";
   status: "completed" | "failed";
   duration_ms: number;
   detail: string | null;
@@ -281,6 +281,79 @@ export interface DeterministicReview {
   stages: PipelineStage[];
   analyzers: AnalyzerRun[];
   chunks: ReviewChunk[];
+}
+
+export type ReviewStreamEvent =
+  | { type: "review_started" }
+  | ({ type: "stage" } & PipelineStage)
+  | ({ type: "analyzer" } & AnalyzerRun)
+  | { type: "provider"; model: string }
+  | { type: "delta"; characters: number }
+  | {
+      type: "usage";
+      input_tokens: number;
+      output_tokens: number;
+      cached_tokens: number;
+      cost_usd: number | null;
+      is_estimated: boolean;
+    }
+  | { type: "completed"; result: DeterministicReview }
+  | { type: "failed"; message: string };
+
+export interface StreamReviewOptions {
+  signal?: AbortSignal;
+  onEvent?: (event: ReviewStreamEvent) => void;
+}
+
+async function streamReview(
+  projectId: string,
+  base: string,
+  head: string,
+  options: StreamReviewOptions = {},
+): Promise<DeterministicReview> {
+  const path = `/api/projects/${projectId}/reviews/stream`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...json("POST", { base, head }),
+    cache: "no-store",
+    headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+  }
+  if (!response.body) {
+    throw new ApiError("The review stream returned no response body.", response.status);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let completed: DeterministicReview | null = null;
+
+  const consume = (block: string) => {
+    const payload = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!payload) return;
+    const event = JSON.parse(payload) as ReviewStreamEvent;
+    options.onEvent?.(event);
+    if (event.type === "completed") completed = event.result;
+    if (event.type === "failed") throw new ApiError(event.message, response.status);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+    blocks.forEach(consume);
+    if (done) break;
+  }
+  if (buffer.trim()) consume(buffer);
+  if (!completed) throw new ApiError("The review stream ended before completion.", response.status);
+  return completed;
 }
 
 export interface ReviewsResponse {
@@ -416,6 +489,7 @@ export const api = {
       `/api/projects/${projectId}/reviews/deterministic`,
       json("POST", { base, head }),
     ),
+  streamReview,
   getProjectReviews: (projectId: string) =>
     request<ReviewsResponse>(`/api/projects/${projectId}/reviews`),
 };

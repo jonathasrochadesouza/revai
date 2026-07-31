@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from revai.config import Settings
+from revai.providers.base import (
+    DeltaEvent,
+    FinishedEvent,
+    StartedEvent,
+    UsageStats,
+)
 from revai.storage.repositories import ConfigRepository
 
 
@@ -145,3 +152,95 @@ def test_deterministic_review_analyzes_a_non_checked_out_head(
         "F401"
     ]
     assert _git(repository, "branch", "--show-current") == "main"
+
+
+class _AIProvider:
+    async def analyze(self, _request):
+        text = json.dumps(
+            {
+                "findings": [
+                    {
+                        "severity": "critical",
+                        "category": "security",
+                        "title": "Dynamic code execution",
+                        "description": "Untrusted input reaches eval.",
+                        "rationale": "The token can execute arbitrary Python.",
+                        "file": "app.py",
+                        "line_start": 4,
+                        "line_end": 4,
+                        "rule_id": "eval-detected",
+                        "confidence": 0.97,
+                        "suggested_patch": None,
+                    }
+                ]
+            }
+        )
+        yield StartedEvent(model="test/model")
+        yield DeltaEvent(text=text[:24])
+        yield FinishedEvent(
+            text=text,
+            usage=UsageStats(
+                input_tokens=160,
+                output_tokens=70,
+                cached_tokens=20,
+                cost_usd=0.005,
+            ),
+        )
+
+
+class _AIRegistry:
+    def active(self):
+        return _AIProvider()
+
+
+def _stream_events(response) -> list[dict]:
+    return [
+        json.loads(line.removeprefix("data: "))
+        for line in response.iter_lines()
+        if line.startswith("data: ")
+    ]
+
+
+def test_ai_review_streams_progress_and_persists_combined_findings(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _ruff_only(settings)
+    repository = _repository(tmp_path / "ai-demo")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+    (repository / "app.py").write_text(
+        "import os\n\ndef auth(token):\n    return eval(token)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "revai.api.routes.reviews.build_registry",
+        lambda _config, _credentials: _AIRegistry(),
+    )
+
+    with client.stream(
+        "POST",
+        f"/api/projects/{project['id']}/reviews/stream",
+        json={"base": "main", "head": "main"},
+    ) as response:
+        events = _stream_events(response)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    kinds = [event["type"] for event in events]
+    assert kinds[0] == "review_started"
+    assert kinds.count("stage") == 7
+    assert "provider" in kinds
+    assert "delta" in kinds
+    assert "usage" in kinds
+    assert kinds[-1] == "completed"
+    review = events[-1]["result"]["review"]
+    assert review["status"] == "completed"
+    assert review["provider_id"] == "openrouter"
+    assert review["stats"]["tokens_input"] == 160
+    assert review["stats"]["tokens_output"] == 70
+    assert review["stats"]["cost_usd"] == 0.005
+    assert {item["source"] for item in review["findings"]} == {"ruff", "ai"}
+    stored = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
+    assert stored[0]["id"] == review["id"]

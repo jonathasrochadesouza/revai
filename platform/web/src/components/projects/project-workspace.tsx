@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   ArrowRight,
   Boxes,
   Check,
@@ -20,6 +21,8 @@ import {
   LoaderCircle,
   ScanSearch,
   Search,
+  Sparkles,
+  Square,
   X,
 } from "lucide-react";
 import {
@@ -43,6 +46,7 @@ import {
   type Finding,
   type Project,
   type ProjectTree,
+  type ReviewStreamEvent,
   type Severity,
 } from "@/lib/api";
 
@@ -146,8 +150,8 @@ export function ProjectWorkspace({
             Projects
           </h1>
           <p className="max-w-[64ch] text-[14px] leading-relaxed text-ink-muted">
-            Open a repository to inspect its branches and changes. Source stays
-            on this machine.
+            Repository access stays local. Only filtered review context reaches
+            the provider you configure.
           </p>
         </div>
         <label className="flex h-10 w-full items-center gap-2.5 rounded-control border border-line-strong bg-paper px-3 text-ink-subtle lg:w-[310px]">
@@ -590,6 +594,13 @@ function RepositoryInspector({
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState(false);
   const [result, setResult] = useState<DeterministicReview | null>(null);
+  const [cancelled, setCancelled] = useState(false);
+  const [events, setEvents] = useState<ReviewStreamEvent[]>([]);
+  const reviewAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => reviewAbort.current?.abort();
+  }, []);
 
   const fetchData = useCallback(
     () =>
@@ -633,14 +644,44 @@ function RepositoryInspector({
   }, [fetchData, onError]);
 
   const runReview = async () => {
+    const controller = new AbortController();
+    reviewAbort.current?.abort();
+    setCancelled(false);
+    reviewAbort.current = controller;
     setReviewing(true);
+    setResult(null);
+    setEvents([]);
     try {
-      setResult(await api.runDeterministicReview(project.id, base, head));
+      const nextResult = await api.streamReview(project.id, base, head, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          setEvents((current) => {
+            const last = current.at(-1);
+            if (event.type === "delta" && last?.type === "delta") {
+              return [...current.slice(0, -1), event];
+            }
+            return [...current, event].slice(-80);
+          });
+        },
+      });
+      setResult(nextResult);
     } catch (error) {
-      onError(displayError(error));
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        onError(displayError(error));
+      }
     } finally {
-      setReviewing(false);
+      if (reviewAbort.current === controller) {
+        reviewAbort.current = null;
+        setReviewing(false);
+      }
     }
+  };
+
+  const cancelReview = () => {
+    reviewAbort.current?.abort();
+    reviewAbort.current = null;
+    setReviewing(false);
+    setCancelled(true);
   };
 
   return (
@@ -662,8 +703,11 @@ function RepositoryInspector({
               value={base}
               branches={project.branches}
               onChange={(value) => {
+                if (reviewing) cancelReview();
                 setResult(null);
                 setLoading(true);
+                setEvents([]);
+                setCancelled(false);
                 setBase(value);
               }}
             />
@@ -673,9 +717,12 @@ function RepositoryInspector({
               value={head}
               branches={project.branches}
               onChange={(value) => {
+                if (reviewing) cancelReview();
                 setResult(null);
                 setLoading(true);
                 setHead(value);
+                setEvents([]);
+                setCancelled(false);
               }}
             />
             <button
@@ -696,16 +743,16 @@ function RepositoryInspector({
             </button>
             <button
               type="button"
-              onClick={() => void runReview()}
-              disabled={loading || reviewing}
+              onClick={reviewing ? cancelReview : () => void runReview()}
+              disabled={loading}
               className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               {reviewing ? (
-                <LoaderCircle className="size-3.5 animate-spin" />
+                <Square className="size-3.5 fill-current" />
               ) : (
                 <ScanSearch className="size-3.5" />
               )}
-              {reviewing ? "Running" : "Run checks"}
+              {reviewing ? "Cancel" : result ? "Run again" : "Run AI review"}
             </button>
           </div>
         </div>
@@ -773,7 +820,15 @@ function RepositoryInspector({
         </div>
       </section>
 
-      {result && <DeterministicReviewPanel result={result} />}
+      {(reviewing || events.length > 0 || result) && (
+        <LiveReviewPanel
+          result={result}
+          events={events}
+          running={reviewing}
+          cancelled={cancelled}
+          branches={{ base, head }}
+        />
+      )}
     </>
   );
 }
@@ -784,65 +839,193 @@ const SEVERITY_STYLES: Record<Severity, string> = {
   low: "border-low-line bg-low-surface text-low",
 };
 
-function DeterministicReviewPanel({
+const PIPELINE_STAGES = [
+  "collect",
+  "filter",
+  "parse",
+  "static",
+  "chunk",
+  "ai",
+  "merge",
+] as const;
+
+function LiveReviewPanel({
   result,
+  events,
+  cancelled,
+  running,
+  branches,
 }: {
-  result: DeterministicReview;
+  result: DeterministicReview | null;
+  events: ReviewStreamEvent[];
+  cancelled: boolean;
+  running: boolean;
+  branches: { base: string; head: string };
 }) {
-  const { review } = result;
+  const review = result?.review;
+  const stageEvents = events.filter(
+    (event): event is Extract<ReviewStreamEvent, { type: "stage" }> =>
+      event.type === "stage",
+  );
+  const completedStages = new Set(stageEvents.map((event) => event.name));
+  const analyzers =
+    result?.analyzers ??
+    events.filter(
+      (event): event is Extract<ReviewStreamEvent, { type: "analyzer" }> =>
+        event.type === "analyzer",
+    );
+  const provider = [...events]
+    .reverse()
+    .find(
+      (event): event is Extract<ReviewStreamEvent, { type: "provider" }> =>
+        event.type === "provider",
+    );
+  const usage = [...events]
+    .reverse()
+    .find(
+      (event): event is Extract<ReviewStreamEvent, { type: "usage" }> =>
+        event.type === "usage",
+    );
+  const failure = events.find(
+    (event): event is Extract<ReviewStreamEvent, { type: "failed" }> =>
+      event.type === "failed",
+  );
+  const tokens =
+    (review?.stats.tokens_input ?? usage?.input_tokens ?? 0) +
+    (review?.stats.tokens_output ?? usage?.output_tokens ?? 0);
+  const cost = review?.stats.cost_usd ?? usage?.cost_usd ?? 0;
+  const activeStage = Math.min(completedStages.size, PIPELINE_STAGES.length - 1);
+
   return (
     <section
-      aria-label="Deterministic review results"
+      aria-label="Live AI review"
       className="mt-4 overflow-hidden rounded-panel border border-line bg-paper"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
-          <h3 className="text-[14px] font-semibold">Deterministic review</h3>
+          <h3 className="flex items-center gap-2 text-[14px] font-semibold">
+            <Sparkles className="size-4 text-low" />
+            AI review
+          </h3>
           <p className="mt-0.5 font-mono text-[10.5px] text-ink-subtle">
-            {review.base_branch} → {review.head_branch}
+            {branches.base} → {branches.head}
+            {provider ? ` · ${provider.model}` : ""}
           </p>
         </div>
-        <span className="flex items-center gap-1.5 rounded-control border border-success-line bg-success-surface px-2.5 py-1 text-[10.5px] font-semibold text-success">
-          <CircleCheck className="size-3.5" />
-          Completed · 0 tokens
+        <span
+          className={`flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-[10.5px] font-semibold ${
+            failure
+              ? "border-critical-line bg-critical-surface text-critical"
+              : cancelled
+                ? "border-medium-line bg-medium-surface text-medium"
+                : running
+                  ? "border-low-line bg-low-surface text-low"
+                  : "border-success-line bg-success-surface text-success"
+          }`}
+        >
+          {failure || cancelled ? (
+            <CircleX className="size-3.5" />
+          ) : running ? (
+            <LoaderCircle className="size-3.5 animate-spin" />
+          ) : (
+            <CircleCheck className="size-3.5" />
+          )}
+          {failure
+            ? "Failed"
+            : cancelled
+              ? "Cancelled"
+              : running
+                ? "Reviewing"
+                : `Completed · ${formatTokens(tokens)} tokens`}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 border-b border-line bg-sunken sm:grid-cols-4">
-        <ReviewMetric label="Findings" value={String(review.findings.length)} />
-        <ReviewMetric label="Files checked" value={String(review.stats.files_analysed)} />
-        <ReviewMetric label="Chunks" value={String(review.stats.chunks_prepared)} />
-        <ReviewMetric label="Duration" value={`${review.stats.duration_ms} ms`} />
+      <div className="grid grid-cols-2 border-b border-line bg-sunken sm:grid-cols-5">
+        <ReviewMetric label="Findings" value={review ? String(review.findings.length) : "—"} />
+        <ReviewMetric
+          label="Files checked"
+          value={review ? String(review.stats.files_analysed) : "—"}
+        />
+        <ReviewMetric label="Tokens" value={tokens ? formatTokens(tokens) : "—"} />
+        <ReviewMetric label="Cost" value={usage || review ? `$${cost.toFixed(4)}` : "—"} />
+        <ReviewMetric
+          label="Duration"
+          value={review ? `${review.stats.duration_ms} ms` : "Live"}
+        />
       </div>
 
       <div className="border-b border-line px-5 py-4">
-        <div className="grid gap-2 sm:grid-cols-5">
-          {result.stages.map((stage, index) => (
-            <div
-              key={stage.name}
-              className="flex min-w-0 items-center gap-2 rounded-control border border-line px-2.5 py-2"
-              title={stage.detail ?? undefined}
-            >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-success-surface font-mono text-[9px] font-semibold text-success">
-                {index + 1}
-              </span>
-              <span className="truncate text-[10.5px] font-semibold capitalize">
-                {stage.name}
-              </span>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+          {PIPELINE_STAGES.map((name, index) => {
+            const completed = completedStages.has(name);
+            const active = running && !completed && index === activeStage;
+            const detail =
+              result?.stages.find((stage) => stage.name === name)?.detail ??
+              stageEvents.find((stage) => stage.name === name)?.detail;
+            return (
+              <div
+                key={name}
+                className={`flex min-w-0 items-center gap-2 rounded-control border px-2.5 py-2 ${
+                  completed
+                    ? "border-success-line bg-success-surface"
+                    : active
+                      ? "border-low-line bg-low-surface"
+                      : "border-line"
+                }`}
+                title={detail ?? undefined}
+              >
+                <span
+                  className={`grid size-5 shrink-0 place-items-center rounded-full font-mono text-[9px] font-semibold ${
+                    completed
+                      ? "bg-paper text-success"
+                      : active
+                        ? "bg-paper text-low"
+                        : "bg-canvas text-ink-subtle"
+                  }`}
+                >
+                  {completed ? <Check className="size-3" /> : index + 1}
+                </span>
+                <span className="truncate text-[10.5px] font-semibold capitalize">
+                  {name}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="border-b border-line p-4 lg:border-b-0 lg:border-r">
-          <h4 className="mb-2.5 text-[11px] font-semibold uppercase text-ink-subtle">
-            Analyzers
-          </h4>
-          <div className="space-y-1">
-            {result.analyzers.map((analyzer) => (
-              <AnalyzerRow key={analyzer.name} analyzer={analyzer} />
-            ))}
+      <div className="grid lg:grid-cols-[300px_minmax(0,1fr)]">
+        <aside className="border-b border-line lg:border-b-0 lg:border-r">
+          <div className="border-b border-line p-4">
+            <h4 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase text-ink-subtle">
+              <Activity className="size-3.5" />
+              Event stream
+            </h4>
+            <div className="max-h-48 space-y-0.5 overflow-auto">
+              {events.length ? (
+                events.slice(-10).map((event, index) => (
+                  <ReviewEventRow key={`${event.type}-${index}`} event={event} />
+                ))
+              ) : (
+                <p className="px-2 py-3 text-[10.5px] text-ink-subtle">
+                  Starting local analysis…
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="p-4">
+            <h4 className="mb-2.5 text-[11px] font-semibold uppercase text-ink-subtle">
+              Analyzers
+            </h4>
+            <div className="space-y-1">
+              {analyzers.length ? (
+                analyzers.map((analyzer) => (
+                  <AnalyzerRow key={analyzer.name} analyzer={analyzer} />
+                ))
+              ) : (
+                <p className="px-2 py-2 text-[10.5px] text-ink-subtle">Pending</p>
+              )}
+            </div>
           </div>
         </aside>
 
@@ -853,22 +1036,40 @@ function DeterministicReviewPanel({
               Findings
             </h4>
             <span className="font-mono text-[10.5px] text-ink-subtle">
-              {review.findings.length}
+              {review?.findings.length ?? 0}
             </span>
           </div>
-          {review.findings.length ? (
+          {review?.findings.length ? (
             <div className="divide-y divide-line">
               {review.findings.map((finding) => (
                 <FindingRow key={finding.id} finding={finding} />
               ))}
             </div>
-          ) : (
-            <div className="grid min-h-44 place-items-center px-5 py-8 text-center">
+          ) : running ? (
+            <div className="grid min-h-52 place-items-center px-5 py-8 text-center">
               <div>
-                <CircleCheck className="mx-auto mb-2.5 size-6 text-success" />
-                <p className="text-[12.5px] font-semibold">No deterministic findings</p>
+                <LoaderCircle className="mx-auto mb-2.5 size-6 animate-spin text-low" />
+                <p className="text-[12.5px] font-semibold">Review in progress</p>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  Available analyzers reported no issues on changed lines.
+                  {provider ? "Validating streamed findings" : "Running local analyzers"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid min-h-52 place-items-center px-5 py-8 text-center">
+              <div>
+                {failure || cancelled ? (
+                  <CircleX
+                    className={`mx-auto mb-2.5 size-6 ${failure ? "text-critical" : "text-medium"}`}
+                  />
+                ) : (
+                  <CircleCheck className="mx-auto mb-2.5 size-6 text-success" />
+                )}
+                <p className="text-[12.5px] font-semibold">
+                  {failure ? "Review stopped" : cancelled ? "Review cancelled" : "No findings"}
+                </p>
+                <p className="mt-1 text-[11px] text-ink-muted">
+                  {failure?.message ?? (cancelled ? "No findings were persisted." : "Local analyzers and AI reported no issues.")}
                 </p>
               </div>
             </div>
@@ -876,6 +1077,42 @@ function DeterministicReviewPanel({
         </div>
       </div>
     </section>
+  );
+}
+
+function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
+  let label: string;
+  switch (event.type) {
+    case "review_started":
+      label = "Review started";
+      break;
+    case "stage":
+      label = `${event.name} · ${event.duration_ms} ms`;
+      break;
+    case "analyzer":
+      label = `${event.name} · ${event.findings} findings`;
+      break;
+    case "provider":
+      label = `Model · ${event.model}`;
+      break;
+    case "delta":
+      label = `Model output · ${event.characters} chars`;
+      break;
+    case "usage":
+      label = `Usage · ${formatTokens(event.input_tokens + event.output_tokens)} tokens`;
+      break;
+    case "completed":
+      label = "Review completed";
+      break;
+    case "failed":
+      label = event.message;
+      break;
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-chip px-2 py-1.5 text-[10.5px]">
+      <span className="size-1.5 shrink-0 rounded-full bg-low" />
+      <span className="min-w-0 truncate text-ink-muted">{label}</span>
+    </div>
   );
 }
 
