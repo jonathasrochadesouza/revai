@@ -13,9 +13,8 @@
  *     Copilot CLI ships no auth-status command and returns exit code 0 even for
  *     invalid input, so its auth state genuinely cannot be determined without
  *     spending a request.
- *   * `adapter_ready: false` is shown even when the binary is present and signed
- *     in, because RevAI still cannot drive it. "Installed" and "usable" are
- *     different claims.
+ *   * `adapter_ready` remains distinct from installation and authentication, so a
+ *     future recognised provider can still be listed without being selectable.
  *
  * Scope: **CLI agents only.** Hosted API providers (OpenRouter, Anthropic, OpenAI,
  * Gemini, Ollama) have nothing to "detect" on this machine — there is no binary to

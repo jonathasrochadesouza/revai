@@ -139,7 +139,7 @@ export const PROVIDER_CATALOGUE: ProviderCatalogue[] = [
   {
     id: "claude_code",
     label: "Claude Code",
-    adapterReady: false,
+    adapterReady: true,
     allowsCustomModel: true,
     models: [
       { id: "sonnet", label: "Sonnet", note: "the CLI default", recommended: true },
@@ -150,23 +150,27 @@ export const PROVIDER_CATALOGUE: ProviderCatalogue[] = [
   {
     id: "copilot_cli",
     label: "GitHub Copilot CLI",
-    adapterReady: false,
+    adapterReady: true,
     allowsCustomModel: true,
     models: [
-      { id: "gpt-5.2-codex", label: "GPT-5.2 Codex", recommended: true },
-      { id: "claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
-      { id: "gpt-5.2", label: "GPT-5.2" },
+      { id: "auto", label: "Auto", note: "let Copilot choose", recommended: true },
+      { id: "gpt-5.3-codex", label: "GPT-5.3 Codex" },
+      { id: "claude-sonnet-4.6", label: "Claude Sonnet 4.6" },
+      { id: "gpt-5.4", label: "GPT-5.4" },
     ],
   },
   {
     id: "kiro_cli",
     label: "Kiro CLI",
-    adapterReady: false,
-    allowsCustomModel: true,
+    adapterReady: true,
+    allowsCustomModel: false,
     models: [
-      { id: "auto", label: "Auto", note: "let Kiro choose", recommended: true },
-      { id: "claude-sonnet-4.5", label: "Claude Sonnet 4.5" },
-      { id: "claude-haiku-4.5", label: "Claude Haiku 4.5" },
+      {
+        id: "kiro-default",
+        label: "Configured Kiro model",
+        note: "managed by Kiro CLI settings",
+        recommended: true,
+      },
     ],
   },
 ];

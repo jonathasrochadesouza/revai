@@ -126,7 +126,7 @@ CLI_SPECS: tuple[CliSpec, ...] = (
         # No whoami, and exit codes are unreliable — see module docstring.
         auth_args=None,
         install_hint="npm install -g @github/copilot",
-        login_hint="copilot login",
+        login_hint="copilot auth login",
         notes=(
             "Ships no authentication-status command, and returns exit code 0 even for "
             "invalid input. RevAI reports its auth state as unknown rather than guessing."
@@ -273,9 +273,7 @@ async def detect_cli(spec: CliSpec) -> ProviderHealth:
     base = {
         "provider_id": spec.provider_id,
         "kind": ProviderKind.CLI,
-        # Phase 8 implements the CLI adapters; detection ships now so the panel can
-        # tell the truth about what is installed in the meantime.
-        "adapter_ready": False,
+        "adapter_ready": True,
     }
 
     resolved = resolve_executable(spec)
@@ -390,6 +388,13 @@ def _interpret_auth_json(parsed: dict, result: CommandResult) -> tuple[HealthSta
     if account:
         who = _describe_account(account)
         return HealthState.READY, f"Signed in{f' as {who}' if who else ''}."
+
+    for key in ("loggedIn", "authenticated", "isAuthenticated", "isLoggedIn"):
+        value = parsed.get(key)
+        if value is True:
+            return HealthState.READY, "Signed in."
+        if value is False:
+            return HealthState.NEEDS_AUTH, "Not signed in."
 
     # An explicit null account is a definitive "signed out".
     if "account" in parsed:

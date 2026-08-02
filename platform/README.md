@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-7%20·%20export%20%26%20insights-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-8%20·%20CLI%20adapters-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -135,15 +135,16 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 5 | AI stage — streaming, pipeline & event stream | ✅ |
 | 6 | Results — findings, split diff, patches | deferred |
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | ✅ |
-| 8 | CLI adapters — Claude Code, Copilot, Kiro | next |
-| 9 | Packaging — Docker, CLI entrypoint, CI | |
+| 8 | CLI adapters — Claude Code, Copilot, Kiro | ✅ |
+| 9 | Packaging — Docker, CLI entrypoint, CI | next |
 | 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | |
 
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
 [`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
 [`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md) ·
-[`docs/PHASE-5.md`](docs/PHASE-5.md) · [`docs/PHASE-7.md`](docs/PHASE-7.md).
+[`docs/PHASE-5.md`](docs/PHASE-5.md) · [`docs/PHASE-7.md`](docs/PHASE-7.md) ·
+[`docs/PHASE-8.md`](docs/PHASE-8.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

@@ -53,8 +53,8 @@ revai/
 └── export/          JSON · Markdown · HTML (phase 7)
 ```
 
-Current phase: **7 — export and insights**. The API exports a persisted review as
-versioned JSON, Markdown, standalone HTML, or legacy-compatible JSON; builds a
-credential-free portable data archive; and aggregates review history into
-range-aware insight metrics. See [`../docs/PHASE-7.md`](../docs/PHASE-7.md) for the
-contracts, safety boundaries, and verification.
+Current phase: **8 — CLI adapters**. Claude Code, GitHub Copilot CLI, and Kiro CLI
+now implement the same provider stream as hosted APIs, with hard subprocess
+timeouts, schema-aware output extraction, and honest usage accounting. See
+[`../docs/PHASE-8.md`](../docs/PHASE-8.md) for the exact invocations, asymmetries,
+safety boundaries, and live validation.

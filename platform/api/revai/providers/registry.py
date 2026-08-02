@@ -14,7 +14,7 @@ from revai.domain.enums import ProviderId, ProviderKind
 from revai.domain.models import Credentials, RevaiConfig
 from revai.providers.api.openrouter import OpenRouterProvider
 from revai.providers.base import HealthState, Provider, ProviderHealth
-from revai.providers.detection import detect_all_clis
+from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,12 @@ class ProviderRegistry:
                 api_key=credential.api_key if credential else None,
                 base_url=self._config.engine.base_url,
             )
+        if provider_id is ProviderId.CLAUDE_CODE:
+            return ClaudeCodeProvider()
+        if provider_id is ProviderId.COPILOT_CLI:
+            return CopilotCliProvider()
+        if provider_id is ProviderId.KIRO_CLI:
+            return KiroCliProvider()
         return None
 
     def active(self) -> Provider | None:
@@ -59,17 +65,23 @@ class ProviderRegistry:
         API probes and CLI probes run concurrently: three CLI probes with a 20-second
         ceiling each would otherwise block a request for a minute.
         """
-        implemented = [self.get(ProviderId.OPENROUTER)]
-
-        api_healths, cli_healths = await asyncio.gather(
-            asyncio.gather(
-                *(provider.health() for provider in implemented if provider is not None)
-            ),
-            detect_all_clis(),
+        implemented = [
+            self.get(provider_id)
+            for provider_id in (
+                ProviderId.OPENROUTER,
+                ProviderId.CLAUDE_CODE,
+                ProviderId.COPILOT_CLI,
+                ProviderId.KIRO_CLI,
+            )
+        ]
+        implemented_healths = await asyncio.gather(
+            *(provider.health() for provider in implemented if provider is not None)
         )
 
         planned = [_planned(provider_id) for provider_id in _PLANNED_API_PROVIDERS]
 
+        api_healths = [health for health in implemented_healths if health.kind is ProviderKind.API]
+        cli_healths = [health for health in implemented_healths if health.kind is ProviderKind.CLI]
         return [*api_healths, *planned, *cli_healths]
 
 

@@ -12,14 +12,18 @@ from revai.providers.base import (
     ProviderEvent,
     ProviderHealth,
 )
+from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
 from revai.providers.detection import CLI_SPECS, CliSpec, detect_all_clis, detect_cli
 from revai.providers.registry import ProviderRegistry, build_registry
 
 __all__ = [
     "CLI_SPECS",
     "AnalysisRequest",
+    "ClaudeCodeProvider",
     "CliSpec",
+    "CopilotCliProvider",
     "HealthState",
+    "KiroCliProvider",
     "Provider",
     "ProviderError",
     "ProviderEvent",

@@ -291,24 +291,26 @@ export function SettingsForm({
             )}
           </Field>
 
-          <Field
-            label="Base URL"
-            htmlFor="base-url"
-            note="optional"
-            hint="Set this to reach a proxy or a self-hosted OpenAI-compatible gateway."
-          >
-            <TextInput
-              id="base-url"
-              placeholder="https://openrouter.ai/api/v1"
-              value={draft.engine.base_url ?? ""}
-              onChange={(event) =>
-                patch((config) => {
-                  config.engine.base_url = event.target.value || null;
-                  return config;
-                })
-              }
-            />
-          </Field>
+          {isApiMode && (
+            <Field
+              label="Base URL"
+              htmlFor="base-url"
+              note="optional"
+              hint="Set this to reach a proxy or a self-hosted OpenAI-compatible gateway."
+            >
+              <TextInput
+                id="base-url"
+                placeholder="https://openrouter.ai/api/v1"
+                value={draft.engine.base_url ?? ""}
+                onChange={(event) =>
+                  patch((config) => {
+                    config.engine.base_url = event.target.value || null;
+                    return config;
+                  })
+                }
+              />
+            </Field>
+          )}
         </CardBody>
       </Card>
 

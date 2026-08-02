@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -76,7 +77,7 @@ def findings_json_schema() -> dict[str, Any]:
 
 
 def extract_findings(text: str) -> list[Finding]:
-    """Parse strict output while tolerating a single Markdown code fence."""
+    """Parse provider output with narrow repairs for less-structured CLI agents."""
     candidate = text.strip()
     if candidate.startswith("```"):
         first_newline = candidate.find("\n")
@@ -91,10 +92,25 @@ def extract_findings(text: str) -> list[Finding]:
         raise FindingExtractionError("The provider returned no JSON findings object.")
 
     try:
-        raw = json.loads(candidate[start : end + 1])
-        envelope = _FindingEnvelope.model_validate(raw)
-    except (json.JSONDecodeError, ValidationError) as exc:
+        payload = candidate[start : end + 1]
+        try:
+            raw = json.loads(payload)
+        except json.JSONDecodeError:
+            raw = json.loads(re.sub(r",(?=\s*[}\]])", "", payload))
+        if not isinstance(raw, dict) or not isinstance(raw.get("findings"), list):
+            raise ValueError("the top-level object must contain a findings array")
+    except (json.JSONDecodeError, ValidationError, ValueError) as exc:
         raise FindingExtractionError(f"The provider returned invalid findings: {exc}") from exc
+
+    valid: list[_AIFinding] = []
+    errors: list[ValidationError] = []
+    for item in raw["findings"]:
+        try:
+            valid.append(_AIFinding.model_validate(item))
+        except ValidationError as exc:
+            errors.append(exc)
+    if errors and not valid:
+        raise FindingExtractionError(f"The provider returned invalid findings: {errors[0]}")
 
     return [
         Finding(
@@ -111,7 +127,7 @@ def extract_findings(text: str) -> list[Finding]:
             confidence=item.confidence,
             suggested_patch=item.suggested_patch,
         )
-        for item in envelope.findings
+        for item in valid
     ]
 
 
@@ -133,10 +149,7 @@ def preflight_ai_stage(config: RevaiConfig, chunks: list[CodeChunk]) -> None:
         )
 
     estimated_cost = estimate_input_cost(chunks)
-    if (
-        config.budget.max_spend_usd is not None
-        and estimated_cost > config.budget.max_spend_usd
-    ):
+    if config.budget.max_spend_usd is not None and estimated_cost > config.budget.max_spend_usd:
         raise BudgetExceededError(
             f"The estimated input cost (${estimated_cost:.4f}) exceeds the configured "
             f"review limit (${config.budget.max_spend_usd:.4f})."
@@ -235,8 +248,7 @@ async def _emit(
 
 def _finding_is_within_context(finding: Finding, chunks: list[CodeChunk]) -> bool:
     return any(
-        finding.file == chunk.path
-        and chunk.line_start <= finding.line_start <= chunk.line_end
+        finding.file == chunk.path and chunk.line_start <= finding.line_start <= chunk.line_end
         for chunk in chunks
     )
 
@@ -249,7 +261,7 @@ def _user_prompt(chunks: list[CodeChunk]) -> str:
     )
     return (
         "Review only the supplied changed-code context. Report concrete, actionable "
-        "issues whose line lies inside a supplied range. Return {\"findings\": []} "
+        'issues whose line lies inside a supplied range. Return {"findings": []} '
         f"when no issue exists.\n\n{rendered}"
     )
 

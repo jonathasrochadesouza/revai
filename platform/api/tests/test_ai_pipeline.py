@@ -79,10 +79,28 @@ def test_extract_findings_accepts_fenced_structured_json() -> None:
     assert findings[0].severity is Severity.CRITICAL
     assert findings[0].file == "src/auth.py"
 
+
 def test_extract_findings_rejects_an_invalid_schema() -> None:
     with pytest.raises(FindingExtractionError, match="invalid findings"):
         extract_findings('{"findings":[{"severity":"urgent"}]}')
 
+
+def test_extract_findings_repairs_trailing_commas_and_keeps_valid_items() -> None:
+    valid = {
+        "severity": "low",
+        "category": "maintainability",
+        "title": "Repeated branch",
+        "description": "The same branch is evaluated twice.",
+        "file": "src/app.py",
+        "line_start": 12,
+    }
+    payload = json.dumps({"findings": [valid, {"severity": "urgent"}]})
+    payload = payload.replace("]}", ",]}")
+
+    findings = extract_findings(payload)
+
+    assert len(findings) == 1
+    assert findings[0].title == "Repeated branch"
 
 
 def test_merge_findings_keeps_the_higher_confidence_duplicate() -> None:

@@ -418,8 +418,7 @@ async def test_detect_all_clis_against_the_real_machine() -> None:
     assert len(healths) == len(CLI_SPECS)
     for health in healths:
         assert health.kind is ProviderKind.CLI
-        # Every CLI adapter arrives in phase 8, so none is usable yet.
-        assert health.adapter_ready is False
+        assert health.adapter_ready is True
         if health.state is not HealthState.NOT_FOUND:
             assert health.executable is not None
 

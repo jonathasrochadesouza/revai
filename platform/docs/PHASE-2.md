@@ -1,5 +1,9 @@
 # Phase 2 — Providers & detection
 
+> Historical delivery note: CLI discovery shipped here with
+> `adapter_ready: false`. Phase 8 now implements all three adapters; see
+> [`PHASE-8.md`](PHASE-8.md) for their current contracts and verification.
+
 > **Status:** ✅ complete and verified · 2026-07-28
 
 The goal: know, honestly, which engines this machine can actually use — before a

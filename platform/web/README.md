@@ -74,7 +74,7 @@ src/
     └── api.ts           typed API client
 ```
 
-Current phase: **7 — export and insights**. The Insights dashboard renders
-range-aware review, finding, spend, trend, technical-debt, and repository metrics.
-Settings › Data downloads individual reports and the portable archive. See
-[`../docs/PHASE-7.md`](../docs/PHASE-7.md).
+Current phase: **8 — CLI adapters**. Settings › Engine exposes Claude Code, GitHub
+Copilot CLI, and Kiro CLI as implemented local engines while preserving their real
+installed, sign-in, unknown, timeout, and error states. See
+[`../docs/PHASE-8.md`](../docs/PHASE-8.md).

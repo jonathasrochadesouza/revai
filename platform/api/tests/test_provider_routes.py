@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from revai.config import Settings
 from revai.domain.enums import ProviderId, ProviderKind
 from revai.providers.base import HealthState, ProviderHealth
+from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
 from revai.providers.detection import CLI_SPECS
 
 
@@ -42,12 +43,18 @@ def _fake_cli_detection(monkeypatch: pytest.MonkeyPatch) -> None:
                 version=measured[spec.provider_id][1],
                 detail="fake detection",
                 remediation=measured[spec.provider_id][2],
-                adapter_ready=False,
+                adapter_ready=True,
             )
             for spec in CLI_SPECS
         ]
 
-    monkeypatch.setattr("revai.providers.registry.detect_all_clis", fake_detect_all)
+    async def fake_health(self) -> ProviderHealth:
+        return next(
+            health for health in await fake_detect_all() if health.provider_id is self.provider_id
+        )
+
+    for provider in (ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider):
+        monkeypatch.setattr(provider, "health", fake_health)
 
 
 def test_providers_lists_every_known_engine(client: TestClient) -> None:
@@ -74,21 +81,20 @@ def test_every_provider_declares_its_kind(client: TestClient) -> None:
         assert entry["kind"] in {"api", "cli"}
 
 
-def test_cli_providers_are_reported_but_not_adapter_ready(client: TestClient) -> None:
-    """CLI detection ships in phase 2; the adapters land in phase 8."""
+def test_cli_providers_are_adapter_ready(client: TestClient) -> None:
     providers = client.get("/api/providers").json()["providers"]
     clis = [entry for entry in providers if entry["kind"] == "cli"]
 
     assert len(clis) == 3
     for entry in clis:
-        assert entry["adapter_ready"] is False
+        assert entry["adapter_ready"] is True
 
 
-def test_openrouter_is_the_only_ready_adapter(client: TestClient) -> None:
+def test_api_and_cli_adapters_are_reported_separately(client: TestClient) -> None:
     providers = client.get("/api/providers").json()["providers"]
     ready = [entry["provider_id"] for entry in providers if entry["adapter_ready"]]
 
-    assert ready == ["openrouter"]
+    assert ready == ["openrouter", "claude_code", "copilot_cli", "kiro_cli"]
 
 
 def test_planned_api_providers_are_listed_honestly(client: TestClient) -> None:
