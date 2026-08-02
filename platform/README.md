@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-5%20·%20AI%20review-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-7%20·%20export%20%26%20insights-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -45,26 +45,27 @@ uv run revai-api            # → http://127.0.0.1:8799
 # terminal 2 — frontend
 cd platform/web
 npm install
-## Phase 5 in action
-
-The project inspector now runs the full hybrid review and keeps its evidence in
-one view: seven pipeline stages, live provider events, analyzer results, token
-and cost accounting, and merged findings.
-
-![Phase 5 live AI review](docs/images/phase-5-ai-review.png)
-
-The same workflow remains usable on a narrow viewport, with stages and metrics
-wrapping into stable rows.
-
-![Phase 5 AI review on mobile](docs/images/phase-5-ai-review-mobile.png)
-
-The API stream and event examples are documented in
-[`docs/PHASE-5.md`](docs/PHASE-5.md).
-
 npm run dev                 # → http://localhost:3000
 ```
 
 **Requires:** Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node 20+.
+
+## Phase 7 in action
+
+The Insights workspace aggregates persisted YAML reviews into range-aware code
+health, spend, technical-debt, and repository metrics. Settings › Data exports
+individual reviews as JSON, Markdown, or standalone HTML, plus a credential-free
+portable archive.
+
+![Phase 7 Insights dashboard](docs/images/phase-7-insights.png)
+
+The dashboard remains usable on a narrow viewport, with metrics and panels
+wrapping into stable rows.
+
+![Phase 7 Insights dashboard on mobile](docs/images/phase-7-insights-mobile.png)
+
+The export contracts, metric semantics, and validation evidence are documented in
+[`docs/PHASE-7.md`](docs/PHASE-7.md).
 
 ---
 
@@ -132,9 +133,9 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 3 | Projects & git — open local, clone, diff preview | ✅ |
 | 4 | Deterministic pipeline — linters, AST, **zero tokens** | ✅ |
 | 5 | AI stage — streaming, pipeline & event stream | ✅ |
-| 6 | Results — findings, split diff, patches | next |
-| 7 | Export & insights — JSON, Markdown, HTML, metrics | |
-| 8 | CLI adapters — Claude Code, Copilot, Kiro | |
+| 6 | Results — findings, split diff, patches | deferred |
+| 7 | Export & insights — JSON, Markdown, HTML, metrics | ✅ |
+| 8 | CLI adapters — Claude Code, Copilot, Kiro | next |
 | 9 | Packaging — Docker, CLI entrypoint, CI | |
 | 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | |
 
@@ -142,7 +143,7 @@ Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
 [`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
 [`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md) ·
-[`docs/PHASE-5.md`](docs/PHASE-5.md).
+[`docs/PHASE-5.md`](docs/PHASE-5.md) · [`docs/PHASE-7.md`](docs/PHASE-7.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

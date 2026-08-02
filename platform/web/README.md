@@ -62,6 +62,8 @@ src/
 ├── app/
 │   ├── globals.css      the design system
 │   ├── layout.tsx       fonts + metadata
+│   ├── insights/        aggregate code-health dashboard
+│   ├── settings/data/   review and portable data exports
 │   └── page.tsx         projects workspace
 ├── components/
 │   ├── projects/        repository entry, list, tree and diff inspector
@@ -72,7 +74,7 @@ src/
     └── api.ts           typed API client
 ```
 
-Current phase: **5 — AI review stage**. The project inspector consumes the review
-stream, renders all seven stages and provider events live, supports cancellation,
-and retains analyzer results, token/cost metrics, and merged findings after
-completion. See [`../docs/PHASE-5.md`](../docs/PHASE-5.md).
+Current phase: **7 — export and insights**. The Insights dashboard renders
+range-aware review, finding, spend, trend, technical-debt, and repository metrics.
+Settings › Data downloads individual reports and the portable archive. See
+[`../docs/PHASE-7.md`](../docs/PHASE-7.md).

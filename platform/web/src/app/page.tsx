@@ -24,10 +24,17 @@ async function loadProjects(): Promise<{
 
 export default async function Home() {
   const state = await loadProjects();
+  const renderedAt = new Date().toISOString();
 
   return (
     <>
       <TopBar breadcrumb={["Platform", "Projects"]}>
+        <Link
+          href="/insights"
+          className="rounded-control border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
+        >
+          Insights
+        </Link>
         <Link
           href="/settings/engine"
           className="rounded-control border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
@@ -43,6 +50,7 @@ export default async function Home() {
       <ProjectWorkspace
         initialProjects={state.projects}
         initialError={state.reason}
+        renderedAt={renderedAt}
       />
     </>
   );

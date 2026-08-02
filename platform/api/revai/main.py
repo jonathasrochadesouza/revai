@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from revai.api.routes import config as config_routes
+from revai.api.routes import exports as export_routes
 from revai.api.routes import health
 from revai.api.routes import projects as project_routes
 from revai.api.routes import providers as provider_routes
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(provider_routes.router, prefix="/api")
     app.include_router(project_routes.router, prefix="/api")
     app.include_router(review_routes.router, prefix="/api")
+    app.include_router(export_routes.router, prefix="/api")
 
     return app
 

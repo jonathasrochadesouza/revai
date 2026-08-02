@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
 import math
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -58,6 +62,8 @@ _SYMBOL_NODE_TYPES = {
     "method_definition",
     "struct_item",
 }
+_TREE_SITTER_CACHE: dict[tuple[str, bytes], list[tuple[str | None, int, int]]] = {}
+_TREE_SITTER_CACHE_LIMIT = 32
 
 
 @dataclass(frozen=True)
@@ -228,41 +234,53 @@ def _tree_sitter_symbol(
     language = _TREE_SITTER_LANGUAGES.get(path.suffix.lower())
     if language is None:
         return None
-    try:
-        from tree_sitter_language_pack import get_parser
-
-        source_bytes = source.encode("utf-8")
-        tree = get_parser(language).parse(source_bytes)
-    except (ImportError, LookupError, RuntimeError):
-        return None
-
-    candidates = []
-    stack = [tree.root_node]
-    target_row = changed_line - 1
-    while stack:
-        node = stack.pop()
-        if node.start_point.row <= target_row <= node.end_point.row:
-            if node.type in _SYMBOL_NODE_TYPES:
-                name_node = node.child_by_field_name("name")
-                name = (
-                    source_bytes[name_node.start_byte : name_node.end_byte].decode(
-                        "utf-8",
-                        errors="replace",
-                    )
-                    if name_node is not None
-                    else None
-                )
-                candidates.append(
-                    (
-                        name,
-                        int(node.start_point.row) + 1,
-                        int(node.end_point.row) + 1,
-                    )
-                )
-            stack.extend(node.children)
+    candidates = [
+        symbol
+        for symbol in _tree_sitter_symbols(language, source)
+        if symbol[1] <= changed_line <= symbol[2]
+    ]
     if not candidates:
         return None
     return min(candidates, key=lambda item: item[2] - item[1])
+
+
+def _tree_sitter_symbols(language: str, source: str) -> list[tuple[str | None, int, int]]:
+    """Parse one source file in an isolated helper process.
+
+    Some ``tree-sitter-language-pack`` native grammar combinations can segfault when
+    several languages are traversed in one long-lived Python process. A code review
+    must never take down the API, so the native boundary lives in a short-lived child.
+    A bounded content-hash cache avoids paying that process cost for every hunk.
+    """
+    source_bytes = source.encode("utf-8")
+    key = (language, hashlib.sha256(source_bytes).digest())
+    if key in _TREE_SITTER_CACHE:
+        return _TREE_SITTER_CACHE[key]
+
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-m", "revai.pipeline.tree_sitter_worker", language],
+            input=source_bytes,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+        payload = json.loads(completed.stdout) if completed.returncode == 0 else []
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        payload = []
+
+    symbols = [
+        (item.get("name"), int(item["line_start"]), int(item["line_end"]))
+        for item in payload
+        if isinstance(item, dict)
+        and isinstance(item.get("name"), str | type(None))
+        and isinstance(item.get("line_start"), int)
+        and isinstance(item.get("line_end"), int)
+    ]
+    if len(_TREE_SITTER_CACHE) >= _TREE_SITTER_CACHE_LIMIT:
+        _TREE_SITTER_CACHE.pop(next(iter(_TREE_SITTER_CACHE)))
+    _TREE_SITTER_CACHE[key] = symbols
+    return symbols
 
 
 def _is_trivial(changed_text: str) -> bool:

@@ -15,6 +15,7 @@ from revai.analyzers.semgrep import parse_semgrep_output
 from revai.domain.enums import FindingSource
 from revai.git.repo import DiffFile
 from revai.pipeline.deterministic import (
+    ParsedHunk,
     build_chunks,
     filter_changed_files,
     parse_unified_diff,
@@ -85,7 +86,6 @@ def test_chunker_uses_python_symbol_boundaries_and_honours_budget(
     assert chunks[0].estimated_tokens <= 20
 
 
-
 def test_chunker_covers_each_changed_symbol_in_one_hunk(tmp_path: Path) -> None:
     source = tmp_path / "app.py"
     source.write_text(
@@ -113,8 +113,8 @@ index 1111111..2222222 100644
         ("auth", 3, 4),
     ]
 
-def test_chunker_uses_tree_sitter_boundaries_for_typescript(tmp_path: Path) -> None:
 
+def test_chunker_uses_tree_sitter_boundaries_for_typescript(tmp_path: Path) -> None:
     source = tmp_path / "src" / "calculator.ts"
     source.parent.mkdir()
     source.write_text(
@@ -136,6 +136,39 @@ def test_chunker_uses_tree_sitter_boundaries_for_typescript(tmp_path: Path) -> N
     assert chunks[0].symbol == "calculate"
     assert chunks[0].line_start == 1
     assert chunks[0].line_end == 4
+
+
+def test_chunker_keeps_native_parsers_alive_across_mixed_languages(tmp_path: Path) -> None:
+    typescript = tmp_path / "src" / "service.ts"
+    python = tmp_path / "src" / "service.py"
+    typescript.parent.mkdir()
+    typescript.write_text(
+        "export function greet(name: string) {\n  return `Hello ${name}`;\n}\n",
+        encoding="utf-8",
+    )
+    python.write_text("def greet(name):\n    return f'Hello {name}'\n", encoding="utf-8")
+    hunks = [
+        ParsedHunk(
+            path="src/service.ts",
+            source_start=1,
+            target_start=1,
+            added_lines={2},
+            removed_lines=set(),
+            changed_text="+  return `Hello ${name}`;",
+        ),
+        ParsedHunk(
+            path="src/service.py",
+            source_start=1,
+            target_start=1,
+            added_lines={2},
+            removed_lines=set(),
+            changed_text="+    return f'Hello {name}'",
+        ),
+    ]
+
+    chunks = build_chunks(tmp_path, hunks, max_tokens=100)
+
+    assert [chunk.symbol for chunk in chunks] == ["greet", "greet"]
 
 
 def test_ruff_json_is_normalized_into_a_finding(tmp_path: Path) -> None:

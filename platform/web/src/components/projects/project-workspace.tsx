@@ -70,8 +70,8 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function relativeDate(value: string): string {
-  const elapsed = Date.now() - new Date(value).getTime();
+function relativeDate(value: string, renderedAt: string): string {
+  const elapsed = new Date(renderedAt).getTime() - new Date(value).getTime();
   const minutes = Math.floor(elapsed / 60_000);
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes}m ago`;
@@ -94,9 +94,11 @@ function displayError(error: unknown): string {
 export function ProjectWorkspace({
   initialProjects,
   initialError,
+  renderedAt,
 }: {
   initialProjects: Project[];
   initialError?: string;
+  renderedAt: string;
 }) {
   const [projects, setProjects] = useState(initialProjects);
   const [query, setQuery] = useState("");
@@ -273,7 +275,7 @@ export function ProjectWorkspace({
                 {project.languages.join(", ") || "Not detected"}
               </span>
               <span className="numeric text-[11px] text-ink-subtle md:text-right">
-                {relativeDate(project.created_at)}
+                {relativeDate(project.created_at, renderedAt)}
               </span>
             </button>
           ))

@@ -360,6 +360,86 @@ export interface ReviewsResponse {
   reviews: Review[];
 }
 
+// --- export and insights (phase 7) ---------------------------------------
+
+export type InsightRange = "7d" | "30d" | "90d" | "all";
+export type ExportFormat = "json" | "md" | "html";
+
+export interface InsightTotals {
+  reviews: number;
+  completed_reviews: number;
+  findings: number;
+  open_findings: number;
+  open_critical: number;
+  resolved_findings: number;
+  false_positives: number;
+  total_cost_usd: number;
+  median_duration_ms: number;
+}
+
+export interface ReviewTrendPoint {
+  review_id: string;
+  project_id: string;
+  project_name: string;
+  created_at: string;
+  critical: number;
+  medium: number;
+  low: number;
+}
+
+export interface ProjectInsight {
+  project_id: string;
+  name: string;
+  languages: string[];
+  reviews: number;
+  open_critical: number;
+  open_findings: number;
+  health_score: number;
+  health_change: number | null;
+  last_reviewed_at: string | null;
+}
+
+export interface InsightsResponse {
+  range: InsightRange;
+  generated_at: string;
+  totals: InsightTotals;
+  categories: Record<FindingCategory, number>;
+  statuses: Record<Finding["status"], number>;
+  trend: ReviewTrendPoint[];
+  projects: ProjectInsight[];
+}
+
+export interface DataSummary {
+  data_dir: string;
+  reviews_dir: string;
+  projects: number;
+  reviews: number;
+  storage_bytes: number;
+  credentials_included_in_archive: false;
+}
+
+export function reviewExportUrl(
+  reviewId: string,
+  format: ExportFormat,
+  legacy = false,
+): string {
+  const query = new URLSearchParams({ format });
+  if (legacy) query.set("legacy", "true");
+  return `${API_BASE_URL}/api/reviews/${encodeURIComponent(reviewId)}/export?${query}`;
+}
+
+async function exportAllData(): Promise<Blob> {
+  const path = "/api/export/all";
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { Accept: "application/zip" },
+  });
+  if (!response.ok) {
+    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+  }
+  return response.blob();
+}
+
 /** A provider is usable only if the adapter exists *and* the state allows it. */
 export function isUsable(health: ProviderHealth): boolean {
   return health.adapter_ready && (health.state === "ready" || health.state === "unknown");
@@ -492,6 +572,10 @@ export const api = {
   streamReview,
   getProjectReviews: (projectId: string) =>
     request<ReviewsResponse>(`/api/projects/${projectId}/reviews`),
+  getInsights: (range: InsightRange = "30d") =>
+    request<InsightsResponse>(`/api/insights?range=${range}`),
+  getDataSummary: () => request<DataSummary>("/api/data"),
+  exportAllData,
 };
 
 /** Result of probing the backend, used to render the connection panel. */
