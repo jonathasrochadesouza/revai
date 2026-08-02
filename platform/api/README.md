@@ -49,13 +49,13 @@ revai/
 ├── api/routes/      HTTP endpoints
 ├── domain/          Pydantic models (phase 1)
 ├── storage/         YAML repositories (phase 1)
-├── providers/       OpenRouter, then CLIs (phase 2)
+├── providers/       hosted APIs, Ollama and local CLIs (phases 2, 8, 10)
 ├── git/             repository metadata, trees and diff previews (phase 3)
 ├── pipeline/        review stages (phases 4–5)
 ├── analyzers/       linters and AST tooling (phase 4)
 └── export/          JSON · Markdown · HTML (phase 7)
 ```
 
-Current phase: **9 — packaging**. The backend builds as a wheel and source archive,
-installs the `revai` command, runs as a non-root container, and is exercised by the
-same locked CI gates used locally. See [`../docs/PHASE-9.md`](../docs/PHASE-9.md).
+Current phase: **10 — native providers**. Anthropic, OpenAI, Gemini, and Ollama now
+implement the same provider protocol as OpenRouter and the local CLI adapters. See
+[`../docs/PHASE-10.md`](../docs/PHASE-10.md).

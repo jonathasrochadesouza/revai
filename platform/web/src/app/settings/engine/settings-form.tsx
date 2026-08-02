@@ -174,6 +174,7 @@ export function SettingsForm({
   }
 
   const isApiMode = draft.engine.mode === "api";
+  const requiresApiKey = isApiMode && draft.engine.provider_id !== "ollama";
   const activeCredential = credentials.find(
     (c) => c.provider_id === draft.engine.provider_id,
   );
@@ -204,6 +205,7 @@ export function SettingsForm({
                   const next: ProviderId = mode === "api" ? "openrouter" : "copilot_cli";
                   config.engine.provider_id = next;
                   config.engine.model = defaultModelFor(next);
+                  config.engine.base_url = null;
                   return config;
                 });
               }}
@@ -222,6 +224,7 @@ export function SettingsForm({
                   // Model ids are provider-specific, so carrying the old one over
                   // would produce a request the new provider rejects.
                   config.engine.model = defaultModelFor(next);
+                  config.engine.base_url = null;
                   return config;
                 });
               }}
@@ -296,11 +299,11 @@ export function SettingsForm({
               label="Base URL"
               htmlFor="base-url"
               note="optional"
-              hint="Set this to reach a proxy or a self-hosted OpenAI-compatible gateway."
+              hint="Override the selected provider endpoint for a proxy or self-hosted service."
             >
               <TextInput
                 id="base-url"
-                placeholder="https://openrouter.ai/api/v1"
+                placeholder={defaultBaseUrlFor(draft.engine.provider_id)}
                 value={draft.engine.base_url ?? ""}
                 onChange={(event) =>
                   patch((config) => {
@@ -315,43 +318,45 @@ export function SettingsForm({
       </Card>
 
       {/* ---------------- credentials ---------------- */}
-      {isApiMode && (
+      {isApiMode && (requiresApiKey || credentials.length > 0) && (
         <Card className="mb-3.5">
           <CardHeader
-            title="API key"
+            title={requiresApiKey ? "API key" : "Stored API keys"}
             icon={LOCK}
             aside={credentialsPath.split(/[\\/]/).pop()}
           />
           <CardBody>
-            <Field
-              label={`Key for ${labelForProvider(draft.engine.provider_id)}`}
-              htmlFor="api-key"
-              note="stored with chmod 600"
-              hint={
-                <>
-                  Written to <code className="text-[11px]">{credentialsPath}</code>, never
-                  inside a project folder and never in git. The key is never returned by
-                  the API once stored.
-                </>
-              }
-            >
-              <div className="flex gap-2.5">
-                <TextInput
-                  id="api-key"
-                  type="password"
-                  autoComplete="off"
-                  placeholder={activeCredential ? activeCredential.masked_key : "sk-…"}
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                />
-                <Button
-                  onClick={storeKey}
-                  disabled={!apiKey.trim() || keyStatus === "saving"}
-                >
-                  {keyStatus === "saving" ? "Storing…" : "Store"}
-                </Button>
-              </div>
-            </Field>
+            {requiresApiKey && (
+              <Field
+                label={`Key for ${labelForProvider(draft.engine.provider_id)}`}
+                htmlFor="api-key"
+                note="stored with chmod 600"
+                hint={
+                  <>
+                    Written to <code className="text-[11px]">{credentialsPath}</code>,
+                    never inside a project folder and never in git. The key is never
+                    returned by the API once stored.
+                  </>
+                }
+              >
+                <div className="flex gap-2.5">
+                  <TextInput
+                    id="api-key"
+                    type="password"
+                    autoComplete="off"
+                    placeholder={activeCredential ? activeCredential.masked_key : "sk-…"}
+                    value={apiKey}
+                    onChange={(event) => setApiKey(event.target.value)}
+                  />
+                  <Button
+                    onClick={storeKey}
+                    disabled={!apiKey.trim() || keyStatus === "saving"}
+                  >
+                    {keyStatus === "saving" ? "Storing…" : "Store"}
+                  </Button>
+                </div>
+              </Field>
+            )}
 
             {keyError && (
               <p className="mt-2 rounded-control border border-critical-line bg-critical-surface px-3 py-2 text-[12px] text-critical">
@@ -658,6 +663,17 @@ export function SettingsForm({
       />
     </>
   );
+}
+
+function defaultBaseUrlFor(providerId: ProviderId): string {
+  const urls: Partial<Record<ProviderId, string>> = {
+    openrouter: "https://openrouter.ai/api/v1",
+    anthropic: "https://api.anthropic.com/v1",
+    openai: "https://api.openai.com/v1",
+    gemini: "https://generativelanguage.googleapis.com/v1beta",
+    ollama: "http://127.0.0.1:11434",
+  };
+  return urls[providerId] ?? "";
 }
 
 /**

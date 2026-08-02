@@ -69,7 +69,7 @@ def test_serve_preserves_loopback_and_accepts_a_valid_port_override(
     monkeypatch.setenv("REVAI_ENVIRONMENT", "test")
 
     def fake_run(app: str, **kwargs: object) -> None:
-        captured.update(app=app, **kwargs)
+        captured.update(app=app, configured_port=get_settings().port, **kwargs)
 
     monkeypatch.setattr("revai.cli.uvicorn.run", fake_run)
 
@@ -77,6 +77,7 @@ def test_serve_preserves_loopback_and_accepts_a_valid_port_override(
     assert captured["app"] == "revai.main:app"
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 8800
+    assert captured["configured_port"] == 8800
     assert captured["reload"] is False
 
 

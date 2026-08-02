@@ -371,12 +371,11 @@ that phase 10 adds natively.
 
 ### Why OpenRouter first
 
-One key, hundreds of models, and an **OpenAI-compatible** surface — so the adapter
-written in phase 2 is also the base class for OpenAI, and most of it for the others.
-It also returns real cost per request (`usage` including a credits figure), which
-feeds the budget guard without any price table to maintain. Native adapters in
-phase 10 then become an optimisation for people who already hold direct keys,
-not a prerequisite for shipping.
+One key, hundreds of models, and an **OpenAI-compatible** surface made OpenRouter the
+smallest useful first integration. It also returns real cost per request (`usage`
+including a credits figure), which feeds the budget guard without any price table to
+maintain. Phase 10 keeps each native wire format isolated behind the same provider
+protocol and shares only transport-safe parsing, health, retry, and redaction helpers.
 
 ---
 

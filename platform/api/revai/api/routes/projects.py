@@ -8,7 +8,8 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
-from revai.api.deps import ProjectRepo
+from revai.api.deps import ConfigRepo, ProjectRepo
+from revai.domain.enums import ProviderId
 from revai.domain.models import Project
 from revai.git.repo import (
     GitError,
@@ -187,6 +188,7 @@ def get_tree(
 def get_diff(
     project_id: str,
     project_repo: ProjectRepo,
+    config_repo: ConfigRepo,
     base: Annotated[str, Query(min_length=1)],
     head: Annotated[str, Query(min_length=1)],
 ) -> DiffResponse:
@@ -197,5 +199,7 @@ def get_diff(
         raise _unprocessable(exc) from exc
 
     payload = preview.__dict__.copy()
+    if config_repo.load().engine.provider_id is ProviderId.OLLAMA:
+        payload["estimated_cost_usd"] = 0.0
     payload["files"] = [DiffFileResponse(**item.__dict__) for item in preview.files]
     return DiffResponse(**payload)

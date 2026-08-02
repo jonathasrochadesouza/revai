@@ -189,7 +189,9 @@ async def create_ai_review(
             result.stages.append(merge_stage)
             await queue.put(_stage_payload(merge_stage))
 
-            estimated_cost = estimate_input_cost(result.chunks)
+            estimated_cost = estimate_input_cost(
+                result.chunks, provider_id=config.engine.provider_id
+            )
             result.review.stats = ReviewStats(
                 **result.review.stats.model_dump(
                     exclude={

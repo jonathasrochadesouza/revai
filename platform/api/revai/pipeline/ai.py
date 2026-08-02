@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from revai.domain.enums import Category, FindingSource, Severity
+from revai.domain.enums import Category, FindingSource, ProviderId, Severity
 from revai.domain.models import Finding, RevaiConfig
 from revai.pipeline.deterministic import CodeChunk
 from revai.providers.base import (
@@ -131,7 +131,9 @@ def extract_findings(text: str) -> list[Finding]:
     ]
 
 
-def estimate_input_cost(chunks: list[CodeChunk]) -> float:
+def estimate_input_cost(chunks: list[CodeChunk], *, provider_id: ProviderId | None = None) -> float:
+    if provider_id is ProviderId.OLLAMA:
+        return 0.0
     tokens = sum(chunk.estimated_tokens for chunk in chunks)
     return tokens * _ESTIMATED_INPUT_USD_PER_MILLION_TOKENS / 1_000_000
 
@@ -148,7 +150,10 @@ def preflight_ai_stage(config: RevaiConfig, chunks: list[CodeChunk]) -> None:
             f"limit ({config.budget.max_context_tokens} tokens)."
         )
 
-    estimated_cost = estimate_input_cost(chunks)
+    # Ollama runs locally and does not bill per token. Context limits still apply,
+    # but a spend guard must not reject free local inference based on hosted-price
+    # estimation.
+    estimated_cost = estimate_input_cost(chunks, provider_id=config.engine.provider_id)
     if config.budget.max_spend_usd is not None and estimated_cost > config.budget.max_spend_usd:
         raise BudgetExceededError(
             f"The estimated input cost (${estimated_cost:.4f}) exceeds the configured "

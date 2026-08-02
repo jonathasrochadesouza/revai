@@ -124,6 +124,25 @@ def test_branch_diff_preview_reports_files_lines_and_estimates(
     assert "+answer = 42" in preview["patch"]
 
 
+def test_ollama_diff_preview_reports_zero_estimated_spend(
+    client: TestClient, tmp_path: Path
+) -> None:
+    repo = _repository(tmp_path / "demo")
+    (repo / "src" / "app.py").write_text("answer = 42\n", encoding="utf-8")
+    project_id = client.post("/api/projects/open", json={"path": str(repo)}).json()["id"]
+    config = client.get("/api/config").json()["config"]
+    config["engine"].update({"provider_id": "ollama", "model": "qwen3-coder:30b", "base_url": None})
+    assert client.put("/api/config", json=config).status_code == 200
+
+    preview = client.get(
+        f"/api/projects/{project_id}/diff",
+        params={"base": "main", "head": "main"},
+    ).json()
+
+    assert preview["estimated_tokens"] > 0
+    assert preview["estimated_cost_usd"] == 0.0
+
+
 def test_same_branch_previews_uncommitted_worktree_changes(
     client: TestClient, tmp_path: Path
 ) -> None:

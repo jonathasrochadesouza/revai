@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-9%20·%20packaging%20%26%20CI-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-10%20·%20native%20providers-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -82,6 +82,18 @@ wrapping into stable rows.
 The export contracts, metric semantics, and validation evidence are documented in
 [`docs/PHASE-7.md`](docs/PHASE-7.md).
 
+## Native model providers
+
+RevAI can drive Anthropic Messages, OpenAI Responses, Google Gemini, and a local
+Ollama service directly, in addition to OpenRouter and the three CLI adapters. Every
+adapter emits the same streaming events and submits the same strict findings schema,
+so the review pipeline remains provider-independent. Hosted health probes use
+zero-token endpoints; Ollama needs no credential and is treated as zero-cost by the
+budget and preview flows.
+
+The wire contracts, safety boundaries, and validation matrix are documented in
+[`docs/PHASE-10.md`](docs/PHASE-10.md).
+
 ---
 
 ## Layout
@@ -152,14 +164,15 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | ✅ |
 | 8 | CLI adapters — Claude Code, Copilot, Kiro | ✅ |
 | 9 | Packaging — Docker, CLI entrypoint, CI | ✅ |
-| 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | next |
+| 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | ✅ |
 
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
 [`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
 [`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md) ·
 [`docs/PHASE-5.md`](docs/PHASE-5.md) · [`docs/PHASE-7.md`](docs/PHASE-7.md) ·
-[`docs/PHASE-8.md`](docs/PHASE-8.md) · [`docs/PHASE-9.md`](docs/PHASE-9.md).
+[`docs/PHASE-8.md`](docs/PHASE-8.md) · [`docs/PHASE-9.md`](docs/PHASE-9.md) ·
+[`docs/PHASE-10.md`](docs/PHASE-10.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

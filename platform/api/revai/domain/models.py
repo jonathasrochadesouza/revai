@@ -329,9 +329,9 @@ class EngineConfig(_Base):
 
     mode: EngineMode = EngineMode.API
     provider_id: ProviderId = ProviderId.OPENROUTER
-    model: str = "anthropic/claude-sonnet-4.5"
+    model: str = "anthropic/claude-sonnet-5"
 
-    # For self-hosted or proxied OpenAI-compatible endpoints.
+    # For a provider proxy or a self-hosted endpoint such as Ollama.
     base_url: str | None = None
 
 

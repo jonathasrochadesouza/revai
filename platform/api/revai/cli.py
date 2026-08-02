@@ -73,11 +73,18 @@ def main(argv: list[str] | None = None) -> int:
 def serve_api(*, port: int | None = None, no_reload: bool = False) -> None:
     """Start uvicorn using the same settings contract as ``revai-api``."""
     settings = get_settings()
+    if port is not None:
+        # Keep the application lifespan and any reload worker on the same effective
+        # port as uvicorn. Passing only ``uvicorn.run(port=...)`` made the startup
+        # log incorrectly announce the configured default.
+        os.environ["REVAI_PORT"] = str(port)
+        get_settings.cache_clear()
+        settings = get_settings()
     reload_enabled = settings.environment == "development" and not no_reload
     uvicorn.run(
         "revai.main:app",
         host=settings.host,
-        port=port if port is not None else settings.port,
+        port=settings.port,
         reload=reload_enabled,
         reload_dirs=[str(PACKAGE_DIR)] if reload_enabled else None,
         log_level="info",

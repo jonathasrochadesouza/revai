@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from revai.config import Settings
 from revai.domain.enums import ProviderId, ProviderKind
+from revai.providers.api import AnthropicProvider, GeminiProvider, OllamaProvider, OpenAIProvider
 from revai.providers.base import HealthState, ProviderHealth
 from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
 from revai.providers.detection import CLI_SPECS
@@ -56,6 +57,20 @@ def _fake_cli_detection(monkeypatch: pytest.MonkeyPatch) -> None:
     for provider in (ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider):
         monkeypatch.setattr(provider, "health", fake_health)
 
+    async def fake_native_health(self) -> ProviderHealth:
+        requires_key = self.provider_id is not ProviderId.OLLAMA
+        return ProviderHealth(
+            provider_id=self.provider_id,
+            kind=ProviderKind.API,
+            state=HealthState.NEEDS_AUTH if requires_key else HealthState.NOT_FOUND,
+            detail="fake API detection",
+            remediation="configure the provider",
+            adapter_ready=True,
+        )
+
+    for provider in (AnthropicProvider, OpenAIProvider, GeminiProvider, OllamaProvider):
+        monkeypatch.setattr(provider, "health", fake_native_health)
+
 
 def test_providers_lists_every_known_engine(client: TestClient) -> None:
     response = client.get("/api/providers")
@@ -94,17 +109,19 @@ def test_api_and_cli_adapters_are_reported_separately(client: TestClient) -> Non
     providers = client.get("/api/providers").json()["providers"]
     ready = [entry["provider_id"] for entry in providers if entry["adapter_ready"]]
 
-    assert ready == ["openrouter", "claude_code", "copilot_cli", "kiro_cli"]
+    assert ready == [member.value for member in ProviderId]
 
 
-def test_planned_api_providers_are_listed_honestly(client: TestClient) -> None:
-    """Listed rather than hidden, so the roadmap is visible in the product."""
+def test_native_api_providers_are_adapter_ready(client: TestClient) -> None:
     providers = client.get("/api/providers").json()["providers"]
-    anthropic = next(e for e in providers if e["provider_id"] == "anthropic")
+    native = [
+        entry
+        for entry in providers
+        if entry["provider_id"] in {"anthropic", "openai", "gemini", "ollama"}
+    ]
 
-    assert anthropic["adapter_ready"] is False
-    assert anthropic["detail"] is not None
-    assert "not been implemented" in anthropic["detail"]
+    assert len(native) == 4
+    assert all(entry["adapter_ready"] for entry in native)
 
 
 def test_unhealthy_providers_carry_remediation(client: TestClient) -> None:

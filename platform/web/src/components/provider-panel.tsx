@@ -16,10 +16,9 @@
  *   * `adapter_ready` remains distinct from installation and authentication, so a
  *     future recognised provider can still be listed without being selectable.
  *
- * Scope: **CLI agents only.** Hosted API providers (OpenRouter, Anthropic, OpenAI,
- * Gemini, Ollama) have nothing to "detect" on this machine — there is no binary to
- * find on `PATH`, only a key to store. They belong in the Model / Provider picker
- * above, not in a panel whose whole premise is "what did we find installed?".
+ * Hosted APIs use zero-token model/key endpoints, while local agents use version
+ * and sign-in probes. All eight adapters are therefore visible and testable from
+ * one place without starting a paid review.
  */
 
 "use client";
@@ -78,14 +77,8 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
 
     api.getProviders().then(
       (data) => {
-        // Hosted APIs have no binary to detect — only a key to store, which is
-        // already handled by the credentials card above. Keeping them out of a
-        // panel titled "Detected providers" is what makes the title true.
         if (!cancelled) {
-          setLoad({
-            phase: "ready",
-            data: { ...data, providers: data.providers.filter((p) => p.kind === "cli") },
-          });
+          setLoad({ phase: "ready", data });
         }
       },
       (cause: unknown) => {
@@ -146,7 +139,7 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
   return (
     <Card className="mb-3.5">
       <CardHeader
-        title="Detected providers"
+        title="Provider status"
         icon={PLUG}
         aside={
           load.phase === "ready"
@@ -177,8 +170,8 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
 
             <div className="mt-4 flex items-center gap-3 border-t border-line pt-3.5">
               <p className="text-[11.5px] leading-relaxed text-ink-subtle">
-                Probing never spends money: each CLI is only asked for its version and
-                sign-in state, never a real request.
+                Probing never spends model tokens: hosted APIs validate through their
+                model-list endpoint, while local agents report version and sign-in state.
               </p>
               <Button
                 variant="ghost"
@@ -289,7 +282,7 @@ function Spinner() {
         className="size-7 animate-spin rounded-full border-2 border-line border-t-ink"
       />
       <p className="text-[12px] text-ink-subtle">
-        Probing CLIs on this machine — this spawns one process per agent.
+        Probing provider health — local agents may take a few seconds to start.
       </p>
     </div>
   );
