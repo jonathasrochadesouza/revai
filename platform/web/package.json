@@ -3,6 +3,9 @@
   "version": "3.0.0-alpha.0",
   "private": true,
   "description": "RevAI Platform web app — Paper Light design system",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

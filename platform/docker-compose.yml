@@ -1,0 +1,70 @@
+name: revai
+
+services:
+  api:
+    image: revai-api:local
+    build:
+      context: ./api
+    environment:
+      REVAI_ENVIRONMENT: production
+      REVAI_HOST: 0.0.0.0
+      REVAI_PORT: 8799
+      REVAI_DATA_DIR: /data
+    ports:
+      - "127.0.0.1:${REVAI_API_PORT:-8799}:8799"
+    volumes:
+      - revai-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8799/api/health', timeout=2).read()
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    image: revai-web:local
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://127.0.0.1:8799}
+    environment:
+      REVAI_API_INTERNAL_URL: http://api:8799
+    ports:
+      - "127.0.0.1:${REVAI_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --spider
+        - http://127.0.0.1:3000/
+      interval: 10s
+      timeout: 3s
+      start_period: 15s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  revai-data:

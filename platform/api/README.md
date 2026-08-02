@@ -12,8 +12,11 @@ it binds to `127.0.0.1` on purpose and must never be exposed to a network.
 
 ```bash
 uv sync --all-groups     # install runtime + dev dependencies
-uv run revai-api         # start on http://127.0.0.1:8799
+uv run revai doctor      # validate Python, storage, config and credential permissions
+uv run revai serve       # start on http://127.0.0.1:8799
 ```
+
+`revai-api` and `python -m revai` remain compatible aliases for the server.
 
 Interactive docs: <http://127.0.0.1:8799/api/docs>
 
@@ -53,8 +56,6 @@ revai/
 └── export/          JSON · Markdown · HTML (phase 7)
 ```
 
-Current phase: **8 — CLI adapters**. Claude Code, GitHub Copilot CLI, and Kiro CLI
-now implement the same provider stream as hosted APIs, with hard subprocess
-timeouts, schema-aware output extraction, and honest usage accounting. See
-[`../docs/PHASE-8.md`](../docs/PHASE-8.md) for the exact invocations, asymmetries,
-safety boundaries, and live validation.
+Current phase: **9 — packaging**. The backend builds as a wheel and source archive,
+installs the `revai` command, runs as a non-root container, and is exercised by the
+same locked CI gates used locally. See [`../docs/PHASE-9.md`](../docs/PHASE-9.md).

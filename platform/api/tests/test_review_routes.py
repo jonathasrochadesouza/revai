@@ -148,9 +148,7 @@ def test_deterministic_review_analyzes_a_non_checked_out_head(
     )
 
     assert response.status_code == 201
-    assert [item["rule_id"] for item in response.json()["review"]["findings"]] == [
-        "F401"
-    ]
+    assert [item["rule_id"] for item in response.json()["review"]["findings"]] == ["F401"]
     assert _git(repository, "branch", "--show-current") == "main"
 
 

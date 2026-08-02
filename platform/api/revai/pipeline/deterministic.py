@@ -131,9 +131,7 @@ def parse_unified_diff(
                 if line.is_removed and line.source_line_no is not None
             }
             changed_text = "\n".join(
-                line.value.rstrip("\n")
-                for line in hunk
-                if line.is_added or line.is_removed
+                line.value.rstrip("\n") for line in hunk if line.is_added or line.is_removed
             )
             parsed.append(
                 ParsedHunk(

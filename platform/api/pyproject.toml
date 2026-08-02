@@ -39,10 +39,11 @@ dev = [
 ]
 
 [project.scripts]
+revai = "revai.cli:main"
 revai-api = "revai.__main__:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

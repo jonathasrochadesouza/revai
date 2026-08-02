@@ -46,9 +46,7 @@ class Settings(BaseSettings):
     )
     # The web server may choose a fallback port when 3000 is occupied. Keep the
     # API private by accepting those browser origins only on loopback hosts.
-    cors_origin_regex: str = (
-        r"^https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$"
-    )
+    cors_origin_regex: str = r"^https?://(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$"
 
     # --- storage ------------------------------------------------------------
     # Overridable so tests can point at a temporary directory.

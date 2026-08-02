@@ -2,7 +2,7 @@
   <h1>RevAI Platform</h1>
   <p><strong>Local-first AI code review with a web interface.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/phase-8%20·%20CLI%20adapters-2563eb?style=flat-square" />
+    <img src="https://img.shields.io/badge/phase-9%20·%20packaging%20%26%20CI-2563eb?style=flat-square" />
     <img src="https://img.shields.io/badge/backend-FastAPI-059669?style=flat-square" />
     <img src="https://img.shields.io/badge/frontend-Next.js%2016-09090b?style=flat-square" />
     <img src="https://img.shields.io/badge/storage-YAML-d97706?style=flat-square" />
@@ -48,7 +48,22 @@ npm install
 npm run dev                 # → http://localhost:3000
 ```
 
-**Requires:** Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node 20+.
+**Requires:** Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node 20.9+
+(Node 22.23.1 is pinned in `.nvmrc`).
+
+For an installed backend command or the optional container stack:
+
+```bash
+# install and validate the Python package
+cd platform/api
+uv tool install .
+revai doctor
+revai serve
+
+# or run both services in non-root, loopback-only containers
+cd platform
+docker compose up --build
+```
 
 ## Phase 7 in action
 
@@ -136,15 +151,15 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 6 | Results — findings, split diff, patches | deferred |
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | ✅ |
 | 8 | CLI adapters — Claude Code, Copilot, Kiro | ✅ |
-| 9 | Packaging — Docker, CLI entrypoint, CI | next |
-| 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | |
+| 9 | Packaging — Docker, CLI entrypoint, CI | ✅ |
+| 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | next |
 
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 Per-phase details and verification: [`docs/PHASE-0.md`](docs/PHASE-0.md) ·
 [`docs/PHASE-1.md`](docs/PHASE-1.md) · [`docs/PHASE-2.md`](docs/PHASE-2.md) ·
 [`docs/PHASE-3.md`](docs/PHASE-3.md) · [`docs/PHASE-4.md`](docs/PHASE-4.md) ·
 [`docs/PHASE-5.md`](docs/PHASE-5.md) · [`docs/PHASE-7.md`](docs/PHASE-7.md) ·
-[`docs/PHASE-8.md`](docs/PHASE-8.md).
+[`docs/PHASE-8.md`](docs/PHASE-8.md) · [`docs/PHASE-9.md`](docs/PHASE-9.md).
 
 > Detection runs real subprocesses, so `pytest` excludes those by default. Run them
 > explicitly with `uv run pytest -m cli` — see

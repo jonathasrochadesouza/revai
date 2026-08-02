@@ -57,9 +57,7 @@ def test_opening_a_subdirectory_reuses_the_existing_project(
     repo = _repository(tmp_path / "demo")
 
     first = client.post("/api/projects/open", json={"path": str(repo)}).json()
-    second_response = client.post(
-        "/api/projects/open", json={"path": str(repo / "src")}
-    )
+    second_response = client.post("/api/projects/open", json={"path": str(repo / "src")})
 
     assert second_response.status_code == 200
     assert second_response.json()["id"] == first["id"]
@@ -96,9 +94,7 @@ def test_branch_diff_preview_reports_files_lines_and_estimates(
 ) -> None:
     repo = _repository(tmp_path / "demo")
     _git(repo, "switch", "-c", "feature")
-    (repo / "src" / "app.py").write_text(
-        "answer = 42\nprint(answer)\n", encoding="utf-8"
-    )
+    (repo / "src" / "app.py").write_text("answer = 42\nprint(answer)\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "answer the question")
     project_id = client.post("/api/projects/open", json={"path": str(repo)}).json()["id"]
@@ -146,9 +142,7 @@ def test_same_branch_previews_uncommitted_worktree_changes(
     assert "+answer = 42" in preview["patch"]
 
 
-def test_same_branch_preview_includes_untracked_files(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_same_branch_preview_includes_untracked_files(client: TestClient, tmp_path: Path) -> None:
     repo = _repository(tmp_path / "demo")
     (repo / "src" / "new_module.py").write_text(
         "def greet():\n    return 'hello'\n",
@@ -188,9 +182,7 @@ def test_pipeline_can_collect_a_patch_without_the_transport_limit(
     assert len(collected.patch.encode("utf-8")) > 1_000_000
 
 
-def test_clone_creates_a_project_in_the_selected_folder(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_clone_creates_a_project_in_the_selected_folder(client: TestClient, tmp_path: Path) -> None:
     source = _repository(tmp_path / "source")
     destination = tmp_path / "checkouts"
     destination.mkdir()
@@ -235,9 +227,7 @@ def test_clone_does_not_overwrite_an_existing_destination(
     assert marker.read_text(encoding="utf-8") == "keep me"
 
 
-def test_clone_requires_a_destination_folder(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_clone_requires_a_destination_folder(client: TestClient, tmp_path: Path) -> None:
     source = _repository(tmp_path / "source")
 
     response = client.post(
@@ -251,9 +241,12 @@ def test_clone_requires_a_destination_folder(
 
 def test_unknown_project_returns_404(client: TestClient) -> None:
     assert client.get("/api/projects/missing/tree").status_code == 404
-    assert client.get(
-        "/api/projects/missing/diff", params={"base": "main", "head": "feature"}
-    ).status_code == 404
+    assert (
+        client.get(
+            "/api/projects/missing/diff", params={"base": "main", "head": "feature"}
+        ).status_code
+        == 404
+    )
 
 
 def test_diff_rejects_an_unknown_branch(client: TestClient, tmp_path: Path) -> None:

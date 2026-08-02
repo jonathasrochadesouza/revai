@@ -8,8 +8,16 @@
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:8799";
 
-export const API_BASE_URL =
+const PUBLIC_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? DEFAULT_BASE_URL;
+
+// A containerized Next.js server reaches the API by its Compose service name,
+// while the hydrated browser still uses the loopback-published URL. Non-public
+// environment variables are stripped from the client bundle by Next.js.
+export const API_BASE_URL =
+  typeof window === "undefined"
+    ? (process.env.REVAI_API_INTERNAL_URL?.replace(/\/$/, "") ?? PUBLIC_BASE_URL)
+    : PUBLIC_BASE_URL;
 
 // --- response shapes -------------------------------------------------------
 

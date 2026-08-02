@@ -69,9 +69,7 @@ def test_chunker_uses_python_symbol_boundaries_and_honours_budget(
     source = tmp_path / "src" / "calculator.py"
     source.parent.mkdir()
     source.write_text(
-        "def calculate():\n"
-        "    unused = 42\n"
-        "    return 1\n",
+        "def calculate():\n    unused = 42\n    return 1\n",
         encoding="utf-8",
     )
     hunks = parse_unified_diff(PATCH, allowed_paths={"src/calculator.py"})
@@ -118,10 +116,7 @@ def test_chunker_uses_tree_sitter_boundaries_for_typescript(tmp_path: Path) -> N
     source = tmp_path / "src" / "calculator.ts"
     source.parent.mkdir()
     source.write_text(
-        "function calculate() {\n"
-        "  const unused = 42;\n"
-        "  return 1;\n"
-        "}\n",
+        "function calculate() {\n  const unused = 42;\n  return 1;\n}\n",
         encoding="utf-8",
     )
     patch = PATCH.replace("calculator.py", "calculator.ts").replace(

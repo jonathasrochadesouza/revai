@@ -4,7 +4,7 @@ Next.js frontend for the RevAI Platform, built on the **Paper Light** design sys
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20.9+ (Node 22.23.1 is pinned in `.nvmrc` and CI)
 - The [API](../api/README.md) running on `http://127.0.0.1:8799`
 
 ## Getting started
@@ -31,6 +31,7 @@ told how to start it.
 | Variable | Default | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_API_URL` | `http://127.0.0.1:8799` | Backend base URL |
+| `REVAI_API_INTERNAL_URL` | public URL | Server-only API URL for Compose/service networking |
 
 ## Design system
 
@@ -74,7 +75,6 @@ src/
     └── api.ts           typed API client
 ```
 
-Current phase: **8 — CLI adapters**. Settings › Engine exposes Claude Code, GitHub
-Copilot CLI, and Kiro CLI as implemented local engines while preserving their real
-installed, sign-in, unknown, timeout, and error states. See
-[`../docs/PHASE-8.md`](../docs/PHASE-8.md).
+Current phase: **9 — packaging**. Next.js emits a minimal standalone server image,
+uses explicit tracing and Turbopack roots, and passes locked type, lint, build, audit,
+container, and live Compose gates. See [`../docs/PHASE-9.md`](../docs/PHASE-9.md).
