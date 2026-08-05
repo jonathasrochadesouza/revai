@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import shutil
 import subprocess
@@ -103,6 +104,9 @@ class CliSpec:
     aliases: tuple[str, ...] = field(default_factory=tuple)
     """Executables that must NOT be mistaken for this CLI."""
 
+    executable_env: str | None = None
+    """Optional environment variable containing an explicit executable path."""
+
 
 CLI_SPECS: tuple[CliSpec, ...] = (
     CliSpec(
@@ -146,6 +150,7 @@ CLI_SPECS: tuple[CliSpec, ...] = (
             "Emits plain text in headless mode, so findings have to be extracted from "
             "prose. Reviews produced this way are marked as lower fidelity."
         ),
+        executable_env="REVAI_KIRO_CLI_PATH",
     ),
 )
 
@@ -239,12 +244,17 @@ async def run_command(
 
 
 def resolve_executable(spec: CliSpec) -> tuple[str, str] | None:
-    """Find the CLI on PATH.
+    """Find the CLI from an explicit override or PATH.
 
     Returns ``(name, absolute_path)`` for the first candidate that resolves, or
     ``None``. The absolute path is what makes the subsequent ``exec`` work on
     Windows shims.
     """
+    if spec.executable_env and (configured := os.environ.get(spec.executable_env)):
+        resolved = shutil.which(configured)
+        if resolved:
+            return spec.executables[0], resolved
+
     for name in spec.executables:
         resolved = shutil.which(name)
         if resolved:

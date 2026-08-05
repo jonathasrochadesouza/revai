@@ -9,6 +9,7 @@ import {
   CircleCheck,
   CircleDollarSign,
   CircleX,
+  ClipboardCheck,
   Code2,
   Copy,
   File,
@@ -46,7 +47,9 @@ import {
   type Finding,
   type Project,
   type ProjectTree,
+  type Review,
   type ReviewStreamEvent,
+  type RevaiConfig,
   type Severity,
 } from "@/lib/api";
 
@@ -188,6 +191,8 @@ export function ProjectWorkspace({
           </button>
         </div>
       )}
+
+      <OnboardingChecklist hasProjects={projects.length > 0} />
 
       <section aria-label="Add a repository" className="mb-8 grid gap-3 md:grid-cols-2">
         <EntryAction
@@ -383,6 +388,48 @@ function EmptyProjects({
         )}
       </div>
     </div>
+  );
+}
+
+function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
+  const [config, setConfig] = useState<RevaiConfig | null>(null);
+  const [providerReady, setProviderReady] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([api.getConfig(), api.getProviders()]).then(([saved, providers]) => {
+      if (!active) return;
+      setConfig(saved.config);
+      setProviderReady(providers.active_is_usable);
+    }).catch(() => {
+      if (active) setProviderReady(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const steps = [
+    { label: "Configure an engine", done: Boolean(config?.engine.model), href: "/settings/engine" },
+    { label: "Verify provider access", done: providerReady === true, href: "/settings/engine" },
+    { label: "Add a repository", done: hasProjects, href: "#repositories" },
+  ];
+  if (steps.every((step) => step.done)) return null;
+  return (
+    <section className="mb-6 border border-line bg-paper px-5 py-4" aria-label="Getting started">
+      <div className="mb-3 flex items-center gap-2">
+        <ClipboardCheck className="size-4 text-low" />
+        <h2 className="text-[13px] font-semibold">Get ready for your first review</h2>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {steps.map((step) => (
+          <a key={step.label} href={step.href} className="flex items-center gap-2 border border-line px-3 py-2 text-[11.5px] hover:bg-canvas">
+            <span className={`grid size-5 place-items-center rounded-full ${step.done ? "bg-success-surface text-success" : "bg-canvas text-ink-subtle"}`}>
+              {step.done ? <Check className="size-3" /> : ""}
+            </span>
+            <span>{step.label}</span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -598,6 +645,9 @@ function RepositoryInspector({
   const [result, setResult] = useState<DeterministicReview | null>(null);
   const [cancelled, setCancelled] = useState(false);
   const [events, setEvents] = useState<ReviewStreamEvent[]>([]);
+  const [config, setConfig] = useState<RevaiConfig | null>(null);
+  const [history, setHistory] = useState<Review[]>([]);
+  const [confirming, setConfirming] = useState(false);
   const reviewAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -624,6 +674,20 @@ function RepositoryInspector({
       setLoading(false);
     }
   }, [fetchData, onError]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const response = await api.getProjectReviews(project.id);
+      setHistory(response.reviews);
+    } catch (error) {
+      onError(displayError(error));
+    }
+  }, [onError, project.id]);
+
+  useEffect(() => {
+    void loadHistory();
+    api.getConfig().then((response) => setConfig(response.config)).catch(() => undefined);
+  }, [loadHistory]);
 
   useEffect(() => {
     let active = true;
@@ -667,6 +731,7 @@ function RepositoryInspector({
         },
       });
       setResult(nextResult);
+      void loadHistory();
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         onError(displayError(error));
@@ -684,6 +749,27 @@ function RepositoryInspector({
     reviewAbort.current = null;
     setReviewing(false);
     setCancelled(true);
+  };
+
+  const requestReview = () => {
+    const estimate = preview?.estimated_cost_usd ?? 0;
+    const needsConfirmation = config?.ui.confirm_expensive_reviews !== false && estimate >= (config?.budget.warn_above_usd ?? 0.25);
+    if (needsConfirmation) setConfirming(true);
+    else void runReview();
+  };
+
+  const overBudget = Boolean(
+    preview && config?.budget.max_spend_usd !== null && config?.budget.max_spend_usd !== undefined && preview.estimated_cost_usd > config.budget.max_spend_usd,
+  );
+
+  const updateFinding = async (reviewId: string, findingId: string, status: Finding["status"]) => {
+    try {
+      const updated = await api.updateFindingStatus(project.id, reviewId, findingId, status);
+      setResult((current) => current ? { ...current, review: updated } : current);
+      setHistory((current) => current.map((review) => review.id === updated.id ? updated : review));
+    } catch (error) {
+      onError(displayError(error));
+    }
   };
 
   return (
@@ -745,8 +831,8 @@ function RepositoryInspector({
             </button>
             <button
               type="button"
-              onClick={reviewing ? cancelReview : () => void runReview()}
-              disabled={loading}
+              onClick={reviewing ? cancelReview : requestReview}
+              disabled={loading || overBudget}
               className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               {reviewing ? (
@@ -829,6 +915,17 @@ function RepositoryInspector({
           running={reviewing}
           cancelled={cancelled}
           branches={{ base, head }}
+          onFindingStatus={updateFinding}
+        />
+      )}
+      <ReviewHistory reviews={history} onSelect={(review) => setResult({ review, stages: [], analyzers: [], chunks: [] })} />
+      {confirming && preview && (
+        <CostConfirmation
+          preview={preview}
+          model={config?.engine.model ?? "configured model"}
+          cap={config?.budget.max_spend_usd ?? null}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => { setConfirming(false); void runReview(); }}
         />
       )}
     </>
@@ -857,12 +954,14 @@ function LiveReviewPanel({
   cancelled,
   running,
   branches,
+  onFindingStatus,
 }: {
   result: DeterministicReview | null;
   events: ReviewStreamEvent[];
   cancelled: boolean;
   running: boolean;
   branches: { base: string; head: string };
+  onFindingStatus: (reviewId: string, findingId: string, status: Finding["status"]) => void;
 }) {
   const review = result?.review;
   const stageEvents = events.filter(
@@ -1044,7 +1143,11 @@ function LiveReviewPanel({
           {review?.findings.length ? (
             <div className="divide-y divide-line">
               {review.findings.map((finding) => (
-                <FindingRow key={finding.id} finding={finding} />
+                <FindingRow
+                  key={finding.id}
+                  finding={finding}
+                  onStatus={(status) => onFindingStatus(review.id, finding.id, status)}
+                />
               ))}
             </div>
           ) : running ? (
@@ -1158,7 +1261,21 @@ function AnalyzerRow({ analyzer }: { analyzer: AnalyzerRun }) {
   );
 }
 
-function FindingRow({ finding }: { finding: Finding }) {
+function FindingRow({
+  finding,
+  onStatus,
+}: {
+  finding: Finding;
+  onStatus: (status: Finding["status"]) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyPatch = async () => {
+    if (!finding.suggested_patch) return;
+    await navigator.clipboard.writeText(finding.suggested_patch);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <article className="px-4 py-4">
       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1170,12 +1287,64 @@ function FindingRow({ finding }: { finding: Finding }) {
         <span className="font-mono text-[10px] text-ink-subtle">
           {finding.file}:{finding.line_start}
         </span>
-        <span className="ml-auto text-[9.5px] font-semibold uppercase text-ink-subtle">
-          {finding.source}
-        </span>
+        <span className="text-[9.5px] font-semibold uppercase text-ink-subtle">{finding.source}</span>
+        <span className="ml-auto text-[9.5px] font-semibold capitalize text-ink-subtle">{finding.status.replace("_", " ")}</span>
       </div>
       <h5 className="text-[12.5px] font-semibold leading-snug">{finding.title}</h5>
+      <p className="mt-1 text-[11.5px] leading-relaxed text-ink-muted">{finding.description}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setExpanded((value) => !value)} className="text-[10.5px] font-semibold text-low hover:underline">
+          {expanded ? "Hide evidence" : "Why this matters"}
+        </button>
+        <span className="text-[10.5px] text-ink-subtle">Confidence {Math.round(finding.confidence * 100)}%</span>
+        {finding.suggested_patch && <button type="button" onClick={() => void copyPatch()} className="text-[10.5px] font-semibold text-low hover:underline">{copied ? "Patch copied" : "Copy suggested patch"}</button>}
+      </div>
+      {expanded && (
+        <div className="mt-3 border-l-2 border-low-line bg-canvas px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
+          <p>{finding.rationale || "This finding was reported by the selected analyzer."}</p>
+          {finding.suggested_patch && <pre className="mt-3 overflow-auto border border-line bg-paper p-2 font-mono text-[10px] text-ink">{finding.suggested_patch}</pre>}
+        </div>
+      )}
+      {finding.status === "open" && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onStatus("fixed")} className="border border-success-line px-2 py-1 text-[10.5px] font-semibold text-success hover:bg-success-surface">Mark fixed</button>
+          <button type="button" onClick={() => onStatus("false_positive")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">False positive</button>
+          <button type="button" onClick={() => onStatus("dismissed")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">Dismiss</button>
+        </div>
+      )}
     </article>
+  );
+}
+
+function ReviewHistory({ reviews, onSelect }: { reviews: Review[]; onSelect: (review: Review) => void }) {
+  if (!reviews.length) return null;
+  return (
+    <section className="mt-4 overflow-hidden rounded-panel border border-line bg-paper" aria-label="Review history">
+      <div className="flex items-center justify-between border-b border-line bg-sunken px-4 py-3">
+        <h3 className="text-[12px] font-semibold">Review history</h3>
+        <span className="font-mono text-[10.5px] text-ink-subtle">{reviews.length}</span>
+      </div>
+      <div className="divide-y divide-line">
+        {reviews.slice(0, 8).map((review) => (
+          <button key={review.id} type="button" onClick={() => onSelect(review)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left hover:bg-canvas">
+            <span className="min-w-0"><span className="block truncate text-[11.5px] font-semibold">{review.base_branch} → {review.head_branch}</span><span className="block text-[10.5px] text-ink-subtle">{relativeDate(review.created_at)} · {review.model ?? "Local analysis"}</span></span>
+            <span className="text-[10.5px] text-ink-muted">{review.findings.length} findings · ${review.stats.cost_usd.toFixed(4)}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CostConfirmation({ preview, model, cap, onCancel, onConfirm }: { preview: DiffPreview; model: string; cap: number | null; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-4">
+      <section role="dialog" aria-modal="true" aria-labelledby="cost-confirmation-title" className="w-full max-w-[440px] border border-line bg-paper shadow-2xl">
+        <div className="border-b border-line px-5 py-4"><h2 id="cost-confirmation-title" className="text-[15px] font-semibold">Confirm estimated review cost</h2><p className="mt-1 text-[12px] text-ink-muted">This review exceeds your warning threshold.</p></div>
+        <div className="space-y-2 px-5 py-4 text-[12px] text-ink-muted"><p><strong className="text-ink">Model:</strong> {model}</p><p><strong className="text-ink">Scope:</strong> {preview.files.length} files, {formatTokens(preview.estimated_tokens)} estimated tokens</p><p><strong className="text-ink">Estimated input:</strong> ${preview.estimated_cost_usd.toFixed(4)}{cap !== null ? ` of $${cap.toFixed(2)} budget` : ""}</p></div>
+        <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">Cancel</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-white hover:bg-zinc-800">Run review</button></div>
+      </section>
+    </div>
   );
 }
 

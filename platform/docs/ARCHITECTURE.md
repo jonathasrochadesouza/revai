@@ -85,7 +85,7 @@ monospaced list** with a coloured dot per level — same information, calm surfa
 └───────────────┬─────────────────────────────────────────────┘
                 │  REST (JSON)  +  SSE (live events)
 ┌───────────────▼─────────────────────────────────────────────┐
-│  FastAPI · http://127.0.0.1:8787                            │
+│  FastAPI · http://127.0.0.1:8799                            │
 │                                                              │
 │   api/routes ──► services ──► pipeline ──► providers        │
 │                      │            │                          │

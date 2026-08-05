@@ -122,6 +122,27 @@ def test_deterministic_review_rejects_an_unknown_project(client: TestClient) -> 
     assert response.status_code == 404
 
 
+def test_finding_status_is_persisted(client: TestClient, settings: Settings, tmp_path: Path) -> None:
+    _ruff_only(settings)
+    repository = _repository(tmp_path / "finding-status")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+    (repository / "app.py").write_text("import os\n\nanswer = 42\n", encoding="utf-8")
+    review = client.post(
+        f"/api/projects/{project['id']}/reviews/deterministic",
+        json={"base": "main", "head": "main"},
+    ).json()["review"]
+
+    response = client.patch(
+        f"/api/projects/{project['id']}/reviews/{review['id']}/findings/{review['findings'][0]['id']}",
+        json={"status": "false_positive"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["findings"][0]["status"] == "false_positive"
+    stored = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
+    assert stored[0]["findings"][0]["status"] == "false_positive"
+
+
 def test_deterministic_review_analyzes_a_non_checked_out_head(
     client: TestClient,
     settings: Settings,

@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewRepo
-from revai.domain.enums import ReviewStatus
+from revai.domain.enums import FindingStatus, ReviewStatus
 from revai.domain.models import Review, ReviewStats
 from revai.git.repo import GitError
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
@@ -62,6 +62,10 @@ class DeterministicReviewResponse(BaseModel):
 
 class ReviewsResponse(BaseModel):
     reviews: list[Review]
+
+
+class FindingStatusRequest(BaseModel):
+    status: FindingStatus
 
 
 @router.post(
@@ -151,6 +155,15 @@ async def create_ai_review(
                 )
 
             if result.chunks:
+                estimated_cost = estimate_input_cost(result.chunks)
+                if (
+                    config.budget.max_spend_usd is not None
+                    and estimated_cost > config.budget.max_spend_usd
+                ):
+                    raise ValueError(
+                        f"Estimated input cost (${estimated_cost:.4f}) exceeds this review's "
+                        f"budget (${config.budget.max_spend_usd:.4f})."
+                    )
                 ai_result = await run_ai_stage(
                     provider,
                     config,
@@ -266,6 +279,27 @@ async def list_reviews(project_id: str, project_repo: ProjectRepo, review_repo: 
     if project_repo.get(project_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
     return ReviewsResponse(reviews=review_repo.list(project_id))
+
+
+@router.patch("/{review_id}/findings/{finding_id}", response_model=Review)
+async def update_finding_status(
+    project_id: str,
+    review_id: str,
+    finding_id: str,
+    request: FindingStatusRequest,
+    project_repo: ProjectRepo,
+    review_repo: ReviewRepo,
+) -> Review:
+    if project_repo.get(project_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+    review = review_repo.get(review_id, project_id)
+    if review is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+    finding = next((item for item in review.findings if item.id == finding_id), None)
+    if finding is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found.")
+    finding.status = request.status
+    return review_repo.save(review)
 
 
 def _response(result: DeterministicResult) -> DeterministicReviewResponse:

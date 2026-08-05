@@ -243,11 +243,11 @@ export function SettingsForm({
           <Field
             label="Model"
             htmlFor="model"
-            note={`${catalogue?.models.length ?? 0} available`}
+            note={`${catalogue?.models.length ?? 0} offline suggestions`}
             hint={
               usingCustomModel
-                ? "Custom ids are passed through verbatim. Useful for a model released after this build."
-                : "Curated for code review — strong reasoning over long diffs, not simply the cheapest or largest."
+                ? "Custom ids are passed through verbatim. Confirm the id in your provider dashboard before running a review."
+                : "These are offline suggestions. Provider model catalogs change frequently; use Custom when your provider lists a newer id."
             }
           >
             <Select

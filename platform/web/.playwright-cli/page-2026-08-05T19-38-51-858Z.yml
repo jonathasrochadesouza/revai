@@ -1,0 +1,61 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "RevAI — go to the dashboard" [ref=e4] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: RevAI
+      - navigation "Breadcrumb" [ref=e10]:
+        - generic [ref=e11]: Platform
+        - generic [ref=e13]: Projects
+      - generic [ref=e17]:
+        - link "Settings" [ref=e18] [cursor=pointer]:
+          - /url: /settings/engine
+        - generic [ref=e19]: API unreachable
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Projects" [level=1] [ref=e25]
+        - paragraph [ref=e26]: Repository access stays local. Only filtered review context reaches the provider you configure.
+      - generic [ref=e27]:
+        - generic [ref=e31]: Search projects
+        - textbox "Search projects Ctrl K" [ref=e32]:
+          - /placeholder: Search projects
+        - generic [ref=e33]: Ctrl K
+    - status [ref=e34]:
+      - generic [ref=e35]: fetch failed
+      - button "Dismiss message" [ref=e36]
+    - region "Getting started" [ref=e40]:
+      - heading "Get ready for your first review" [level=2] [ref=e46]
+      - generic [ref=e47]:
+        - link "Configure an engine" [ref=e48] [cursor=pointer]:
+          - /url: /settings/engine
+        - link "Verify provider access" [ref=e51] [cursor=pointer]:
+          - /url: /settings/engine
+        - link "Add a repository" [ref=e54] [cursor=pointer]:
+          - /url: "#repositories"
+    - region "Add a repository" [ref=e57]:
+      - button "Open local folder Point RevAI at a Git repository already on this machine. Browse or enter path" [ref=e58]:
+        - generic [ref=e62]:
+          - generic [ref=e63]: Open local folder
+          - generic [ref=e64]: Point RevAI at a Git repository already on this machine.
+          - generic [ref=e65]: Browse or enter path
+      - button "Clone from remote Clone an HTTPS, SSH, or local Git remote into a folder you choose. Choose URL and folder" [ref=e68]:
+        - generic [ref=e73]:
+          - generic [ref=e74]: Clone from remote
+          - generic [ref=e75]: Clone an HTTPS, SSH, or local Git remote into a folder you choose.
+          - generic [ref=e76]: Choose URL and folder
+    - generic [ref=e79]:
+      - generic [ref=e80]:
+        - heading "Your projects 0" [level=2] [ref=e81]:
+          - text: Your projects
+          - generic [ref=e82]: "0"
+        - generic [ref=e83]:
+          - button "all" [pressed] [ref=e84]
+          - button "active" [ref=e85]
+          - button "archived" [ref=e86]
+      - generic [ref=e88]:
+        - paragraph [ref=e94]: No repositories yet
+        - paragraph [ref=e95]: Open a local Git folder to start inspecting changes.
+        - button "Open repository" [ref=e96]
+  - button "Open Next.js Dev Tools" [ref=e102] [cursor=pointer]
+  - alert [ref=e106]

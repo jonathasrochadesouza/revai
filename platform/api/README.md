@@ -39,6 +39,7 @@ Every setting is overridable with a `REVAI_` prefixed environment variable, or v
 | `REVAI_PORT` | `8799` | Bind port |
 | `REVAI_DATA_DIR` | `~/.revai` | Where projects, reviews and config live |
 | `REVAI_ENVIRONMENT` | `development` | Enables auto-reload when `development` |
+| `REVAI_KIRO_CLI_PATH` | _(PATH lookup)_ | Absolute Kiro CLI path, for services whose PATH does not include it |
 
 ## Layout
 
