@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -266,6 +266,8 @@ class BudgetConfig(_Base):
     max_context_tokens: int | None = Field(default=60_000, gt=0)
     warn_above_usd: float = Field(default=0.25, ge=0)
     request_timeout_s: int = Field(default=600, gt=0)
+    max_concurrent_reviews: int = Field(default=1, ge=1, le=8)
+    max_retry_attempts: int = Field(default=1, ge=0, le=3)
 
     @model_validator(mode="after")
     def _warn_below_max(self) -> Self:
@@ -338,9 +340,16 @@ class EngineConfig(_Base):
 class UiConfig(_Base):
     """Presentation preferences."""
 
-    locale: str = "en"
-    theme: str = "light"
+    # ``en`` was used by alpha config files. Normalize it while loading so a
+    # user upgrade never silently drops their preferred language.
+    locale: Literal["en-US", "pt-BR"] = "en-US"
+    theme: Literal["light", "dark", "system"] = "system"
     confirm_expensive_reviews: bool = True
+
+    @field_validator("locale", mode="before")
+    @classmethod
+    def _migrate_legacy_locale(cls, value: object) -> object:
+        return "en-US" if value == "en" else value
 
 
 class RevaiConfig(_Document):

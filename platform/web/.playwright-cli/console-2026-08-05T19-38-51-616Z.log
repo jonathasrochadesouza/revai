@@ -35,3 +35,9 @@
 [  400910ms] [ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ZrVHoNVtcMoVuy3ITcDqn' failed:  @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js:13422
 [  408347ms] [ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ZrVHoNVtcMoVuy3ITcDqn' failed:  @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js:13422
 [  415850ms] [ERROR] WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=ZrVHoNVtcMoVuy3ITcDqn' failed:  @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_0r5nbpw._.js:13422
+[  525954ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2489
+[  526437ms] [LOG] [HMR] connected @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2489
+[  526638ms] [LOG] [Fast Refresh] rebuilding @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2489
+[  527262ms] [LOG] [Fast Refresh] done in 741ms @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_1ybzpk2._.js:2489
+[  528704ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8799/api/config:0
+[  528704ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:8799/api/providers:0

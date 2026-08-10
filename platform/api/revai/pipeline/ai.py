@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import re
@@ -31,6 +32,10 @@ _ESTIMATED_INPUT_USD_PER_MILLION_TOKENS = 3.0
 
 class AIReviewError(RuntimeError):
     """The model stage could not produce a usable review."""
+
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 class BudgetExceededError(AIReviewError):
@@ -182,21 +187,35 @@ async def run_ai_stage(
     finished: FinishedEvent | None = None
     latest_usage: UsageStats | None = None
     received = 0
-    async for event in provider.analyze(request):
-        if isinstance(event, StartedEvent):
-            await _emit(on_event, {"type": "provider", "model": event.model})
-        elif isinstance(event, DeltaEvent):
-            received += len(event.text)
-            await _emit(on_event, {"type": "delta", "characters": received})
-        elif isinstance(event, UsageEvent):
-            latest_usage = event.usage
-        elif isinstance(event, FailedEvent):
-            raise AIReviewError(event.message)
-        elif isinstance(event, FinishedEvent):
-            finished = event
-            latest_usage = event.usage or latest_usage
+    for attempt in range(config.budget.max_retry_attempts + 1):
+        try:
+            async for event in provider.analyze(request):
+                if isinstance(event, StartedEvent):
+                    await _emit(on_event, {"type": "provider", "model": event.model})
+                elif isinstance(event, DeltaEvent):
+                    received += len(event.text)
+                    await _emit(on_event, {"type": "delta", "characters": received})
+                elif isinstance(event, UsageEvent):
+                    latest_usage = event.usage
+                elif isinstance(event, FailedEvent):
+                    raise AIReviewError(event.message, retryable=event.retryable)
+                elif isinstance(event, FinishedEvent):
+                    finished = event
+                    latest_usage = event.usage or latest_usage
+            if finished is not None:
+                break
+            raise AIReviewError(
+                "The provider stream ended without a final response.", retryable=True
+            )
+        except AIReviewError as exc:
+            if not exc.retryable or attempt >= config.budget.max_retry_attempts:
+                raise
+            # A short linear backoff keeps local UI feedback responsive while
+            # avoiding an immediate repeat of a rate-limited request.
+            await _emit(on_event, {"type": "retry", "attempt": attempt + 1, "message": str(exc)})
+            await asyncio.sleep(attempt + 1)
 
-    if finished is None:
+    if finished is None:  # Defensive: the loop above either breaks or raises.
         raise AIReviewError("The provider stream ended without a final response.")
 
     usage = latest_usage or UsageStats(is_estimated=True)

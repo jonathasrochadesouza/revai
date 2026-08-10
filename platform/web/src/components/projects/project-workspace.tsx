@@ -26,6 +26,7 @@ import {
   Square,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import {
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -106,15 +107,9 @@ export function ProjectWorkspace({
   const [projects, setProjects] = useState(initialProjects);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ProjectFilter>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialProjects[0]?.id ?? null,
-  );
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [notice, setNotice] = useState<string | null>(initialError ?? null);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  const selected =
-    projects.find((project) => project.id === selectedId) ?? null;
 
   const visibleProjects = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -141,10 +136,9 @@ export function ProjectWorkspace({
     return () => window.removeEventListener("keydown", focusSearch);
   }, []);
 
-  const refresh = useCallback(async (project?: Project) => {
+  const refresh = useCallback(async () => {
     const response = await api.getProjects();
     setProjects(response.projects);
-    if (project) setSelectedId(project.id);
   }, []);
 
   return (
@@ -247,13 +241,10 @@ export function ProjectWorkspace({
 
         {visibleProjects.length ? (
           visibleProjects.map((project, index) => (
-            <button
+            <Link
               key={project.id}
-              type="button"
-              onClick={() => setSelectedId(project.id)}
-              className={`grid w-full gap-3 border-b border-line px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-canvas md:grid-cols-[minmax(260px,1fr)_180px_170px_90px] md:items-center md:gap-4 ${
-                selectedId === project.id ? "bg-low-surface/50" : "bg-paper"
-              }`}
+              href={`/projects/${project.id}/review`}
+              className="grid w-full gap-3 border-b border-line bg-paper px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-canvas md:grid-cols-[minmax(260px,1fr)_180px_170px_90px] md:items-center md:gap-4"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span
@@ -282,7 +273,7 @@ export function ProjectWorkspace({
               <span className="numeric text-[11px] text-ink-subtle md:text-right">
                 {relativeDate(project.created_at, renderedAt)}
               </span>
-            </button>
+            </Link>
           ))
         ) : (
           <EmptyProjects
@@ -292,23 +283,15 @@ export function ProjectWorkspace({
         )}
       </section>
 
-      {selected && (
-        <RepositoryInspector
-          key={selected.id}
-          project={selected}
-          onError={setNotice}
-        />
-      )}
-
       {dialog && (
         <RepositoryDialog
           mode={dialog}
           onClose={() => setDialog(null)}
-          onCreated={async (project) => {
+          onCreated={async () => {
             setDialog(null);
             setNotice(null);
             try {
-              await refresh(project);
+              await refresh();
             } catch (error) {
               setNotice(displayError(error));
             }
@@ -628,7 +611,7 @@ function RepositoryDialog({
   );
 }
 
-function RepositoryInspector({
+export function RepositoryInspector({
   project,
   onError,
 }: {
@@ -774,6 +757,7 @@ function RepositoryInspector({
 
   return (
     <>
+      {!reviewing && !result && (
       <section className="mt-5 overflow-hidden rounded-panel border border-line bg-paper">
         <div className="flex flex-col justify-between gap-4 border-b border-line px-5 py-4 lg:flex-row lg:items-center">
           <div className="min-w-0">
@@ -907,6 +891,7 @@ function RepositoryInspector({
           </div>
         </div>
       </section>
+      )}
 
       {(reviewing || events.length > 0 || result) && (
         <LiveReviewPanel
@@ -918,6 +903,23 @@ function RepositoryInspector({
           onFindingStatus={updateFinding}
         />
       )}
+      {result && !reviewing && (
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={() => {
+              setResult(null);
+              setEvents([]);
+              setCancelled(false);
+              setLoading(true);
+              void load();
+            }}
+            className="rounded-control border border-line-strong px-3 py-2 text-[12px] font-semibold text-ink-muted hover:bg-canvas hover:text-ink"
+          >
+            Configure another review
+          </button>
+        </div>
+      )}
       <ReviewHistory reviews={history} onSelect={(review) => setResult({ review, stages: [], analyzers: [], chunks: [] })} />
       {confirming && preview && (
         <CostConfirmation
@@ -928,6 +930,33 @@ function RepositoryInspector({
           onConfirm={() => { setConfirming(false); void runReview(); }}
         />
       )}
+    </>
+  );
+}
+
+/** Dedicated review route wrapper. Keeps review errors close to the action that caused them. */
+export function ReviewSetupWorkspace({ project }: { project: Project }) {
+  const [notice, setNotice] = useState<string | null>(null);
+
+  return (
+    <>
+      {notice && (
+        <div
+          role="status"
+          className="mb-5 flex items-start gap-3 rounded-control border border-critical-line bg-critical-surface px-4 py-3 text-[12.5px] text-critical"
+        >
+          <span className="flex-1">{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss message"
+            className="rounded-chip p-0.5 hover:bg-paper"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+      <RepositoryInspector project={project} onError={setNotice} />
     </>
   );
 }
@@ -1188,6 +1217,9 @@ function LiveReviewPanel({
 function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
   let label: string;
   switch (event.type) {
+    case "review_queued":
+      label = "Queued — waiting for a review slot";
+      break;
     case "review_started":
       label = "Review started";
       break;
@@ -1202,6 +1234,9 @@ function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
       break;
     case "delta":
       label = `Model output · ${event.characters} chars`;
+      break;
+    case "retry":
+      label = `Retry ${event.attempt} · ${event.message}`;
       break;
     case "usage":
       label = `Usage · ${formatTokens(event.input_tokens + event.output_tokens)} tokens`;
@@ -1327,7 +1362,7 @@ function ReviewHistory({ reviews, onSelect }: { reviews: Review[]; onSelect: (re
       <div className="divide-y divide-line">
         {reviews.slice(0, 8).map((review) => (
           <button key={review.id} type="button" onClick={() => onSelect(review)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left hover:bg-canvas">
-            <span className="min-w-0"><span className="block truncate text-[11.5px] font-semibold">{review.base_branch} → {review.head_branch}</span><span className="block text-[10.5px] text-ink-subtle">{relativeDate(review.created_at)} · {review.model ?? "Local analysis"}</span></span>
+            <span className="min-w-0"><span className="block truncate text-[11.5px] font-semibold">{review.base_branch} → {review.head_branch}</span><span className="block text-[10.5px] text-ink-subtle">{relativeDate(review.created_at, new Date().toISOString())} · {review.model ?? "Local analysis"}</span></span>
             <span className="text-[10.5px] text-ink-muted">{review.findings.length} findings · ${review.stats.cost_usd.toFixed(4)}</span>
           </button>
         ))}

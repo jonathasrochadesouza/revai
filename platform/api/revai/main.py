@@ -16,6 +16,7 @@ from revai.api.routes import projects as project_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
 from revai.config import Settings, get_settings
+from revai.pipeline.limiter import ReviewLimiter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,6 +58,9 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/api/openapi.json",
     )
+    # A single local process owns the queue. Each job persists its own state in
+    # YAML; this object only coordinates live execution slots.
+    app.state.review_limiter = ReviewLimiter()
 
     # The web app is served from a different port during development, so CORS is
     # required. Restricted to explicit loopback origins — never "*".

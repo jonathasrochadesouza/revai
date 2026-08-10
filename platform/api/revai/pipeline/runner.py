@@ -45,15 +45,16 @@ async def run_deterministic_pipeline(
     *,
     base: str,
     head: str,
+    review: Review | None = None,
 ) -> DeterministicResult:
     repository = Path(project.path)
-    review = Review(
+    review = review or Review(
         project_id=project.id,
         scope=ReviewScope.BRANCH_DIFF,
-        status=ReviewStatus.RUNNING,
         base_branch=base,
         head_branch=head,
     )
+    review.status = ReviewStatus.RUNNING
     started = time.perf_counter()
     stages: list[StageRun] = []
 

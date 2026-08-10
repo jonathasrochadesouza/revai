@@ -128,6 +128,60 @@
   }
 }
 
+/* Same semantic tokens, remapped for a low-glare review workspace. Components
+   never need a dark-mode branch because they use semantic colour names only. */
+html[data-theme="dark"] {
+  --color-canvas: #111113;
+  --color-paper: #18181b;
+  --color-sunken: #141416;
+  --color-ink: #fafafa;
+  --color-ink-muted: #d4d4d8;
+  --color-ink-subtle: #a1a1aa;
+  --color-line: #3f3f46;
+  --color-line-strong: #52525b;
+  --color-critical: #f87171;
+  --color-critical-surface: #2a1619;
+  --color-critical-line: #7f1d1d;
+  --color-medium: #fbbf24;
+  --color-medium-surface: #2a2312;
+  --color-medium-line: #854d0e;
+  --color-low: #60a5fa;
+  --color-low-surface: #172554;
+  --color-low-line: #1d4ed8;
+  --color-info: #60a5fa;
+  --color-info-surface: #172554;
+  --color-success: #34d399;
+  --color-success-surface: #10261f;
+  --color-success-line: #065f46;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --color-canvas: #111113;
+    --color-paper: #18181b;
+    --color-sunken: #141416;
+    --color-ink: #fafafa;
+    --color-ink-muted: #d4d4d8;
+    --color-ink-subtle: #a1a1aa;
+    --color-line: #3f3f46;
+    --color-line-strong: #52525b;
+    --color-critical: #f87171;
+    --color-critical-surface: #2a1619;
+    --color-critical-line: #7f1d1d;
+    --color-medium: #fbbf24;
+    --color-medium-surface: #2a2312;
+    --color-medium-line: #854d0e;
+    --color-low: #60a5fa;
+    --color-low-surface: #172554;
+    --color-low-line: #1d4ed8;
+    --color-info: #60a5fa;
+    --color-info-surface: #172554;
+    --color-success: #34d399;
+    --color-success-surface: #10261f;
+    --color-success-line: #065f46;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Utilities used across screens. Kept small on purpose — anything reused more
    than twice becomes a real component instead.

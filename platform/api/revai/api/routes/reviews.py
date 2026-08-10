@@ -13,8 +13,8 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
-from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewRepo
-from revai.domain.enums import FindingStatus, ReviewStatus
+from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewLimiterDep, ReviewRepo
+from revai.domain.enums import FindingStatus, ReviewScope, ReviewStatus
 from revai.domain.models import Review, ReviewStats
 from revai.git.repo import GitError
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
@@ -110,6 +110,7 @@ async def create_ai_review(
     credentials_repo: CredentialsRepo,
     project_repo: ProjectRepo,
     review_repo: ReviewRepo,
+    limiter: ReviewLimiterDep,
 ) -> StreamingResponse:
     project = project_repo.get(project_id)
     if project is None:
@@ -124,19 +125,35 @@ async def create_ai_review(
         )
 
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+    review = Review(
+        project_id=project.id,
+        scope=ReviewScope.BRANCH_DIFF,
+        status=ReviewStatus.QUEUED,
+        base_branch=request.base,
+        head_branch=request.head,
+        provider_id=config.engine.provider_id,
+        model=config.engine.model,
+    )
+    # Persist before work starts. A browser can close while this job is waiting
+    # for a slot and the review history still explains what happened.
+    review_repo.save(review)
 
     async def run() -> None:
         result: DeterministicResult | None = None
         started = time.perf_counter()
+        acquired_slot = False
         try:
-            await queue.put({"type": "review_started"})
+            await queue.put({"type": "review_queued", "review_id": review.id})
+            await limiter.acquire(config.budget.max_concurrent_reviews)
+            acquired_slot = True
+            await queue.put({"type": "review_started", "review_id": review.id})
             result = await run_deterministic_pipeline(
                 project,
                 config,
                 base=request.base,
                 head=request.head,
+                review=review,
             )
-            result.review.status = ReviewStatus.RUNNING
             result.review.finished_at = None
             result.review.provider_id = config.engine.provider_id
             result.review.model = config.engine.model
@@ -237,20 +254,22 @@ async def create_ai_review(
                 }
             )
         except asyncio.CancelledError:
-            if result is not None:
-                result.review.status = ReviewStatus.ABORTED
-                result.review.finished_at = datetime.now(UTC)
-                review_repo.save(result.review)
+            persisted = result.review if result is not None else review
+            persisted.status = ReviewStatus.ABORTED
+            persisted.finished_at = datetime.now(UTC)
+            review_repo.save(persisted)
             raise
         except Exception as exc:
-            if result is not None:
-                result.review.status = ReviewStatus.FAILED
-                result.review.error = str(exc)
-                result.review.finished_at = datetime.now(UTC)
-                result.review.stats.duration_ms = _duration_ms(started)
-                review_repo.save(result.review)
+            persisted = result.review if result is not None else review
+            persisted.status = ReviewStatus.FAILED
+            persisted.error = str(exc)
+            persisted.finished_at = datetime.now(UTC)
+            persisted.stats.duration_ms = _duration_ms(started)
+            review_repo.save(persisted)
             await queue.put({"type": "failed", "message": str(exc)})
         finally:
+            if acquired_slot:
+                await limiter.release()
             await queue.put(None)
 
     async def events():

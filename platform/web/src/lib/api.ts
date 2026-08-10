@@ -63,6 +63,8 @@ export interface BudgetConfig {
   max_context_tokens: number | null;
   warn_above_usd: number;
   request_timeout_s: number;
+  max_concurrent_reviews: number;
+  max_retry_attempts: number;
 }
 
 export interface AnalyzerConfig {
@@ -78,8 +80,8 @@ export interface AnalyzerConfig {
 }
 
 export interface UiConfig {
-  locale: string;
-  theme: string;
+  locale: "en-US" | "pt-BR";
+  theme: "light" | "dark" | "system";
   confirm_expensive_reviews: boolean;
 }
 
@@ -292,11 +294,13 @@ export interface DeterministicReview {
 }
 
 export type ReviewStreamEvent =
-  | { type: "review_started" }
+  | { type: "review_queued"; review_id: string }
+  | { type: "review_started"; review_id: string }
   | ({ type: "stage" } & PipelineStage)
   | ({ type: "analyzer" } & AnalyzerRun)
   | { type: "provider"; model: string }
   | { type: "delta"; characters: number }
+  | { type: "retry"; attempt: number; message: string }
   | {
       type: "usage";
       input_tokens: number;
@@ -580,6 +584,16 @@ export const api = {
   streamReview,
   getProjectReviews: (projectId: string) =>
     request<ReviewsResponse>(`/api/projects/${projectId}/reviews`),
+  updateFindingStatus: (
+    projectId: string,
+    reviewId: string,
+    findingId: string,
+    status: Finding["status"],
+  ) =>
+    request<Review>(
+      `/api/projects/${projectId}/reviews/${reviewId}/findings/${findingId}`,
+      json("PATCH", { status }),
+    ),
   getInsights: (range: InsightRange = "30d") =>
     request<InsightsResponse>(`/api/insights?range=${range}`),
   getDataSummary: () => request<DataSummary>("/api/data"),

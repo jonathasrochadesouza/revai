@@ -69,8 +69,42 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           </>
         )}
 
+        <nav
+          aria-label="Primary navigation"
+          className="ml-auto hidden items-center gap-1 md:flex"
+        >
+          <Link href="/" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+            Projects
+          </Link>
+          <Link href="/insights" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+            Insights
+          </Link>
+          <Link href="/settings/data" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+            Data
+          </Link>
+          <Link href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+            Appearance
+          </Link>
+          <Link href="/settings/engine" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+            Settings
+          </Link>
+        </nav>
+
+        <details className="ml-auto md:hidden">
+          <summary className="cursor-pointer list-none rounded-control border border-line-strong px-2.5 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">
+            Menu
+          </summary>
+          <nav aria-label="Primary navigation" className="absolute right-5 top-[52px] z-30 grid min-w-40 overflow-hidden rounded-control border border-line-strong bg-paper p-1 shadow-sm">
+            <Link href="/" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Projects</Link>
+            <Link href="/insights" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Insights</Link>
+            <Link href="/settings/data" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Data</Link>
+            <Link href="/settings/appearance" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Appearance</Link>
+            <Link href="/settings/engine" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Settings</Link>
+          </nav>
+        </details>
+
         {children && (
-          <div className="ml-auto flex items-center gap-2.5">{children}</div>
+          <div className="flex items-center gap-2.5">{children}</div>
         )}
       </div>
     </header>

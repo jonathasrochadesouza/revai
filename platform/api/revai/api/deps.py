@@ -12,9 +12,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 
 from revai.config import Settings, get_settings
+from revai.pipeline.limiter import ReviewLimiter
 from revai.storage.repositories import (
     ConfigRepository,
     CredentialsRepository,
@@ -45,3 +46,10 @@ ConfigRepo = Annotated[ConfigRepository, Depends(get_config_repository)]
 CredentialsRepo = Annotated[CredentialsRepository, Depends(get_credentials_repository)]
 ProjectRepo = Annotated[ProjectRepository, Depends(get_project_repository)]
 ReviewRepo = Annotated[ReviewRepository, Depends(get_review_repository)]
+
+
+def get_review_limiter(request: Request) -> ReviewLimiter:
+    return request.app.state.review_limiter
+
+
+ReviewLimiterDep = Annotated[ReviewLimiter, Depends(get_review_limiter)]

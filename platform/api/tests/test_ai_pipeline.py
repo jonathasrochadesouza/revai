@@ -21,6 +21,7 @@ from revai.pipeline.deterministic import CodeChunk
 from revai.providers.base import (
     AnalysisRequest,
     DeltaEvent,
+    FailedEvent,
     FinishedEvent,
     StartedEvent,
     UsageStats,
@@ -174,3 +175,29 @@ async def test_ai_stage_streams_progress_and_returns_usage() -> None:
     assert result.usage.input_tokens == 140
     assert result.usage.cached_tokens == 40
     assert result.usage.cost_usd == pytest.approx(0.0042)
+
+
+class _TransientProvider:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def analyze(self, request: AnalysisRequest):
+        self.calls += 1
+        if self.calls == 1:
+            yield FailedEvent(message="rate limited", retryable=True)
+            return
+        yield StartedEvent(model=request.model)
+        yield FinishedEvent(text='{"findings": []}', usage=UsageStats())
+
+
+async def test_ai_stage_retries_a_transient_provider_failure() -> None:
+    config = RevaiConfig()
+    config.budget.max_retry_attempts = 1
+    provider = _TransientProvider()
+    events: list[dict] = []
+
+    result = await run_ai_stage(provider, config, [_chunk()], on_event=events.append)
+
+    assert result.findings == []
+    assert provider.calls == 2
+    assert events[0] == {"type": "retry", "attempt": 1, "message": "rate limited"}

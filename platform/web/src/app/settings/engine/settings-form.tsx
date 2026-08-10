@@ -41,17 +41,6 @@ import {
 const DEFAULT_SPEND = 0.5;
 const DEFAULT_CONTEXT = 60_000;
 
-/**
- * Supported interface languages, in display order.
- *
- * English leads because it is the default; the backend also defaults `ui.locale` to
- * `"en"`, so the two cannot drift.
- */
-const LOCALES = [
-  { id: "en", label: "English" },
-  { id: "pt-BR", label: "Português (Brasil)" },
-] as const;
-
 /** Deterministic analysers, with the tool each one shells out to. */
 const ANALYSERS: { key: keyof AnalyzerConfig; label: string; detail: string }[] = [
   { key: "semgrep", label: "Semgrep", detail: "security patterns" },
@@ -506,6 +495,48 @@ export function SettingsForm({
                 }
               />
             </Field>
+
+            <Field
+              label="Concurrent reviews"
+              htmlFor="concurrent-reviews"
+              note="local queue"
+              hint="Additional reviews wait safely until a running review releases a slot."
+            >
+              <NumberControl
+                id="concurrent-reviews"
+                min={1}
+                step={1}
+                suffix="runs"
+                value={draft.budget.max_concurrent_reviews}
+                onCommit={(next) =>
+                  patch((config) => {
+                    config.budget.max_concurrent_reviews = Math.round(next);
+                    return config;
+                  })
+                }
+              />
+            </Field>
+
+            <Field
+              label="Retry transient failures"
+              htmlFor="retry-attempts"
+              note="same provider"
+              hint="Retries timeouts, rate limits, and transport failures only. It never silently switches models."
+            >
+              <NumberControl
+                id="retry-attempts"
+                min={0}
+                step={1}
+                suffix="retries"
+                value={draft.budget.max_retry_attempts}
+                onCommit={(next) =>
+                  patch((config) => {
+                    config.budget.max_retry_attempts = Math.round(next);
+                    return config;
+                  })
+                }
+              />
+            </Field>
           </div>
 
           {/* Unlimited is the one setting here that can cost real money, so it is
@@ -594,56 +625,6 @@ export function SettingsForm({
                 />
               </CardRow>
             ))}
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* ---------------- interface ---------------- */}
-      <Card>
-        <CardHeader title="Interface" icon={GLOBE} />
-        <CardBody>
-          <Field
-            label="Language"
-            htmlFor="locale"
-            note="English is the default"
-            hint="Changing this persists to config.yaml. Translations are data, not code — adding a locale means adding a messages file."
-          >
-            <Select
-              id="locale"
-              value={draft.ui.locale}
-              onChange={(event) =>
-                patch((config) => {
-                  config.ui.locale = event.target.value;
-                  return config;
-                })
-              }
-            >
-              {/* English first and selected by default. The order here is the order
-                  the user sees, so the default must lead. */}
-              {LOCALES.map((locale) => (
-                <option key={locale.id} value={locale.id}>
-                  {locale.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <div className="border-t border-line pt-1">
-            <CardRow
-              label="Confirm expensive reviews"
-              hint="Shows the estimate and asks before starting a run above the warning threshold."
-            >
-              <Switch
-                label="Confirm expensive reviews"
-                checked={draft.ui.confirm_expensive_reviews}
-                onChange={(checked) =>
-                  patch((config) => {
-                    config.ui.confirm_expensive_reviews = checked;
-                    return config;
-                  })
-                }
-              />
-            </CardRow>
           </div>
         </CardBody>
       </Card>
@@ -760,13 +741,6 @@ const CHECK_CIRCLE = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-[15px]">
     <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
     <polyline points="22 4 12 14 9 11" />
-  </svg>
-);
-
-const GLOBE = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="size-[15px]">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
   </svg>
 );
 

@@ -122,7 +122,9 @@ def test_deterministic_review_rejects_an_unknown_project(client: TestClient) -> 
     assert response.status_code == 404
 
 
-def test_finding_status_is_persisted(client: TestClient, settings: Settings, tmp_path: Path) -> None:
+def test_finding_status_is_persisted(
+    client: TestClient, settings: Settings, tmp_path: Path
+) -> None:
     _ruff_only(settings)
     repository = _repository(tmp_path / "finding-status")
     project = client.post("/api/projects/open", json={"path": str(repository)}).json()
@@ -248,7 +250,7 @@ def test_ai_review_streams_progress_and_persists_combined_findings(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     kinds = [event["type"] for event in events]
-    assert kinds[0] == "review_started"
+    assert kinds[:2] == ["review_queued", "review_started"]
     assert kinds.count("stage") == 7
     assert "provider" in kinds
     assert "delta" in kinds

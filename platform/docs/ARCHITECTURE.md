@@ -53,7 +53,7 @@ Fonts: **Geist** (UI) + **Geist Mono** (code, paths, numbers) via `next/font`.
 Rules carried over from the mock: hairline 1px borders, **no gradients, no blur,
 no coloured drop-shadows**, generous whitespace, numbers always monospaced.
 
-A dark variant ships later by remapping the same token names — no component changes.
+A dark and system-aware variant remap the same token names — no component changes.
 
 ### 2.2 Concepts imported from the other mocks
 
