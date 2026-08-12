@@ -144,10 +144,10 @@ def test_warning_threshold_is_free_when_spend_is_unlimited(client: TestClient) -
 
 
 def test_default_locale_is_english(client: TestClient) -> None:
-    """Regression guard: the shipped default must be `en`, never a translation."""
+    """Regression guard: the shipped default uses the current English locale tag."""
     config = client.get("/api/config").json()["config"]
 
-    assert config["ui"]["locale"] == "en"
+    assert config["ui"]["locale"] == "en-US"
 
 
 def test_default_budget_is_bounded(client: TestClient) -> None:

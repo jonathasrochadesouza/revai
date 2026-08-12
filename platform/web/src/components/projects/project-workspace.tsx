@@ -48,10 +48,13 @@ import {
   type Finding,
   type Project,
   type ProjectTree,
+  type ProviderHealth,
   type Review,
+  type ReviewMode,
   type ReviewStreamEvent,
   type RevaiConfig,
   type Severity,
+  isUsable,
 } from "@/lib/api";
 
 type ProjectFilter = "all" | "active" | "archived";
@@ -629,8 +632,11 @@ export function RepositoryInspector({
   const [cancelled, setCancelled] = useState(false);
   const [events, setEvents] = useState<ReviewStreamEvent[]>([]);
   const [config, setConfig] = useState<RevaiConfig | null>(null);
+  const [providerHealth, setProviderHealth] = useState<ProviderHealth | null>(null);
+  const [providerChecking, setProviderChecking] = useState(true);
   const [history, setHistory] = useState<Review[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>("both");
   const reviewAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -668,9 +674,36 @@ export function RepositoryInspector({
   }, [onError, project.id]);
 
   useEffect(() => {
-    void loadHistory();
-    api.getConfig().then((response) => setConfig(response.config)).catch(() => undefined);
-  }, [loadHistory]);
+    let active = true;
+    void api
+      .getProjectReviews(project.id)
+      .then((response) => {
+        if (active) setHistory(response.reviews);
+      })
+      .catch((error: unknown) => {
+        if (active) onError(displayError(error));
+      });
+    void api
+      .getConfig()
+      .then(async (response) => {
+        if (!active) return null;
+        setConfig(response.config);
+        return api.verifyProvider(response.config.engine.provider_id);
+      })
+      .then((health) => {
+        if (active && health) setProviderHealth(health);
+      })
+      .catch(() => {
+        if (active) setProviderHealth(null);
+      })
+      .finally(() => {
+        if (active) setProviderChecking(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [onError, project.id]);
 
   useEffect(() => {
     let active = true;
@@ -693,6 +726,13 @@ export function RepositoryInspector({
   }, [fetchData, onError]);
 
   const runReview = async () => {
+    if (reviewMode !== "static" && (!providerHealth || !isUsable(providerHealth))) {
+      onError(
+        providerHealth?.detail ??
+          "The configured AI provider is unavailable. Update it in Settings before running an AI review.",
+      );
+      return;
+    }
     const controller = new AbortController();
     reviewAbort.current?.abort();
     setCancelled(false);
@@ -701,7 +741,12 @@ export function RepositoryInspector({
     setResult(null);
     setEvents([]);
     try {
-      const nextResult = await api.streamReview(project.id, base, head, {
+      if (reviewMode === "static") {
+        const nextResult = await api.runDeterministicReview(project.id, base, head);
+        setResult(nextResult);
+        return;
+      }
+      const nextResult = await api.streamReview(project.id, base, head, reviewMode, {
         signal: controller.signal,
         onEvent: (event) => {
           setEvents((current) => {
@@ -714,12 +759,12 @@ export function RepositoryInspector({
         },
       });
       setResult(nextResult);
-      void loadHistory();
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         onError(displayError(error));
       }
     } finally {
+      void loadHistory();
       if (reviewAbort.current === controller) {
         reviewAbort.current = null;
         setReviewing(false);
@@ -736,14 +781,20 @@ export function RepositoryInspector({
 
   const requestReview = () => {
     const estimate = preview?.estimated_cost_usd ?? 0;
-    const needsConfirmation = config?.ui.confirm_expensive_reviews !== false && estimate >= (config?.budget.warn_above_usd ?? 0.25);
+    const needsConfirmation = reviewMode !== "static" && config?.ui.confirm_expensive_reviews !== false && estimate >= (config?.budget.warn_above_usd ?? 0.25);
     if (needsConfirmation) setConfirming(true);
     else void runReview();
   };
 
   const overBudget = Boolean(
-    preview && config?.budget.max_spend_usd !== null && config?.budget.max_spend_usd !== undefined && preview.estimated_cost_usd > config.budget.max_spend_usd,
+    reviewMode !== "static" && preview && config?.budget.max_spend_usd !== null && config?.budget.max_spend_usd !== undefined && preview.estimated_cost_usd > config.budget.max_spend_usd,
   );
+  const aiProviderReady = Boolean(providerHealth && isUsable(providerHealth));
+  const aiProviderBlocked = reviewMode !== "static" && !aiProviderReady;
+  const providerMessage = providerChecking
+    ? "Checking the configured AI provider…"
+    : providerHealth?.detail ??
+      "The configured AI provider is unavailable. Update it before starting an AI review.";
 
   const updateFinding = async (reviewId: string, findingId: string, status: Finding["status"]) => {
     try {
@@ -797,6 +848,19 @@ export function RepositoryInspector({
                 setCancelled(false);
               }}
             />
+            <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
+              Review mode
+              <select
+                value={reviewMode}
+                onChange={(event) => setReviewMode(event.target.value as ReviewMode)}
+                disabled={reviewing}
+                className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none focus:border-ink disabled:opacity-50"
+              >
+                <option value="static">Static only</option>
+                <option value="ai_assisted">AI-assisted</option>
+                <option value="both">Both</option>
+              </select>
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -816,7 +880,7 @@ export function RepositoryInspector({
             <button
               type="button"
               onClick={reviewing ? cancelReview : requestReview}
-              disabled={loading || overBudget}
+              disabled={loading || overBudget || aiProviderBlocked}
               className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               {reviewing ? (
@@ -824,10 +888,25 @@ export function RepositoryInspector({
               ) : (
                 <ScanSearch className="size-3.5" />
               )}
-              {reviewing ? "Cancel" : result ? "Run again" : "Run AI review"}
+              {reviewing ? "Cancel" : result ? "Run again" : reviewMode === "static" ? "Run static review" : reviewMode === "both" ? "Run combined review" : "Run AI review"}
             </button>
           </div>
         </div>
+
+        {aiProviderBlocked && (
+          <div
+            role="status"
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-medium-line bg-medium-surface px-5 py-2.5 text-[12px] text-medium"
+          >
+            <CircleAlert className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1">{providerMessage}</span>
+            {!providerChecking && (
+              <Link href="/settings/engine" className="font-semibold hover:underline">
+                Open settings
+              </Link>
+            )}
+          </div>
+        )}
 
         <div className="grid min-h-[410px] lg:grid-cols-[270px_minmax(0,1fr)]">
           <aside className="border-b border-line lg:border-b-0 lg:border-r">
@@ -993,6 +1072,11 @@ function LiveReviewPanel({
   onFindingStatus: (reviewId: string, findingId: string, status: Finding["status"]) => void;
 }) {
   const review = result?.review;
+  const reviewTitle = review?.mode === "static"
+    ? "Static review"
+    : review?.mode === "both"
+      ? "Combined review"
+      : "AI review";
   const stageEvents = events.filter(
     (event): event is Extract<ReviewStreamEvent, { type: "stage" }> =>
       event.type === "stage",
@@ -1028,14 +1112,14 @@ function LiveReviewPanel({
 
   return (
     <section
-      aria-label="Live AI review"
+      aria-label={reviewTitle}
       className="mt-4 overflow-hidden rounded-panel border border-line bg-paper"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
           <h3 className="flex items-center gap-2 text-[14px] font-semibold">
             <Sparkles className="size-4 text-low" />
-            AI review
+            {reviewTitle}
           </h3>
           <p className="mt-0.5 font-mono text-[10.5px] text-ink-subtle">
             {branches.base} → {branches.head}

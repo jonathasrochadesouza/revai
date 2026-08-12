@@ -11,6 +11,7 @@ from revai.domain.enums import (
     FindingStatus,
     ProviderId,
     ProviderKind,
+    ReviewMode,
     ReviewScope,
     ReviewStatus,
     Severity,
@@ -26,6 +27,7 @@ from revai.domain.models import (
     RevaiConfig,
     Review,
     ReviewStats,
+    SonarQubeConfig,
     UiConfig,
 )
 
@@ -45,9 +47,11 @@ __all__ = [
     "ProviderKind",
     "RevaiConfig",
     "Review",
+    "ReviewMode",
     "ReviewScope",
     "ReviewStats",
     "ReviewStatus",
     "Severity",
+    "SonarQubeConfig",
     "UiConfig",
 ]

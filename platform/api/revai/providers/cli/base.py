@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from revai.providers.base import AnalysisRequest, FailedEvent
 from revai.providers.detection import CliSpec, resolve_executable
+from revai.shell import command_for_execution
 
 _ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 _ERROR_LIMIT = 600
@@ -34,11 +35,13 @@ def _run_cli_command_blocking(
     timeout_s: float,
 ) -> CliCommandResult:
     try:
+        command, environment = command_for_execution([executable, *args])
         completed = subprocess.run(
-            [executable, *args],
+            command,
             capture_output=True,
             stdin=subprocess.DEVNULL,
             timeout=timeout_s,
+            env=environment,
             shell=False,
             check=False,
         )

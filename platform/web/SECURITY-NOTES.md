@@ -4,11 +4,14 @@
 
 ```text
 npm audit --omit=dev   →  0 vulnerabilities   ✅  (shipped code)
-npm audit              →  9 high              ⚠️  (dev tooling only)
+npm audit              →  2 high              ⚠️  (dev tooling only)
 ```
 
 **Nothing that reaches a user's browser is affected.** Every open advisory sits in
 the ESLint dependency tree, which runs only on a developer machine.
+
+The runtime `nanoid` advisory was removed by pinning the patched 3.3.18 release
+through the root override. The production audit is the release gate.
 
 ## The `brace-expansion` advisory (GHSA / ReDoS)
 
@@ -54,6 +57,7 @@ Until then, `npm run audit:prod` is the meaningful gate and it must stay at zero
 
 | Package | Pinned to | Reason |
 |---|---|---|
+| `nanoid` | `^3.3.17` | Pulls patched 3.3.18 for Next/PostCSS's runtime dependency |
 | `postcss` | `^8.5.18` | Patches the transitive advisory without touching Tailwind |
 | `sharp` | `^0.35.0` | Patched release; Next.js only uses it for image optimisation |
 

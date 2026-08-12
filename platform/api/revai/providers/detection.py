@@ -41,6 +41,7 @@ from dataclasses import dataclass, field
 
 from revai.domain.enums import ProviderId, ProviderKind
 from revai.providers.base import HealthState, ProviderHealth
+from revai.shell import command_for_execution, git_bash_session, resolve_command
 
 logger = logging.getLogger(__name__)
 
@@ -195,11 +196,13 @@ def _run_command_blocking(
     try:
         # Safe by construction: an absolute path from `shutil.which`, a fixed argument
         # list, and `shell=False`, so nothing here is interpreted by a shell.
+        command, environment = command_for_execution([executable, *args])
         completed = subprocess.run(
-            [executable, *args],
+            command,
             capture_output=True,
             stdin=subprocess.DEVNULL,
             timeout=timeout_s,
+            env=environment,
             shell=False,
             check=False,
         )
@@ -251,15 +254,20 @@ def resolve_executable(spec: CliSpec) -> tuple[str, str] | None:
     Windows shims.
     """
     if spec.executable_env and (configured := os.environ.get(spec.executable_env)):
-        resolved = shutil.which(configured)
+        resolved = _resolve_command(configured)
         if resolved:
             return spec.executables[0], resolved
 
     for name in spec.executables:
-        resolved = shutil.which(name)
+        resolved = _resolve_command(name)
         if resolved:
             return name, resolved
     return None
+
+
+def _resolve_command(name: str) -> str | None:
+    """Keep the normal PATH lookup fast; delegate only when Git Bash is active."""
+    return resolve_command(name) if git_bash_session() is not None else shutil.which(name)
 
 
 def parse_version(output: str) -> str | None:
@@ -350,7 +358,7 @@ def _not_found_detail(spec: CliSpec) -> str:
     """
     detail = f"`{spec.executables[0]}` was not found on PATH."
     for alias in spec.aliases:
-        if shutil.which(alias):
+        if _resolve_command(alias):
             detail += (
                 f" Note that `{alias}` *is* installed, but it is a different"
                 f" executable — `{spec.executables[0]}` is the agent RevAI drives."

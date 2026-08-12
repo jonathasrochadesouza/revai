@@ -46,6 +46,7 @@ async def run_deterministic_pipeline(
     base: str,
     head: str,
     review: Review | None = None,
+    include_static: bool = True,
 ) -> DeterministicResult:
     repository = Path(project.path)
     review = review or Review(
@@ -102,7 +103,11 @@ async def run_deterministic_pipeline(
     )
     with analysis_tree as analysis_repository:
         stage_started = time.perf_counter()
-        analyzers = await run_analyzers(analysis_repository, paths, config.analyzers)
+        analyzers = (
+            await run_analyzers(analysis_repository, paths, config.analyzers)
+            if include_static
+            else []
+        )
         findings = [finding for run in analyzers for finding in run.findings]
         if config.analyzers.changed_lines_only:
             findings = _on_added_lines(findings, hunks)
@@ -111,7 +116,9 @@ async def run_deterministic_pipeline(
                 "static",
                 "completed",
                 _duration_ms(stage_started),
-                f"{len(findings)} findings from available analyzers.",
+                f"{len(findings)} findings from available analyzers."
+                if include_static
+                else "Skipped for AI-assisted review.",
             )
         )
 

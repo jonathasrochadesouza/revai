@@ -53,11 +53,26 @@ future Phase 5 model call; it is not usage.
 | Semgrep | Installed CLI plus a project `.semgrep.yml` or `.semgrep.yaml` |
 | Gitleaks | Installed CLI, redacted JSON report stored outside the repository |
 | Tree-sitter | Bundled offline grammars used for symbol-aware chunking |
+| Built-in security | Dependency-free checks for dynamic execution, unsafe deserialization and shell injection primitives |
 | Checkstyle | Reported unavailable until a project command is configured |
+| SonarQube Server / Community Build | Opt-in whole-project scan through `sonar-scanner`; imports unresolved server issues |
 
 An enabled analyzer that is missing or not configured reports `unavailable`.
 It does not fail the review. A tool that starts but exits unexpectedly reports
 `failed`; other analyzers and the deterministic review still complete.
+
+## Review modes and SonarQube
+
+The review setup offers three user-selected modes: **Static only** runs enabled
+analyzers without contacting a model; **AI-assisted** calls only the configured
+model; and **Both** combines deterministic findings with the model's findings.
+
+SonarQube Server / Community Build is the sole external quality-gate integration
+at this stage. Enable it in **Settings > Engine**, provide its server URL and
+project key, install `sonar-scanner`, and set `SONAR_TOKEN` in the API process
+environment. The token is intentionally not persisted in YAML. SonarQube scans
+the whole materialized project tree, then RevAI normalizes unresolved server
+issues into the shared finding model.
 
 ## API
 

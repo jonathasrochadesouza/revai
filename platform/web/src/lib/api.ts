@@ -68,15 +68,24 @@ export interface BudgetConfig {
 }
 
 export interface AnalyzerConfig {
+  security: boolean;
   semgrep: boolean;
   ruff: boolean;
   eslint: boolean;
   gitleaks: boolean;
   checkstyle: boolean;
   treesitter: boolean;
+  sonarqube: SonarQubeConfig;
   skip_noise: boolean;
   changed_lines_only: boolean;
   dedupe_across_sources: boolean;
+}
+
+export interface SonarQubeConfig {
+  enabled: boolean;
+  server_url: string;
+  project_key: string | null;
+  timeout_s: number;
 }
 
 export interface UiConfig {
@@ -206,13 +215,17 @@ export type FindingCategory =
   | "maintainability"
   | "style";
 export type FindingSource =
+  | "security"
   | "ai"
   | "semgrep"
   | "ruff"
   | "eslint"
   | "gitleaks"
   | "checkstyle"
-  | "treesitter";
+  | "treesitter"
+  | "sonarqube";
+
+export type ReviewMode = "static" | "ai_assisted" | "both";
 
 export interface Finding {
   id: string;
@@ -250,6 +263,7 @@ export interface Review {
   id: string;
   project_id: string;
   scope: "branch_diff" | "selected_files" | "whole_project";
+  mode: ReviewMode;
   status: "queued" | "running" | "completed" | "failed" | "aborted";
   base_branch: string | null;
   head_branch: string | null;
@@ -321,11 +335,12 @@ async function streamReview(
   projectId: string,
   base: string,
   head: string,
+  mode: Exclude<ReviewMode, "static">,
   options: StreamReviewOptions = {},
 ): Promise<DeterministicReview> {
   const path = `/api/projects/${projectId}/reviews/stream`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...json("POST", { base, head }),
+    ...json("POST", { base, head, mode }),
     cache: "no-store",
     headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
     signal: options.signal,

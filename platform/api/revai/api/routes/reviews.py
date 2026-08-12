@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewLimiterDep, ReviewRepo
-from revai.domain.enums import FindingStatus, ReviewScope, ReviewStatus
+from revai.domain.enums import FindingStatus, ReviewMode, ReviewScope, ReviewStatus
 from revai.domain.models import Review, ReviewStats
 from revai.git.repo import GitError
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/projects/{project_id}/reviews", tags=["reviews"])
 class DeterministicReviewRequest(BaseModel):
     base: str = Field(min_length=1)
     head: str = Field(min_length=1)
+    mode: ReviewMode = ReviewMode.BOTH
 
 
 class StageResponse(BaseModel):
@@ -89,6 +90,14 @@ async def create_deterministic_review(
             config_repo.load(),
             base=request.base,
             head=request.head,
+            review=Review(
+                project_id=project.id,
+                scope=ReviewScope.BRANCH_DIFF,
+                base_branch=request.base,
+                head_branch=request.head,
+                mode=ReviewMode.STATIC,
+            ),
+            include_static=True,
         )
     except GitError as exc:
         raise HTTPException(
@@ -115,14 +124,29 @@ async def create_ai_review(
     project = project_repo.get(project_id)
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+    if request.mode is ReviewMode.STATIC:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Static-only reviews use the deterministic endpoint.",
+        )
 
     config = config_repo.load()
     provider = build_registry(config, credentials_repo.load()).active()
-    if provider is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="The configured AI provider is not available.",
-        )
+    if request.mode is not ReviewMode.STATIC:
+        if provider is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="The configured AI provider is not available.",
+            )
+        health = await provider.health()
+        if not health.is_usable:
+            detail = health.detail or f"{health.provider_id.value} is not ready."
+            if health.remediation:
+                detail = f"{detail} Fix: {health.remediation}"
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=detail,
+            )
 
     queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     review = Review(
@@ -131,6 +155,7 @@ async def create_ai_review(
         status=ReviewStatus.QUEUED,
         base_branch=request.base,
         head_branch=request.head,
+        mode=request.mode,
         provider_id=config.engine.provider_id,
         model=config.engine.model,
     )
@@ -153,6 +178,7 @@ async def create_ai_review(
                 base=request.base,
                 head=request.head,
                 review=review,
+                include_static=request.mode is ReviewMode.BOTH,
             )
             result.review.finished_at = None
             result.review.provider_id = config.engine.provider_id
@@ -171,7 +197,7 @@ async def create_ai_review(
                     }
                 )
 
-            if result.chunks:
+            if result.chunks and request.mode is not ReviewMode.STATIC:
                 estimated_cost = estimate_input_cost(result.chunks)
                 if (
                     config.budget.max_spend_usd is not None

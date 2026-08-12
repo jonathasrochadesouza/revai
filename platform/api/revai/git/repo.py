@@ -15,6 +15,7 @@ from io import BytesIO
 from pathlib import Path
 
 from revai.domain.models import Project
+from revai.shell import command_for_execution
 
 _GIT_TIMEOUT_SECONDS = 30
 _PATCH_LIMIT_BYTES = 1_000_000
@@ -85,14 +86,16 @@ def _run(
     command.extend(args)
 
     try:
+        execution, environment = command_for_execution(command)
         result = subprocess.run(
-            command,
+            execution,
             check=False,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            env=environment,
         )
     except FileNotFoundError as exc:
         raise GitError("Git is not installed or is not available on PATH.") from exc
@@ -147,14 +150,18 @@ def detect_languages(path: Path) -> list[str]:
 
 
 def remote_url(path: Path) -> str | None:
+    command, environment = command_for_execution(
+        ["git", "-C", str(path), "config", "--get", "remote.origin.url"]
+    )
     result = subprocess.run(
-        ["git", "-C", str(path), "config", "--get", "remote.origin.url"],
+        command,
         check=False,
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
         timeout=_GIT_TIMEOUT_SECONDS,
+        env=environment,
     )
     value = result.stdout.strip()
     return value or None
@@ -204,11 +211,15 @@ def clone_repository(remote: str, destination_root: Path) -> Project:
 def materialized_tree(path: Path, ref: str) -> Iterator[Path]:
     """Extract a Git ref into a temporary read-only analysis tree."""
     try:
+        command, environment = command_for_execution(
+            ["git", "-C", str(path), "archive", "--format=tar", ref]
+        )
         result = subprocess.run(
-            ["git", "-C", str(path), "archive", "--format=tar", ref],
+            command,
             check=False,
             capture_output=True,
             timeout=_GIT_TIMEOUT_SECONDS,
+            env=environment,
         )
     except FileNotFoundError as exc:
         raise GitError("Git is not installed or is not available on PATH.") from exc

@@ -24,6 +24,7 @@ from revai.domain.enums import (
     FindingSource,
     FindingStatus,
     ProviderId,
+    ReviewMode,
     ReviewScope,
     ReviewStatus,
     Severity,
@@ -179,6 +180,7 @@ class Review(_Document):
     project_id: str
 
     scope: ReviewScope
+    mode: ReviewMode = ReviewMode.BOTH
     status: ReviewStatus = ReviewStatus.QUEUED
 
     base_branch: str | None = None
@@ -289,15 +291,31 @@ class BudgetConfig(_Base):
         return self.max_context_tokens is None
 
 
+class SonarQubeConfig(_Base):
+    """Connection metadata for a self-hosted SonarQube Server / Community Build.
+
+    The token deliberately stays out of YAML. Set ``SONAR_TOKEN`` in the API
+    environment; that avoids putting an external service credential alongside
+    ordinary review preferences.
+    """
+
+    enabled: bool = False
+    server_url: str = "http://127.0.0.1:9000"
+    project_key: str | None = None
+    timeout_s: int = Field(default=300, ge=10, le=3600)
+
+
 class AnalyzerConfig(_Base):
     """The deterministic stage. Every analyzer is optional and costs no tokens."""
 
+    security: bool = True
     semgrep: bool = True
     ruff: bool = True
     eslint: bool = True
     gitleaks: bool = True
     checkstyle: bool = False
     treesitter: bool = True
+    sonarqube: SonarQubeConfig = Field(default_factory=SonarQubeConfig)
 
     skip_noise: bool = True  # lockfiles, generated, minified, binaries
     changed_lines_only: bool = True  # the +/- rule from the legacy prompt
@@ -305,8 +323,19 @@ class AnalyzerConfig(_Base):
 
     @property
     def enabled(self) -> list[str]:
-        flags = ("semgrep", "ruff", "eslint", "gitleaks", "checkstyle", "treesitter")
-        return [name for name in flags if getattr(self, name)]
+        flags = (
+            "security",
+            "semgrep",
+            "ruff",
+            "eslint",
+            "gitleaks",
+            "checkstyle",
+            "treesitter",
+        )
+        enabled = [name for name in flags if getattr(self, name)]
+        if self.sonarqube.enabled:
+            enabled.append("sonarqube")
+        return enabled
 
 
 class EngineConfig(_Base):

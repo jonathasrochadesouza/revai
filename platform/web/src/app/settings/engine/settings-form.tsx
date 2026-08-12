@@ -43,6 +43,7 @@ const DEFAULT_CONTEXT = 60_000;
 
 /** Deterministic analysers, with the tool each one shells out to. */
 const ANALYSERS: { key: keyof AnalyzerConfig; label: string; detail: string }[] = [
+  { key: "security", label: "Built-in security", detail: "dangerous execution APIs" },
   { key: "semgrep", label: "Semgrep", detail: "security patterns" },
   { key: "ruff", label: "Ruff", detail: "python" },
   { key: "eslint", label: "ESLint", detail: "javascript / typescript" },
@@ -171,6 +172,7 @@ export function SettingsForm({
   const providers = providersForMode(draft.engine.mode);
   const catalogue = catalogueFor(draft.engine.provider_id);
   const usingCustomModel = customModel;
+  const isKiroCli = draft.engine.provider_id === "kiro_cli";
 
   const spendUnlimited = draft.budget.max_spend_usd === null;
   const contextUnlimited = draft.budget.max_context_tokens === null;
@@ -234,7 +236,9 @@ export function SettingsForm({
             htmlFor="model"
             note={`${catalogue?.models.length ?? 0} offline suggestions`}
             hint={
-              usingCustomModel
+              isKiroCli
+                ? <>Kiro CLI owns model selection in headless mode. To use Haiku, run <code>kiro-cli settings chat.defaultModel claude-haiku-4.5</code> once; RevAI then uses that Kiro default.</>
+                : usingCustomModel
                 ? "Custom ids are passed through verbatim. Confirm the id in your provider dashboard before running a review."
                 : "These are offline suggestions. Provider model catalogs change frequently; use Custom when your provider lists a newer id."
             }
@@ -608,6 +612,53 @@ export function SettingsForm({
                 </span>
               </label>
             ))}
+          </div>
+
+          <div className="mt-4 rounded-control border border-line bg-canvas p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <b className="block text-[12.5px] font-medium">SonarQube Server / Community Build</b>
+                <span className="text-[10.5px] text-ink-subtle">
+                  Whole-project quality gate; requires local sonar-scanner and SONAR_TOKEN.
+                </span>
+              </div>
+              <Switch
+                label="Enable SonarQube"
+                checked={draft.analyzers.sonarqube.enabled}
+                onChange={(checked) => patch((config) => {
+                  config.analyzers.sonarqube.enabled = checked;
+                  return config;
+                })}
+              />
+            </div>
+            {draft.analyzers.sonarqube.enabled && (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Field label="Server URL" htmlFor="sonarqube-server-url">
+                  <input
+                    id="sonarqube-server-url"
+                    value={draft.analyzers.sonarqube.server_url}
+                    onChange={(event) => patch((config) => {
+                      config.analyzers.sonarqube.server_url = event.target.value;
+                      return config;
+                    })}
+                    placeholder="http://127.0.0.1:9000"
+                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
+                  />
+                </Field>
+                <Field label="Project key" htmlFor="sonarqube-project-key">
+                  <input
+                    id="sonarqube-project-key"
+                    value={draft.analyzers.sonarqube.project_key ?? ""}
+                    onChange={(event) => patch((config) => {
+                      config.analyzers.sonarqube.project_key = event.target.value || null;
+                      return config;
+                    })}
+                    placeholder="company:project"
+                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
+                  />
+                </Field>
+              </div>
+            )}
           </div>
 
           <div className="mt-4 border-t border-line pt-1">

@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 from unidiff import PatchSet
 
 from revai.git.repo import DiffFile
+from revai.shell import command_for_execution
 
 _LOCKFILES = {
     "cargo.lock",
@@ -256,12 +257,16 @@ def _tree_sitter_symbols(language: str, source: str) -> list[tuple[str | None, i
         return _TREE_SITTER_CACHE[key]
 
     try:
+        command, environment = command_for_execution(
+            [sys.executable, "-m", "revai.pipeline.tree_sitter_worker", language]
+        )
         completed = subprocess.run(
-            [sys.executable, "-m", "revai.pipeline.tree_sitter_worker", language],
+            command,
             input=source_bytes,
             capture_output=True,
             timeout=10,
             check=False,
+            env=environment,
         )
         payload = json.loads(completed.stdout) if completed.returncode == 0 else []
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):

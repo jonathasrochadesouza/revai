@@ -8,15 +8,29 @@ export const metadata = {
   title: "Review setup — RevAI",
 };
 
+async function loadProject(projectId: string) {
+  try {
+    return { project: await api.getProject(projectId), error: null };
+  } catch (cause) {
+    return {
+      project: null,
+      error:
+        cause instanceof ApiError || cause instanceof Error
+          ? cause.message
+          : "Could not load this project.",
+    };
+  }
+}
+
 export default async function ReviewSetupPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = await params;
+  const { project, error } = await loadProject(projectId);
 
-  try {
-    const project = await api.getProject(projectId);
+  if (project) {
     return (
       <>
         <TopBar
@@ -49,23 +63,23 @@ export default async function ReviewSetupPage({
         </main>
       </>
     );
-  } catch (cause) {
-    const message = cause instanceof ApiError || cause instanceof Error
-      ? cause.message
-      : "Could not load this project.";
-    return (
-      <>
-        <TopBar breadcrumb={[{ label: "Projects", href: "/" }, "Review"]} />
-        <main className="mx-auto w-full max-w-[820px] px-5 pb-20 pt-9 sm:px-7">
-          <div className="surface border-critical-line bg-critical-surface p-5">
-            <h1 className="text-[15px] font-semibold text-critical">Project unavailable</h1>
-            <p className="mt-2 text-[13px] text-ink-muted">{message}</p>
-            <Link href="/" className="mt-4 inline-block text-[12px] font-medium text-low hover:underline">
-              Back to projects
-            </Link>
-          </div>
-        </main>
-      </>
-    );
   }
+
+  return (
+    <>
+      <TopBar breadcrumb={[{ label: "Projects", href: "/" }, "Review"]} />
+      <main className="mx-auto w-full max-w-[820px] px-5 pb-20 pt-9 sm:px-7">
+        <div className="surface border-critical-line bg-critical-surface p-5">
+          <h1 className="text-[15px] font-semibold text-critical">Project unavailable</h1>
+          <p className="mt-2 text-[13px] text-ink-muted">{error}</p>
+          <Link
+            href="/"
+            className="mt-4 inline-block text-[12px] font-medium text-low hover:underline"
+          >
+            Back to projects
+          </Link>
+        </div>
+      </main>
+    </>
+  );
 }

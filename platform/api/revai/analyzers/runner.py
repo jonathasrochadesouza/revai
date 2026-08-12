@@ -6,7 +6,6 @@ import asyncio
 import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,11 +14,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import httpx
+
 from revai.analyzers.eslint import parse_eslint_output
 from revai.analyzers.gitleaks import parse_gitleaks_output
 from revai.analyzers.ruff import parse_ruff_output
+from revai.analyzers.security import find_security_issues
 from revai.analyzers.semgrep import parse_semgrep_output
+from revai.analyzers.sonarqube import parse_sonarqube_issues
 from revai.domain.models import AnalyzerConfig, Finding
+from revai.shell import command_for_execution, resolve_command
 
 AnalyzerStatus = Literal["completed", "unavailable", "failed"]
 
@@ -40,6 +44,8 @@ async def run_analyzers(
 ) -> list[AnalyzerRun]:
     """Run every enabled analyzer concurrently and isolate tool failures."""
     jobs = []
+    if config.security:
+        jobs.append(_run_security(repository, paths))
     if config.ruff:
         jobs.append(_run_ruff(repository, paths))
     if config.eslint:
@@ -57,7 +63,26 @@ async def run_analyzers(
         )
     if config.treesitter:
         jobs.append(_tree_sitter_status())
+    if config.sonarqube.enabled:
+        jobs.append(
+            _run_sonarqube(
+                repository,
+                config.sonarqube.timeout_s,
+                config.sonarqube.server_url,
+                config.sonarqube.project_key,
+            )
+        )
     return list(await asyncio.gather(*jobs))
+
+
+async def _run_security(repository: Path, paths: list[str]) -> AnalyzerRun:
+    """Run lightweight, dependency-free high-confidence security checks."""
+    started = time.perf_counter()
+    try:
+        findings = await asyncio.to_thread(find_security_issues, repository, paths)
+        return AnalyzerRun("security", "completed", findings, _duration_ms(started))
+    except (OSError, UnicodeDecodeError, ValueError) as exc:
+        return AnalyzerRun("security", "failed", [], _duration_ms(started), str(exc))
 
 
 async def _run_ruff(repository: Path, paths: list[str]) -> AnalyzerRun:
@@ -90,7 +115,7 @@ async def _run_eslint(repository: Path, paths: list[str]) -> AnalyzerRun:
     source_paths = [path for path in paths if Path(path).suffix.lower() in extensions]
     if not source_paths:
         return AnalyzerRun("eslint", "completed", [], 0, "No changed JS/TS files.")
-    node = shutil.which("node")
+    node = resolve_command("node")
     script = repository / "node_modules" / "eslint" / "bin" / "eslint.js"
     if node is None or not script.is_file():
         return AnalyzerRun(
@@ -110,7 +135,7 @@ async def _run_eslint(repository: Path, paths: list[str]) -> AnalyzerRun:
 
 
 async def _run_semgrep(repository: Path, paths: list[str]) -> AnalyzerRun:
-    executable = shutil.which("semgrep")
+    executable = resolve_command("semgrep")
     config = next(
         (
             repository / name
@@ -149,7 +174,7 @@ async def _run_semgrep(repository: Path, paths: list[str]) -> AnalyzerRun:
 
 async def _run_gitleaks(repository: Path, paths: list[str]) -> AnalyzerRun:
     del paths  # Gitleaks applies its own ignore rules while scanning the directory.
-    executable = shutil.which("gitleaks")
+    executable = resolve_command("gitleaks")
     if executable is None:
         return AnalyzerRun("gitleaks", "unavailable", [], 0, "Gitleaks is not installed.")
 
@@ -206,6 +231,53 @@ async def _tree_sitter_status() -> AnalyzerRun:
     return AnalyzerRun("treesitter", "completed", [], 0)
 
 
+async def _run_sonarqube(
+    repository: Path, timeout_s: int, server_url: str, project_key: str | None
+) -> AnalyzerRun:
+    """Run a local scanner, then retrieve its normalized server issues.
+
+    SonarQube needs a whole-project scan, unlike changed-line linters. A scanner
+    is therefore an explicit opt-in and its token is read only from SONAR_TOKEN.
+    """
+    executable = resolve_command("sonar-scanner")
+    if executable is None:
+        return AnalyzerRun("sonarqube", "unavailable", [], 0, "sonar-scanner is not installed.")
+    if not project_key:
+        return AnalyzerRun("sonarqube", "unavailable", [], 0, "Set a SonarQube project key.")
+    token = os.environ.get("SONAR_TOKEN")
+    if not token:
+        return AnalyzerRun(
+            "sonarqube", "unavailable", [], 0, "Set SONAR_TOKEN in the API environment."
+        )
+    started = time.perf_counter()
+    command = [
+        executable,
+        f"-Dsonar.host.url={server_url}",
+        f"-Dsonar.projectKey={project_key}",
+    ]
+    try:
+        returncode, _stdout, stderr = await asyncio.wait_for(
+            _process(command, repository), timeout=timeout_s
+        )
+        duration = _duration_ms(started)
+        if returncode != 0:
+            return AnalyzerRun(
+                "sonarqube", "failed", [], duration, stderr.strip() or "SonarScanner failed."
+            )
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{server_url.rstrip('/')}/api/issues/search",
+                params={"componentKeys": project_key, "resolved": "false", "ps": 500},
+                auth=(token, ""),
+            )
+            response.raise_for_status()
+        return AnalyzerRun(
+            "sonarqube", "completed", parse_sonarqube_issues(response.json(), repository), duration
+        )
+    except (TimeoutError, OSError, httpx.HTTPError, ValueError) as exc:
+        return AnalyzerRun("sonarqube", "failed", [], _duration_ms(started), str(exc))
+
+
 async def _unavailable(name: str, detail: str) -> AnalyzerRun:
     return AnalyzerRun(name, "unavailable", [], 0, detail)
 
@@ -237,14 +309,16 @@ async def _execute(
 
 def _process_blocking(command: list[str], cwd: Path) -> tuple[int, str, str]:
     try:
+        execution, environment = command_for_execution(command)
         completed = subprocess.run(
-            command,
+            execution,
             cwd=cwd,
             stdin=subprocess.DEVNULL,
             capture_output=True,
             timeout=120,
             shell=False,
             check=False,
+            env=environment,
         )
     except subprocess.TimeoutExpired:
         return 124, "", "Analyzer did not finish within 120 seconds."

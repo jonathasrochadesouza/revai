@@ -42,11 +42,16 @@ class KiroCliProvider:
             yield FailedEvent(message="Kiro CLI is not installed or is not on PATH.")
             return
 
-        args = [
-            "chat",
-            "--no-interactive",
-            combined_prompt(request, include_json_schema=True),
-        ]
+        # Kiro CLI's current headless contract selects the model from its own
+        # ``chat.defaultModel`` setting.  It has no supported ``--model`` flag,
+        # so passing the RevAI catalogue value here would either be ignored or
+        # make an otherwise valid review fail.  The UI makes that ownership
+        # explicit and records the configured value for audit history.
+        #
+        # The prompt already contains a filtered diff and schema.  Deliberately
+        # do not grant tool trust: a review has no reason to read, write or run
+        # anything else in the target repository.
+        args = ["chat", "--no-interactive", combined_prompt(request, include_json_schema=True)]
         yield StartedEvent(model=request.model)
         result = await run_cli_command(executable, args, request.timeout_s)
         if failure := command_failure(

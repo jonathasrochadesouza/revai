@@ -12,6 +12,8 @@ from revai.config import Settings
 from revai.providers.base import (
     DeltaEvent,
     FinishedEvent,
+    HealthState,
+    ProviderHealth,
     StartedEvent,
     UsageStats,
 )
@@ -43,6 +45,7 @@ def _repository(path: Path) -> Path:
 def _ruff_only(settings: Settings) -> None:
     repo = ConfigRepository(settings)
     config = repo.load()
+    config.analyzers.security = False
     config.analyzers.semgrep = False
     config.analyzers.eslint = False
     config.analyzers.gitleaks = False
@@ -176,6 +179,13 @@ def test_deterministic_review_analyzes_a_non_checked_out_head(
 
 
 class _AIProvider:
+    async def health(self) -> ProviderHealth:
+        return ProviderHealth(
+            provider_id="openrouter",
+            kind="api",
+            state=HealthState.READY,
+        )
+
     async def analyze(self, _request):
         text = json.dumps(
             {
@@ -214,12 +224,54 @@ class _AIRegistry:
         return _AIProvider()
 
 
+class _UnavailableAIProvider:
+    async def health(self) -> ProviderHealth:
+        return ProviderHealth(
+            provider_id="kiro_cli",
+            kind="cli",
+            state=HealthState.NOT_FOUND,
+            detail="Kiro CLI is not installed or is not on PATH.",
+            remediation="kiro-cli login",
+        )
+
+    async def analyze(self, _request):  # pragma: no cover - preflight must stop first
+        raise AssertionError("an unavailable provider must not be invoked")
+
+
+class _UnavailableAIRegistry:
+    def active(self):
+        return _UnavailableAIProvider()
+
+
 def _stream_events(response) -> list[dict]:
     return [
         json.loads(line.removeprefix("data: "))
         for line in response.iter_lines()
         if line.startswith("data: ")
     ]
+
+
+def test_ai_review_rejects_an_unusable_provider_before_persisting_work(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repository = _repository(tmp_path / "provider-preflight")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+    monkeypatch.setattr(
+        "revai.api.routes.reviews.build_registry",
+        lambda _config, _credentials: _UnavailableAIRegistry(),
+    )
+
+    response = client.post(
+        f"/api/projects/{project['id']}/reviews/stream",
+        json={"base": "main", "head": "main"},
+    )
+
+    assert response.status_code == 422
+    assert "Kiro CLI is not installed" in response.json()["detail"]
+    reviews = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
+    assert reviews == []
 
 
 def test_ai_review_streams_progress_and_persists_combined_findings(

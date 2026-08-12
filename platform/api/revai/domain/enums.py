@@ -11,7 +11,7 @@ from enum import StrEnum
 
 # Bumped whenever a persisted shape changes. Documents carry this so a future
 # release can migrate instead of failing to parse.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 
 class Severity(StrEnum):
@@ -55,6 +55,8 @@ class FindingSource(StrEnum):
     GITLEAKS = "gitleaks"
     CHECKSTYLE = "checkstyle"
     TREESITTER = "treesitter"
+    SECURITY = "security"
+    SONARQUBE = "sonarqube"
 
 
 class FindingStatus(StrEnum):
@@ -72,6 +74,14 @@ class ReviewScope(StrEnum):
     BRANCH_DIFF = "branch_diff"
     SELECTED_FILES = "selected_files"
     WHOLE_PROJECT = "whole_project"
+
+
+class ReviewMode(StrEnum):
+    """How a review combines deterministic and AI analysis."""
+
+    STATIC = "static"
+    AI_ASSISTED = "ai_assisted"
+    BOTH = "both"
 
 
 class ReviewStatus(StrEnum):

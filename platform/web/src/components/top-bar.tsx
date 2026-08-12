@@ -20,15 +20,15 @@ interface TopBarProps {
 export function TopBar({ breadcrumb = [], children }: TopBarProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
-      <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-[18px] px-7">
+      <div className="mx-auto flex h-14 min-w-0 max-w-[1180px] items-center gap-3 px-4 sm:gap-[18px] sm:px-7">
         <Wordmark />
 
         {breadcrumb.length > 0 && (
           <>
-            <span aria-hidden className="h-[18px] w-px bg-line-strong" />
+            <span aria-hidden className="hidden h-[18px] w-px bg-line-strong sm:block" />
             <nav
               aria-label="Breadcrumb"
-              className="flex items-center gap-2.5 text-[13.5px] text-ink-muted"
+              className="min-w-0 flex-1 overflow-hidden text-[13.5px] text-ink-muted"
             >
               {breadcrumb.map((crumb, index) => {
                 const isLast = index === breadcrumb.length - 1;
@@ -36,7 +36,12 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                 const href = typeof crumb === "string" ? undefined : crumb.href;
 
                 return (
-                  <span key={label} className="flex items-center gap-2.5">
+                  <span
+                    key={label}
+                    className={`min-w-0 items-center gap-2.5 ${
+                      index === 1 ? "hidden sm:flex" : "flex"
+                    }`}
+                  >
                     {index > 0 && (
                       <svg
                         aria-hidden
@@ -51,16 +56,18 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                     )}
                     {isLast ? (
                       // The current page is not a link — nothing to navigate to.
-                      <span aria-current="page">{label}</span>
+                      <span aria-current="page" className="truncate">
+                        {label}
+                      </span>
                     ) : href ? (
                       <Link
                         href={href}
-                        className="rounded-xs font-semibold text-ink transition-colors hover:text-low hover:underline"
+                        className="truncate rounded-xs font-semibold text-ink transition-colors hover:text-low hover:underline"
                       >
                         {label}
                       </Link>
                     ) : (
-                      <span className="font-semibold text-ink">{label}</span>
+                      <span className="truncate font-semibold text-ink">{label}</span>
                     )}
                   </span>
                 );
@@ -90,7 +97,7 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           </Link>
         </nav>
 
-        <details className="ml-auto md:hidden">
+        <details className="ml-auto shrink-0 md:hidden">
           <summary className="cursor-pointer list-none rounded-control border border-line-strong px-2.5 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">
             Menu
           </summary>

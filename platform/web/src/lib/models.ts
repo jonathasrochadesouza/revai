@@ -166,8 +166,8 @@ export const PROVIDER_CATALOGUE: ProviderCatalogue[] = [
     models: [
       {
         id: "kiro-default",
-        label: "Configured Kiro model",
-        note: "managed by Kiro CLI settings",
+        label: "Configured in Kiro CLI",
+        note: "set by Kiro CLI settings",
         recommended: true,
       },
     ],
