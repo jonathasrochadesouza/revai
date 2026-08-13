@@ -39,6 +39,8 @@ import {
   useState,
 } from "react";
 
+import { useUiText } from "@/components/ui-preference-bootstrap";
+
 import {
   ApiError,
   api,
@@ -51,6 +53,7 @@ import {
   type ProviderHealth,
   type Review,
   type ReviewMode,
+  type ReviewScope,
   type ReviewStreamEvent,
   type RevaiConfig,
   type Severity,
@@ -107,6 +110,7 @@ export function ProjectWorkspace({
   initialError?: string;
   renderedAt: string;
 }) {
+  const { t } = useUiText();
   const [projects, setProjects] = useState(initialProjects);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ProjectFilter>("all");
@@ -149,7 +153,7 @@ export function ProjectWorkspace({
       <section className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
         <div>
           <h1 className="mb-1.5 text-[29px] font-bold leading-tight">
-            Projects
+            {t("Projects")}
           </h1>
           <p className="max-w-[64ch] text-[14px] leading-relaxed text-ink-muted">
             Repository access stays local. Only filtered review context reaches
@@ -158,12 +162,12 @@ export function ProjectWorkspace({
         </div>
         <label className="flex h-10 w-full items-center gap-2.5 rounded-control border border-line-strong bg-paper px-3 text-ink-subtle lg:w-[310px]">
           <Search aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />
-          <span className="sr-only">Search projects</span>
+          <span className="sr-only">{t("Search projects")}</span>
           <input
             ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search projects"
+            placeholder={t("Search projects")}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-subtle"
           />
           <kbd className="rounded-chip border border-line px-1.5 py-0.5 text-[10px]">
@@ -191,17 +195,17 @@ export function ProjectWorkspace({
 
       <OnboardingChecklist hasProjects={projects.length > 0} />
 
-      <section aria-label="Add a repository" className="mb-8 grid gap-3 md:grid-cols-2">
+      <section aria-label={t("Add a repository")} className="mb-8 grid gap-3 md:grid-cols-2">
         <EntryAction
           icon={<HardDrive className="size-5" strokeWidth={1.8} />}
-          title="Open local folder"
+          title={t("Open local folder")}
           description="Point RevAI at a Git repository already on this machine."
           action="Browse or enter path"
           onClick={() => setDialog("open")}
         />
         <EntryAction
           icon={<Copy className="size-5" strokeWidth={1.8} />}
-          title="Clone from remote"
+          title={t("Clone from remote")}
           description="Clone an HTTPS, SSH, or local Git remote into a folder you choose."
           action="Choose URL and folder"
           onClick={() => setDialog("clone")}
@@ -211,7 +215,7 @@ export function ProjectWorkspace({
       <section className="surface overflow-hidden">
         <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-[14px] font-semibold">
-            Your projects
+            {t("Your projects")}
             <span className="numeric rounded-chip bg-canvas px-2 py-0.5 text-[10.5px] font-medium text-ink-muted">
               {projects.length}
             </span>
@@ -236,10 +240,10 @@ export function ProjectWorkspace({
         </div>
 
         <div className="hidden grid-cols-[minmax(260px,1fr)_180px_170px_90px] gap-4 border-b border-line bg-sunken px-5 py-2.5 text-[10px] font-semibold uppercase text-ink-subtle md:grid">
-          <span>Repository</span>
-          <span>Branch</span>
-          <span>Languages</span>
-          <span className="text-right">Added</span>
+          <span>{t("Repository")}</span>
+          <span>{t("Branch")}</span>
+          <span>{t("Languages")}</span>
+          <span className="text-right">{t("Added")}</span>
         </div>
 
         {visibleProjects.length ? (
@@ -383,13 +387,18 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.getConfig(), api.getProviders()]).then(([saved, providers]) => {
-      if (!active) return;
-      setConfig(saved.config);
-      setProviderReady(providers.active_is_usable);
-    }).catch(() => {
-      if (active) setProviderReady(false);
-    });
+    api.getConfig()
+      .then(async (saved) => {
+        if (!active) return null;
+        setConfig(saved.config);
+        return api.verifyProvider(saved.config.engine.provider_id);
+      })
+      .then((health) => {
+        if (active && health) setProviderReady(isUsable(health));
+      })
+      .catch(() => {
+        if (active) setProviderReady(false);
+      });
     return () => { active = false; };
   }, []);
 
@@ -621,6 +630,7 @@ export function RepositoryInspector({
   project: Project;
   onError: (message: string) => void;
 }) {
+  const { t } = useUiText();
   const defaultHead = project.current_branch ?? project.base_branch;
   const [base, setBase] = useState(project.base_branch);
   const [head, setHead] = useState(defaultHead);
@@ -634,10 +644,14 @@ export function RepositoryInspector({
   const [config, setConfig] = useState<RevaiConfig | null>(null);
   const [providerHealth, setProviderHealth] = useState<ProviderHealth | null>(null);
   const [providerChecking, setProviderChecking] = useState(true);
+  const [analyzerPreflight, setAnalyzerPreflight] = useState<Awaited<ReturnType<typeof api.getAnalyzerPreflight>> | null>(null);
   const [history, setHistory] = useState<Review[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("both");
+  const [reviewScope, setReviewScope] = useState<ReviewScope>("branch_diff");
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const reviewAbort = useRef<AbortController | null>(null);
+  const activeReviewId = useRef<string | null>(null);
 
   useEffect(() => {
     return () => reviewAbort.current?.abort();
@@ -647,9 +661,9 @@ export function RepositoryInspector({
     () =>
       Promise.all([
         api.getProjectTree(project.id, head),
-        api.getProjectDiff(project.id, base, head),
+        api.getProjectDiff(project.id, base, head, reviewScope, selectedFiles),
       ]),
-    [base, head, project.id],
+    [base, head, project.id, reviewScope, selectedFiles],
   );
 
   const load = useCallback(async () => {
@@ -699,6 +713,11 @@ export function RepositoryInspector({
       .finally(() => {
         if (active) setProviderChecking(false);
       });
+    void api.getAnalyzerPreflight(project.id).then((preflight) => {
+      if (active) setAnalyzerPreflight(preflight);
+    }).catch(() => {
+      if (active) setAnalyzerPreflight(null);
+    });
 
     return () => {
       active = false;
@@ -742,13 +761,27 @@ export function RepositoryInspector({
     setEvents([]);
     try {
       if (reviewMode === "static") {
-        const nextResult = await api.runDeterministicReview(project.id, base, head);
+        const nextResult = await api.runDeterministicReview(
+          project.id,
+          base,
+          head,
+          reviewScope,
+          selectedFiles,
+        );
         setResult(nextResult);
         return;
       }
-      const nextResult = await api.streamReview(project.id, base, head, reviewMode, {
+      const nextResult = await api.streamReview(
+        project.id,
+        base,
+        head,
+        reviewMode,
+        reviewScope,
+        selectedFiles,
+        {
         signal: controller.signal,
         onEvent: (event) => {
+          if (event.type === "review_queued") activeReviewId.current = event.review_id;
           setEvents((current) => {
             const last = current.at(-1);
             if (event.type === "delta" && last?.type === "delta") {
@@ -757,8 +790,10 @@ export function RepositoryInspector({
             return [...current, event].slice(-80);
           });
         },
-      });
+        },
+      );
       setResult(nextResult);
+      activeReviewId.current = null;
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
         onError(displayError(error));
@@ -773,8 +808,15 @@ export function RepositoryInspector({
   };
 
   const cancelReview = () => {
+    const reviewId = activeReviewId.current;
+    if (reviewId) {
+      void api.cancelReview(project.id, reviewId).catch((error: unknown) => {
+        onError(displayError(error));
+      });
+    }
     reviewAbort.current?.abort();
     reviewAbort.current = null;
+    activeReviewId.current = null;
     setReviewing(false);
     setCancelled(true);
   };
@@ -849,16 +891,36 @@ export function RepositoryInspector({
               }}
             />
             <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
-              Review mode
+              {t("Scope")}
+              <select
+                value={reviewScope}
+                onChange={(event) => {
+                  const scope = event.target.value as ReviewScope;
+                  setReviewScope(scope);
+                  if (scope === "selected_files" && selectedFiles.length === 0) {
+                    setSelectedFiles(tree?.files ?? []);
+                  }
+                  setLoading(true);
+                  setResult(null);
+                }}
+                className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none"
+              >
+                <option value="branch_diff">{t("Branch diff")}</option>
+                <option value="selected_files">{t("Selected files")}</option>
+                <option value="whole_project">{t("Whole project")}</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
+              {t("Review mode")}
               <select
                 value={reviewMode}
                 onChange={(event) => setReviewMode(event.target.value as ReviewMode)}
                 disabled={reviewing}
                 className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none focus:border-ink disabled:opacity-50"
               >
-                <option value="static">Static only</option>
-                <option value="ai_assisted">AI-assisted</option>
-                <option value="both">Both</option>
+                <option value="static">{t("Static only")}</option>
+                <option value="ai_assisted">{t("AI-assisted")}</option>
+                <option value="both">{t("Both")}</option>
               </select>
             </label>
             <button
@@ -875,12 +937,17 @@ export function RepositoryInspector({
               ) : (
                 <GitCompareArrows className="size-3.5" />
               )}
-              Preview
+              {t("Preview")}
             </button>
             <button
               type="button"
               onClick={reviewing ? cancelReview : requestReview}
-              disabled={loading || overBudget || aiProviderBlocked}
+              disabled={
+                loading ||
+                overBudget ||
+                aiProviderBlocked ||
+                (reviewScope === "selected_files" && selectedFiles.length === 0)
+              }
               className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
               {reviewing ? (
@@ -888,7 +955,7 @@ export function RepositoryInspector({
               ) : (
                 <ScanSearch className="size-3.5" />
               )}
-              {reviewing ? "Cancel" : result ? "Run again" : reviewMode === "static" ? "Run static review" : reviewMode === "both" ? "Run combined review" : "Run AI review"}
+              {t(reviewing ? "Cancel" : result ? "Run again" : reviewMode === "static" ? "Run static review" : reviewMode === "both" ? "Run combined review" : "Run AI review")}
             </button>
           </div>
         </div>
@@ -908,12 +975,27 @@ export function RepositoryInspector({
           </div>
         )}
 
+        {analyzerPreflight && !analyzerPreflight.ready && reviewMode !== "ai_assisted" && (
+          <div
+            role="status"
+            className="border-b border-medium-line bg-medium-surface px-5 py-2.5 text-[11.5px] text-medium"
+          >
+            Deterministic coverage will be degraded: {analyzerPreflight.analyzers
+              .filter((item) => item.status !== "ready")
+              .map((item) => item.name)
+              .join(", ")}.
+            <Link href="/settings/engine" className="ml-2 font-semibold hover:underline">
+              Review setup
+            </Link>
+          </div>
+        )}
+
         <div className="grid min-h-[410px] lg:grid-cols-[270px_minmax(0,1fr)]">
           <aside className="border-b border-line lg:border-b-0 lg:border-r">
             <div className="flex h-11 items-center justify-between border-b border-line bg-sunken px-4">
               <h3 className="flex items-center gap-2 text-[11.5px] font-semibold">
                 <Files className="size-3.5 text-ink-subtle" />
-                Tracked files
+                {t("Tracked files")}
               </h3>
               <span className="numeric text-[10.5px] text-ink-subtle">
                 {tree?.files.length ?? 0}
@@ -924,14 +1006,26 @@ export function RepositoryInspector({
                 <LoadingRows />
               ) : tree?.files.length ? (
                 tree.files.map((path) => (
-                  <div
+                  <label
                     key={path}
                     className="flex min-w-0 items-center gap-2 rounded-chip px-2 py-1.5 text-[11px] text-ink-muted hover:bg-canvas"
                     title={path}
                   >
+                    {reviewScope === "selected_files" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedFiles.includes(path)}
+                        onChange={(event) => {
+                          setSelectedFiles((current) => event.target.checked
+                            ? [...current, path]
+                            : current.filter((item) => item !== path));
+                          setLoading(true);
+                        }}
+                      />
+                    )}
                     <File className="size-3.5 shrink-0 text-ink-subtle" strokeWidth={1.7} />
                     <span className="truncate font-mono">{path}</span>
-                  </div>
+                  </label>
                 ))
               ) : (
                 <p className="px-2 py-3 text-[11px] text-ink-subtle">No tracked files.</p>
@@ -995,11 +1089,23 @@ export function RepositoryInspector({
             }}
             className="rounded-control border border-line-strong px-3 py-2 text-[12px] font-semibold text-ink-muted hover:bg-canvas hover:text-ink"
           >
-            Configure another review
+            {t("Configure another review")}
           </button>
         </div>
       )}
-      <ReviewHistory reviews={history} onSelect={(review) => setResult({ review, stages: [], analyzers: [], chunks: [] })} />
+      <ReviewHistory
+        reviews={history}
+        onSelect={(review) => {
+          setEvents([]);
+          setCancelled(review.status === "aborted");
+          setResult({
+            review,
+            stages: review.stages,
+            analyzers: review.analyzers,
+            chunks: [],
+          });
+        }}
+      />
       {confirming && preview && (
         <CostConfirmation
           preview={preview}
@@ -1035,8 +1141,96 @@ export function ReviewSetupWorkspace({ project }: { project: Project }) {
           </button>
         </div>
       )}
+      <ProjectQualityCommands project={project} onError={setNotice} />
       <RepositoryInspector project={project} onError={setNotice} />
     </>
+  );
+}
+
+
+function ProjectQualityCommands({
+  project,
+  onError,
+}: {
+  project: Project;
+  onError: (message: string) => void;
+}) {
+  const [commands, setCommands] = useState({
+    checkstyle_command: JSON.stringify(project.checkstyle_command),
+    test_command: JSON.stringify(project.test_command),
+    build_command: JSON.stringify(project.build_command),
+  });
+  const [baseBranch, setBaseBranch] = useState(project.base_branch);
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    try {
+      const parsed = Object.fromEntries(
+        Object.entries(commands).map(([name, value]) => {
+          const command = JSON.parse(value) as unknown;
+          if (!Array.isArray(command) || !command.every((item) => typeof item === "string")) {
+            throw new Error(`${name} must be a JSON array of command arguments.`);
+          }
+          return [name, command];
+        }),
+      );
+      setSaving(true);
+      await api.updateProject(project.id, { ...parsed, base_branch: baseBranch });
+    } catch (error) {
+      onError(displayError(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <details className="surface mb-4 px-4 py-3">
+      <summary className="cursor-pointer text-[12px] font-semibold">
+        Project quality commands
+        <span className="ml-2 font-normal text-ink-subtle">optional · shell disabled</span>
+      </summary>
+      <p className="mt-2 text-[11px] text-ink-muted">
+        Use JSON argument arrays so paths with spaces remain safe, for example
+        <code className="ml-1">[&quot;./mvnw&quot;,&quot;verify&quot;]</code>.
+      </p>
+      <div className="mt-3 grid gap-3 lg:grid-cols-4">
+        <label className="text-[10.5px] font-semibold text-ink-muted">
+          Default base branch
+          <select
+            value={baseBranch}
+            onChange={(event) => setBaseBranch(event.target.value)}
+            className="mt-1 h-9 w-full border border-line-strong bg-paper px-2 font-mono text-[10.5px] outline-none focus:border-ink"
+          >
+            {project.branches.map((branch) => <option key={branch}>{branch}</option>)}
+          </select>
+        </label>
+        {(
+          [
+            ["checkstyle_command", "Checkstyle"],
+            ["test_command", "Tests"],
+            ["build_command", "Build"],
+          ] as const
+        ).map(([name, label]) => (
+          <label key={name} className="text-[10.5px] font-semibold text-ink-muted">
+            {label}
+            <input
+              value={commands[name]}
+              onChange={(event) => setCommands((current) => ({
+                ...current,
+                [name]: event.target.value,
+              }))}
+              className="mt-1 h-9 w-full border border-line-strong bg-paper px-2 font-mono text-[10.5px] outline-none focus:border-ink"
+            />
+          </label>
+        ))}
+      </div>
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => void save()}
+        className="mt-3 bg-ink px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-50"
+      >
+        {saving ? "Saving…" : "Save project commands"}
+      </button>
+    </details>
   );
 }
 
@@ -1081,7 +1275,12 @@ function LiveReviewPanel({
     (event): event is Extract<ReviewStreamEvent, { type: "stage" }> =>
       event.type === "stage",
   );
-  const completedStages = new Set(stageEvents.map((event) => event.name));
+  const completedStages = new Set([
+    ...(result?.stages
+      .filter((stage) => stage.status !== "failed")
+      .map((stage) => stage.name) ?? []),
+    ...stageEvents.map((event) => event.name),
+  ]);
   const analyzers =
     result?.analyzers ??
     events.filter(
@@ -1104,6 +1303,9 @@ function LiveReviewPanel({
     (event): event is Extract<ReviewStreamEvent, { type: "failed" }> =>
       event.type === "failed",
   );
+  const failed = Boolean(failure || review?.status === "failed");
+  const aborted = cancelled || review?.status === "aborted";
+  const degraded = review?.status === "degraded";
   const tokens =
     (review?.stats.tokens_input ?? usage?.input_tokens ?? 0) +
     (review?.stats.tokens_output ?? usage?.output_tokens ?? 0);
@@ -1123,45 +1325,55 @@ function LiveReviewPanel({
           </h3>
           <p className="mt-0.5 font-mono text-[10.5px] text-ink-subtle">
             {branches.base} → {branches.head}
-            {provider ? ` · ${provider.model}` : ""}
+            {` · ${provider?.model ?? review?.effective_model ?? review?.model ?? "local"}`}
           </p>
         </div>
         <span
           className={`flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-[10.5px] font-semibold ${
-            failure
+            failed
               ? "border-critical-line bg-critical-surface text-critical"
-              : cancelled
+              : aborted || degraded
                 ? "border-medium-line bg-medium-surface text-medium"
                 : running
                   ? "border-low-line bg-low-surface text-low"
                   : "border-success-line bg-success-surface text-success"
           }`}
         >
-          {failure || cancelled ? (
+          {failed || aborted || degraded ? (
             <CircleX className="size-3.5" />
           ) : running ? (
             <LoaderCircle className="size-3.5 animate-spin" />
           ) : (
             <CircleCheck className="size-3.5" />
           )}
-          {failure
+          {failed
             ? "Failed"
-            : cancelled
+            : aborted
               ? "Cancelled"
+              : degraded
+                ? "Completed with degraded coverage"
               : running
                 ? "Reviewing"
-                : `Completed · ${formatTokens(tokens)} tokens`}
+                : tokens
+                  ? `Completed · ${formatTokens(tokens)} tokens`
+                  : "Completed"}
         </span>
       </div>
 
       <div className="grid grid-cols-2 border-b border-line bg-sunken sm:grid-cols-5">
         <ReviewMetric label="Findings" value={review ? String(review.findings.length) : "—"} />
         <ReviewMetric
-          label="Files checked"
+          label="Files reviewed"
           value={review ? String(review.stats.files_analysed) : "—"}
         />
-        <ReviewMetric label="Tokens" value={tokens ? formatTokens(tokens) : "—"} />
-        <ReviewMetric label="Cost" value={usage || review ? `$${cost.toFixed(4)}` : "—"} />
+        <ReviewMetric
+          label={tokens ? "Tokens" : "Est. context"}
+          value={tokens ? formatTokens(tokens) : review ? `~${formatTokens(review.stats.estimated_context_tokens)}` : "—"}
+        />
+        <ReviewMetric
+          label={review?.stats.cost_is_estimated || usage?.is_estimated ? "Est. cost" : "Cost"}
+          value={usage || review ? `$${cost.toFixed(4)}` : "—"}
+        />
         <ReviewMetric
           label="Duration"
           value={review ? `${review.stats.duration_ms} ms` : "Live"}
@@ -1222,7 +1434,9 @@ function LiveReviewPanel({
                 ))
               ) : (
                 <p className="px-2 py-3 text-[10.5px] text-ink-subtle">
-                  Starting local analysis…
+                  {review
+                    ? `${review.events.length} persisted events · ${review.status}`
+                    : "Starting local analysis…"}
                 </p>
               )}
             </div>
@@ -1276,18 +1490,18 @@ function LiveReviewPanel({
           ) : (
             <div className="grid min-h-52 place-items-center px-5 py-8 text-center">
               <div>
-                {failure || cancelled ? (
+                {failed || aborted ? (
                   <CircleX
-                    className={`mx-auto mb-2.5 size-6 ${failure ? "text-critical" : "text-medium"}`}
+                    className={`mx-auto mb-2.5 size-6 ${failed ? "text-critical" : "text-medium"}`}
                   />
                 ) : (
                   <CircleCheck className="mx-auto mb-2.5 size-6 text-success" />
                 )}
                 <p className="text-[12.5px] font-semibold">
-                  {failure ? "Review stopped" : cancelled ? "Review cancelled" : "No findings"}
+                  {failed ? "Review stopped" : aborted ? "Review cancelled" : "No findings"}
                 </p>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  {failure?.message ?? (cancelled ? "No findings were persisted." : "Local analyzers and AI reported no issues.")}
+                  {failure?.message ?? review?.error ?? (aborted ? "The background job was cancelled." : "Available analyzers and AI reported no issues.")}
                 </p>
               </div>
             </div>
@@ -1331,6 +1545,9 @@ function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
     case "failed":
       label = event.message;
       break;
+    case "aborted":
+      label = "Review cancelled";
+      break;
   }
   return (
     <div className="flex items-center gap-2 rounded-chip px-2 py-1.5 text-[10.5px]">
@@ -1363,7 +1580,9 @@ function AnalyzerRow({ analyzer }: { analyzer: AnalyzerRun }) {
       ? "text-success"
       : analyzer.status === "failed"
         ? "text-critical"
-        : "text-ink-subtle";
+        : analyzer.status === "degraded"
+          ? "text-medium"
+          : "text-ink-subtle";
   return (
     <div
       className="flex items-center gap-2 rounded-control px-2 py-2 hover:bg-canvas"
@@ -1374,7 +1593,9 @@ function AnalyzerRow({ analyzer }: { analyzer: AnalyzerRun }) {
         {analyzer.name}
       </span>
       <span className="font-mono text-[10px] text-ink-subtle">
-        {analyzer.status === "completed" ? analyzer.findings : "—"}
+        {analyzer.status === "completed" || analyzer.status === "degraded"
+          ? analyzer.findings
+          : "—"}
       </span>
     </div>
   );

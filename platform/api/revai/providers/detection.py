@@ -38,6 +38,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from revai.domain.enums import ProviderId, ProviderKind
 from revai.providers.base import HealthState, ProviderHealth
@@ -267,7 +268,55 @@ def resolve_executable(spec: CliSpec) -> tuple[str, str] | None:
 
 def _resolve_command(name: str) -> str | None:
     """Keep the normal PATH lookup fast; delegate only when Git Bash is active."""
-    return resolve_command(name) if git_bash_session() is not None else shutil.which(name)
+    resolved = resolve_command(name) if git_bash_session() is not None else shutil.which(name)
+    if resolved:
+        return resolved
+    return _resolve_windows_command_from_wsl(name)
+
+
+def _resolve_windows_command_from_wsl(name: str) -> str | None:
+    """Find an installed Windows CLI when the API itself runs inside WSL.
+
+    Windows and WSL can expose different PATH values. Calling ``where`` through
+    ``cmd.exe`` uses the Windows environment, then the absolute result is converted
+    to its mounted WSL path. Only a plain executable name is accepted, so the
+    ``cmd /c`` boundary cannot interpret user-controlled shell syntax.
+    """
+    if (
+        os.name == "nt"
+        or not Path("/proc/sys/fs/binfmt_misc/WSLInterop").exists()
+        or re.fullmatch(r"[A-Za-z0-9_.-]+", name) is None
+    ):
+        return None
+    command = shutil.which("cmd.exe")
+    if command is None:
+        return None
+    try:
+        completed = subprocess.run(
+            [command, "/d", "/c", "where", name],
+            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            timeout=5,
+            shell=False,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    for line in completed.stdout.decode("utf-8", errors="replace").splitlines():
+        candidate = _windows_path_to_wsl(line.strip())
+        if candidate and Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def _windows_path_to_wsl(value: str) -> str | None:
+    match = re.fullmatch(r"([A-Za-z]):[\\/](.+)", value)
+    if match is None:
+        return None
+    relative = match.group(2).replace("\\", "/")
+    return f"/mnt/{match.group(1).lower()}/{relative}"
 
 
 def parse_version(output: str) -> str | None:

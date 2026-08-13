@@ -63,3 +63,32 @@ def test_security_analyzer_finds_javascript_function_constructor(tmp_path: Path)
     findings = find_security_issues(tmp_path, [source.name])
 
     assert [finding.rule_id for finding in findings] == ["dynamic-execution"]
+
+
+def test_security_analyzer_finds_seeded_java_regressions(tmp_path: Path) -> None:
+    source = tmp_path / "UnsafeCustomerSearch.java"
+    source.write_text(
+        '''
+final class UnsafeCustomerSearch {
+    private static final String PARTNER_API_TOKEN = "sk_live_seeded_secret_123456";
+
+    void search(String userSuppliedPrefix) throws Exception {
+        var sql = "select name from customer where name like '" + userSuppliedPrefix + "%';";
+        statement.executeQuery(sql);
+    }
+
+    String read(String userSuppliedFileName) throws Exception {
+        return Files.readString(exportDirectory.resolve(userSuppliedFileName));
+    }
+}
+''',
+        encoding="utf-8",
+    )
+
+    findings = find_security_issues(tmp_path, [source.name])
+
+    assert {finding.rule_id for finding in findings} == {
+        "hardcoded-secret",
+        "java-sql-concatenation",
+        "java-path-boundary",
+    }

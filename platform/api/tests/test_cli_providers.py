@@ -164,7 +164,8 @@ async def test_kiro_uses_supported_headless_mode_without_granting_tools(
 ) -> None:
     captured: list[str] = []
 
-    async def fake_run(_executable: str, args: list[str], _timeout_s: float):
+    async def fake_run(_executable: str, args: list[str], _timeout_s: float, *, cwd):
+        assert (cwd / ".kiro" / "agents" / "revai-review.json").is_file()
         captured.extend(args)
         return CliCommandResult(0, 'Here is the result:\n{"findings": []}', "")
 
@@ -179,8 +180,14 @@ async def test_kiro_uses_supported_headless_mode_without_granting_tools(
     )
 
     assert captured[:2] == ["chat", "--no-interactive"]
-    assert all("trust" not in argument for argument in captured)
-    assert '"findings"' in captured[2]
+    assert captured[2:7] == [
+        "--agent",
+        "revai-review",
+        "--model",
+        "kiro-default",
+        "--trust-tools=",
+    ]
+    assert '"findings"' in captured[-1]
     assert events[-1].text.endswith('{"findings": []}')
     assert events[-1].usage.is_estimated is True
 
@@ -188,7 +195,8 @@ async def test_kiro_uses_supported_headless_mode_without_granting_tools(
 async def test_cli_timeout_becomes_a_retryable_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def fake_run(_executable: str, _args: list[str], _timeout_s: float):
+    async def fake_run(_executable: str, _args: list[str], _timeout_s: float, *, cwd):
+        assert cwd.is_dir()
         return CliCommandResult(None, "", "", timed_out=True)
 
     monkeypatch.setattr("revai.providers.cli.kiro.run_cli_command", fake_run)
@@ -251,7 +259,8 @@ async def test_kiro_adapter_completes_the_existing_ai_stage(
         ]
     }
 
-    async def fake_run(_executable: str, _args: list[str], _timeout_s: float):
+    async def fake_run(_executable: str, _args: list[str], _timeout_s: float, *, cwd):
+        assert cwd.is_dir()
         return CliCommandResult(0, f"```json\n{json.dumps(payload)}\n```", "")
 
     monkeypatch.setattr("revai.providers.cli.kiro.run_cli_command", fake_run)

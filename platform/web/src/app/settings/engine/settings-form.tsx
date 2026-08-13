@@ -27,6 +27,7 @@ import {
   type CredentialSummary,
   type ProviderId,
   type RevaiConfig,
+  type SonarQubeConfig,
 } from "@/lib/api";
 import {
   catalogueFor,
@@ -50,6 +51,8 @@ const ANALYSERS: { key: keyof AnalyzerConfig; label: string; detail: string }[] 
   { key: "gitleaks", label: "Gitleaks", detail: "leaked secrets" },
   { key: "treesitter", label: "tree-sitter", detail: "AST, built in" },
   { key: "checkstyle", label: "Checkstyle", detail: "java" },
+  { key: "project_tests", label: "Project tests", detail: "configured per project" },
+  { key: "project_build", label: "Project build", detail: "configured per project" },
 ];
 
 const BEHAVIOUR: { key: keyof AnalyzerConfig; label: string; hint: string }[] = [
@@ -237,7 +240,7 @@ export function SettingsForm({
             note={`${catalogue?.models.length ?? 0} offline suggestions`}
             hint={
               isKiroCli
-                ? <>Kiro CLI owns model selection in headless mode. To use Haiku, run <code>kiro-cli settings chat.defaultModel claude-haiku-4.5</code> once; RevAI then uses that Kiro default.</>
+                ? "RevAI passes this exact model to Kiro CLI 2.18+ and runs an isolated, read-only agent with MCP and tools disabled."
                 : usingCustomModel
                 ? "Custom ids are passed through verbatim. Confirm the id in your provider dashboard before running a review."
                 : "These are offline suggestions. Provider model catalogs change frequently; use Custom when your provider lists a newer id."
@@ -583,9 +586,9 @@ export function SettingsForm({
         <CardHeader title="Deterministic stage" icon={CHECK_CIRCLE} aside="0 tokens" />
         <CardBody>
           <p className="mb-3.5 text-[12.5px] leading-relaxed text-ink-muted">
-            These run before the model and cost nothing. Their findings are passed to the
-            model as context, so it corroborates them instead of repeating them — which is
-            what actually removes false positives.
+            These run before the model and cost no AI tokens. Results are merged by stable
+            identity after analysis; unavailable tools are reported as degraded instead of
+            silently appearing successful.
           </p>
 
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -619,7 +622,7 @@ export function SettingsForm({
               <div>
                 <b className="block text-[12.5px] font-medium">SonarQube Server / Community Build</b>
                 <span className="text-[10.5px] text-ink-subtle">
-                  Whole-project quality gate; requires local sonar-scanner and SONAR_TOKEN.
+                  Build-tool-aware scan, Compute Engine wait, new-code issues and quality gate.
                 </span>
               </div>
               <Switch
@@ -657,6 +660,40 @@ export function SettingsForm({
                     className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
                   />
                 </Field>
+                <Field label="Scanner" htmlFor="sonarqube-scanner">
+                  <select
+                    id="sonarqube-scanner"
+                    value={draft.analyzers.sonarqube.scanner}
+                    onChange={(event) => patch((config) => {
+                      config.analyzers.sonarqube.scanner = event.target.value as SonarQubeConfig["scanner"];
+                      return config;
+                    })}
+                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 text-[11.5px] outline-none focus:border-ink"
+                  >
+                    <option value="auto">Auto — prefer Maven/Gradle</option>
+                    <option value="maven">Maven</option>
+                    <option value="gradle">Gradle</option>
+                    <option value="cli">Generic CLI</option>
+                  </select>
+                </Field>
+                <div className="flex items-center gap-5 sm:col-span-2">
+                  <Switch
+                    label="New-code issues only"
+                    checked={draft.analyzers.sonarqube.new_code_only}
+                    onChange={(checked) => patch((config) => {
+                      config.analyzers.sonarqube.new_code_only = checked;
+                      return config;
+                    })}
+                  />
+                  <Switch
+                    label="Require quality gate"
+                    checked={draft.analyzers.sonarqube.wait_for_quality_gate}
+                    onChange={(checked) => patch((config) => {
+                      config.analyzers.sonarqube.wait_for_quality_gate = checked;
+                      return config;
+                    })}
+                  />
+                </div>
               </div>
             )}
           </div>

@@ -1,8 +1,9 @@
 # RevAI
 
 Local-first AI code review for Git repositories. Repositories stay on your machine;
-only the filtered diff context required for a review reaches the model provider you
-configure. RevAI has no account, telemetry, or hosted project storage.
+only the filtered, secret-redacted context required for a review reaches the model
+provider you configure. Repository content is treated as untrusted prompt data.
+RevAI has no account, telemetry, or hosted project storage.
 
 ## Run locally
 
@@ -35,3 +36,22 @@ Reviews, configuration, and masked credentials metadata live under `~/.revai/`.
 Credentials are stored separately from repositories. Review cost is estimated before
 execution, confirmed when it exceeds your warning threshold, and blocked when it
 exceeds the configured hard budget.
+
+## Headless and CI review
+
+The installed CLI runs the same read-only pipeline without a web server and supports
+branch, selected-file and whole-project scopes. Exit code `1` means the configured
+finding threshold was reached; execution/configuration errors return `2`.
+
+```bash
+revai review . --base main --head feature/payments \
+  --mode both --model claude-haiku-4.5 \
+  --format sarif --output revai.sarif --fail-on medium
+```
+
+Available report formats are JSON, Markdown, standalone HTML and SARIF 2.1.0.
+
+Kiro reviews require Kiro CLI 2.18 or newer. RevAI passes the configured model
+explicitly and creates a temporary read-only agent with tools and MCP inheritance
+disabled. SonarQube scans prefer Maven or Gradle, wait for server-side processing,
+paginate issues and persist the actual quality-gate result.

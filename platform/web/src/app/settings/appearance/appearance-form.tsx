@@ -102,7 +102,7 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
               <option value="pt-BR">Português (Brasil)</option>
             </Select>
             <span className="mt-[7px] block text-[11.5px] leading-relaxed text-ink-subtle">
-              This setting establishes the app locale and accessible document language. Interface translations can be expanded without changing your project data.
+              This setting changes the document language plus core navigation and review controls. Provider-specific and advanced technical labels remain in English.
             </span>
           </label>
 
@@ -138,4 +138,5 @@ function countChanges(saved: RevaiConfig, draft: RevaiConfig): number {
 function applyPreferences(config: RevaiConfig) {
   document.documentElement.dataset.theme = config.ui.theme;
   document.documentElement.lang = config.ui.locale;
+  window.dispatchEvent(new CustomEvent("revai:ui-preferences", { detail: config.ui }));
 }

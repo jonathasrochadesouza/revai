@@ -6,6 +6,7 @@ import ast
 import hashlib
 import json
 import math
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -205,7 +206,7 @@ def _symbol_boundary(
     changed_line: int,
 ) -> tuple[str | None, int, int]:
     lines = source.splitlines()
-    fallback = (None, max(1, changed_line), min(len(lines), max(1, changed_line)))
+    fallback = _fallback_boundary(lines, changed_line)
     if path.suffix.lower() not in {".py", ".pyi"}:
         return _tree_sitter_symbol(path, source, changed_line) or fallback
     try:
@@ -223,6 +224,29 @@ def _symbol_boundary(
         return fallback
     start, end, name = min(candidates, key=lambda item: item[1] - item[0])
     return name, start, end
+
+
+def _fallback_boundary(
+    lines: list[str], changed_line: int
+) -> tuple[str | None, int, int]:
+    """Coalesce package/import blocks instead of creating one chunk per line."""
+    line = min(len(lines), max(1, changed_line)) if lines else 1
+    if not lines:
+        return None, 1, 1
+    import_prefixes = ("import ", "from ", "package ", "using ", "#include ")
+    if lines[line - 1].strip().startswith(import_prefixes):
+        start = line
+        end = line
+        while start > 1 and (
+            lines[start - 2].strip().startswith(import_prefixes)
+        ):
+            start -= 1
+        while end < len(lines) and (
+            lines[end].strip().startswith(import_prefixes)
+        ):
+            end += 1
+        return None, start, end
+    return None, line, line
 
 
 def _tree_sitter_symbol(
@@ -287,9 +311,15 @@ def _tree_sitter_symbols(language: str, source: str) -> list[tuple[str | None, i
 
 
 def _is_trivial(changed_text: str) -> bool:
+    without_blocks = re.sub(
+        r"<!--.*?-->|/\*.*?\*/",
+        "",
+        changed_text,
+        flags=re.DOTALL,
+    )
     meaningful = [
         line.strip()
-        for line in changed_text.splitlines()
+        for line in without_blocks.splitlines()
         if line.strip() and not line.strip().startswith(("#", "//", "/*", "*"))
     ]
     return not meaningful

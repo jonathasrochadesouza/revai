@@ -12,7 +12,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from revai.config import Settings, get_settings
+from revai.domain.enums import ReviewScope, ReviewStatus
+from revai.domain.models import Review
 from revai.main import create_app
+from revai.storage import ReviewRepository
 
 
 @pytest.fixture
@@ -23,11 +26,10 @@ def client(tmp_path: Path) -> TestClient:
     """
     get_settings.cache_clear()
 
-    def _settings() -> Settings:
-        return Settings(data_dir=tmp_path / ".revai", environment="test")
+    settings = Settings(data_dir=tmp_path / ".revai", environment="test")
 
-    app = create_app()
-    app.dependency_overrides[get_settings] = _settings
+    app = create_app(settings)
+    app.dependency_overrides[get_settings] = lambda: settings
     return TestClient(app)
 
 
@@ -112,6 +114,27 @@ def test_ensure_dirs_is_idempotent(tmp_path: Path) -> None:
     settings.ensure_dirs()
 
     assert settings.data_dir.is_dir()
+
+
+def test_startup_marks_interrupted_jobs_as_aborted(tmp_path: Path) -> None:
+    settings = Settings(data_dir=tmp_path / "restart", environment="test")
+    settings.ensure_dirs()
+    repository = ReviewRepository(settings)
+    review = Review(
+        project_id="project-1",
+        scope=ReviewScope.BRANCH_DIFF,
+        status=ReviewStatus.RUNNING,
+    )
+    repository.save(review)
+
+    with TestClient(create_app(settings)):
+        pass
+
+    recovered = repository.get(review.id, review.project_id)
+    assert recovered is not None
+    assert recovered.status is ReviewStatus.ABORTED
+    assert recovered.finished_at is not None
+    assert "restarted" in (recovered.error or "")
 
 
 def test_data_dir_is_always_absolute(tmp_path: Path) -> None:

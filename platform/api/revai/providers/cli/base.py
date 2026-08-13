@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 from revai.providers.base import AnalysisRequest, FailedEvent
 from revai.providers.detection import CliSpec, resolve_executable
@@ -33,6 +34,7 @@ def _run_cli_command_blocking(
     executable: str,
     args: tuple[str, ...] | list[str],
     timeout_s: float,
+    cwd: Path | None = None,
 ) -> CliCommandResult:
     try:
         command, environment = command_for_execution([executable, *args])
@@ -42,6 +44,7 @@ def _run_cli_command_blocking(
             stdin=subprocess.DEVNULL,
             timeout=timeout_s,
             env=environment,
+            cwd=cwd,
             shell=False,
             check=False,
         )
@@ -61,9 +64,17 @@ async def run_cli_command(
     executable: str,
     args: tuple[str, ...] | list[str],
     timeout_s: float,
+    *,
+    cwd: Path | None = None,
 ) -> CliCommandResult:
     """Run one CLI without a shell and without blocking uvicorn's event loop."""
-    return await asyncio.to_thread(_run_cli_command_blocking, executable, args, timeout_s)
+    return await asyncio.to_thread(
+        _run_cli_command_blocking,
+        executable,
+        args,
+        timeout_s,
+        cwd,
+    )
 
 
 def executable_for(spec: CliSpec, configured: str | None) -> str | None:

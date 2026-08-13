@@ -16,8 +16,8 @@ async def test_kiro_cli_adapter_runs_non_interactive_chat(monkeypatch) -> None:
 
     captured: dict[str, object] = {}
 
-    async def fake_run(executable: str, args: list[str], timeout_s: float):
-        captured.update(executable=executable, args=args, timeout_s=timeout_s)
+    async def fake_run(executable: str, args: list[str], timeout_s: float, *, cwd):
+        captured.update(executable=executable, args=args, timeout_s=timeout_s, cwd=cwd)
         return CliCommandResult(0, '{"findings":[]}', "")
 
     monkeypatch.setattr("revai.providers.cli.kiro.run_cli_command", fake_run)
@@ -36,7 +36,9 @@ async def test_kiro_cli_adapter_runs_non_interactive_chat(monkeypatch) -> None:
     ]
 
     assert captured["args"][:2] == ["chat", "--no-interactive"]
-    assert "--model" not in captured["args"]
+    assert captured["args"][captured["args"].index("--model") + 1] == "claude-haiku-4.5"
+    assert "--trust-tools=" in captured["args"]
+    assert captured["cwd"].name.startswith("revai-kiro-")
     assert "Return only JSON." in captured["args"][-1]
     assert "Review app.py." in captured["args"][-1]
     assert events[0].type == "started"

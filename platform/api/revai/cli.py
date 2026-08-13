@@ -3,19 +3,35 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import stat
 import sys
+import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 import uvicorn
 
 from revai import __version__
 from revai.config import Settings, get_settings
-from revai.storage import ConfigRepository, CredentialsRepository, StorageError
+from revai.domain.enums import ProviderId, ReviewMode, ReviewScope, ReviewStatus, Severity
+from revai.domain.models import PipelineStageRecord, Review, ReviewStats
+from revai.export.serializers import render_html, render_json, render_markdown, render_sarif
+from revai.git.repo import GitError, current_branch, inspect_project
+from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
+from revai.pipeline.runner import StageRun, run_deterministic_pipeline
+from revai.providers.registry import build_registry
+from revai.storage import (
+    ConfigRepository,
+    CredentialsRepository,
+    ProjectRepository,
+    ReviewRepository,
+    StorageError,
+)
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 
@@ -52,6 +68,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate the local runtime and YAML data store without contacting a provider",
     )
     doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    review = commands.add_parser("review", help="run a headless review for CI or automation")
+    review.add_argument("path", type=Path, help="path to a local Git repository")
+    review.add_argument("--base", help="base branch; defaults to the detected base")
+    review.add_argument("--head", help="head branch; defaults to the current branch")
+    review.add_argument(
+        "--scope",
+        choices=[scope.value for scope in ReviewScope],
+        default=ReviewScope.BRANCH_DIFF.value,
+    )
+    review.add_argument(
+        "--file",
+        dest="selected_files",
+        action="append",
+        default=[],
+        help="tracked file to review; repeat with --scope selected_files",
+    )
+    review.add_argument(
+        "--mode",
+        choices=[mode.value for mode in ReviewMode],
+        default=ReviewMode.BOTH.value,
+    )
+    review.add_argument("--provider", choices=[provider.value for provider in ProviderId])
+    review.add_argument("--model", help="override the configured model for this run")
+    review.add_argument("--format", choices=("json", "md", "html", "sarif"), default="json")
+    review.add_argument("--output", type=Path, help="write the report to this file")
+    review.add_argument(
+        "--fail-on",
+        choices=("none", "critical", "medium", "low"),
+        default="critical",
+    )
+    review.add_argument("--no-persist", action="store_true", help="do not save history")
     return parser
 
 
@@ -66,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "doctor":
         return doctor(json_output=args.json)
+    if args.command == "review":
+        return review_command(args)
     parser.error(f"unknown command: {args.command}")
     return 2
 
@@ -110,6 +159,176 @@ def doctor(*, json_output: bool = False) -> int:
         for check in checks:
             print(f"[{check.status}] {check.name}: {check.detail}")
     return 0 if ok else 1
+
+
+def review_command(args: argparse.Namespace) -> int:
+    """Run the local pipeline without requiring the web server."""
+    try:
+        review, project = asyncio.run(_run_headless_review(args))
+        content = {
+            "json": render_json,
+            "md": render_markdown,
+            "html": render_html,
+            "sarif": render_sarif,
+        }[args.format](review, project)
+        if args.output:
+            args.output.expanduser().resolve().write_bytes(content)
+        else:
+            sys.stdout.buffer.write(content)
+        if args.fail_on != "none":
+            threshold = Severity(args.fail_on)
+            if any(
+                finding.is_actionable and finding.severity.rank <= threshold.rank
+                for finding in review.findings
+            ):
+                return 1
+        return 0
+    except (GitError, StorageError, RuntimeError, ValueError, OSError) as exc:
+        print(f"revai review failed: {exc}", file=sys.stderr)
+        return 2
+
+
+async def _run_headless_review(args: argparse.Namespace):
+    settings = get_settings()
+    settings.ensure_dirs()
+    project_repo = ProjectRepository(settings)
+    review_repo = ReviewRepository(settings)
+    inspected = inspect_project(args.path.expanduser())
+    project = next(
+        (
+            item
+            for item in project_repo.list()
+            if Path(item.path).resolve() == Path(inspected.path).resolve()
+        ),
+        inspected,
+    )
+    if project is inspected and not args.no_persist:
+        project_repo.save(project)
+
+    config = ConfigRepository(settings).load().model_copy(deep=True)
+    if args.provider:
+        config.engine.provider_id = ProviderId(args.provider)
+        config.engine.mode = config.engine.provider_id.kind.value
+    if args.model:
+        config.engine.model = args.model
+    mode = ReviewMode(args.mode)
+    scope = ReviewScope(args.scope)
+    if scope is ReviewScope.SELECTED_FILES and not args.selected_files:
+        raise ValueError("--scope selected_files requires at least one --file")
+    base = args.base or project.base_branch
+    head = args.head or current_branch(Path(project.path)) or base
+    review = Review(
+        project_id=project.id,
+        scope=scope,
+        mode=mode,
+        base_branch=base,
+        head_branch=head,
+        provider_id=config.engine.provider_id if mode is not ReviewMode.STATIC else None,
+        model=config.engine.model if mode is not ReviewMode.STATIC else None,
+        selected_files=args.selected_files,
+    )
+    started = time.perf_counter()
+    result = await run_deterministic_pipeline(
+        project,
+        config,
+        base=base,
+        head=head,
+        review=review,
+        include_static=mode in {ReviewMode.STATIC, ReviewMode.BOTH},
+        scope=scope,
+        selected_files=args.selected_files,
+    )
+    if mode is not ReviewMode.STATIC and result.chunks:
+        provider = build_registry(config, CredentialsRepository(settings).load()).active()
+        if provider is None:
+            raise RuntimeError("The configured AI provider is not available.")
+        health = await provider.health()
+        if not health.is_usable:
+            raise RuntimeError(health.detail or "The configured AI provider is not usable.")
+        ai = await run_ai_stage(provider, config, result.chunks)
+        result.review.findings = merge_findings(
+            result.review.findings,
+            ai.findings,
+            dedupe=config.analyzers.dedupe_across_sources,
+        )
+        result.review.effective_model = ai.effective_model
+        result.review.provider_version = health.version
+        result.review.prompt_hash = ai.prompt_hash
+        result.stages.extend(
+            [
+                StageRun(
+                    "ai",
+                    "completed",
+                    ai.duration_ms,
+                    f"{len(ai.findings)} AI findings.",
+                ),
+                StageRun(
+                    "merge",
+                    "completed",
+                    0,
+                    f"{len(result.review.findings)} findings.",
+                ),
+            ]
+        )
+        usage = ai.usage
+        estimated = estimate_input_cost(result.chunks, provider_id=config.engine.provider_id)
+        sent_paths = {chunk.path for chunk in result.chunks}
+        analyzed_paths = {
+            *(path for analyzer in result.analyzers for path in analyzer.files_analyzed),
+            *sent_paths,
+        }
+        result.review.stats = ReviewStats(
+            **result.review.stats.model_dump(
+                exclude={
+                    "files_analysed",
+                    "hunks_sent_to_ai",
+                    "chunks_sent_to_ai",
+                    "files_sent_to_ai",
+                    "secrets_redacted",
+                    "tokens_input",
+                    "tokens_output",
+                    "tokens_cached",
+                    "cost_usd",
+                    "cost_is_estimated",
+                    "duration_ms",
+                }
+            ),
+            files_analysed=len(analyzed_paths),
+            hunks_sent_to_ai=sum(hunk.path in sent_paths for hunk in result.hunks),
+            chunks_sent_to_ai=len(result.chunks),
+            files_sent_to_ai=len(sent_paths),
+            secrets_redacted=ai.secrets_redacted,
+            tokens_input=usage.input_tokens,
+            tokens_output=usage.output_tokens,
+            tokens_cached=usage.cached_tokens,
+            cost_usd=usage.cost_usd if usage.cost_usd is not None else estimated,
+            cost_is_estimated=usage.cost_usd is None or usage.is_estimated,
+            duration_ms=round((time.perf_counter() - started) * 1000),
+        )
+    result.review.stages = [
+        PipelineStageRecord(
+            name=stage.name,
+            status=stage.status,
+            duration_ms=stage.duration_ms,
+            detail=stage.detail,
+        )
+        for stage in result.stages
+    ]
+    result.review.status = (
+        ReviewStatus.DEGRADED
+        if any(
+            analyzer.status in {"degraded", "unavailable", "failed"}
+            for analyzer in result.analyzers
+        )
+        else ReviewStatus.COMPLETED
+    )
+    result.review.finished_at = datetime.now(UTC)
+    result.review.stats.duration_ms = round((time.perf_counter() - started) * 1000)
+    if not args.no_persist:
+        review_repo.save(result.review)
+        project.last_reviewed_at = datetime.now(UTC)
+        project_repo.save(project)
+    return result.review, project
 
 
 def _python_check() -> DoctorCheck:

@@ -74,6 +74,8 @@ export interface AnalyzerConfig {
   eslint: boolean;
   gitleaks: boolean;
   checkstyle: boolean;
+  project_tests: boolean;
+  project_build: boolean;
   treesitter: boolean;
   sonarqube: SonarQubeConfig;
   skip_noise: boolean;
@@ -86,6 +88,10 @@ export interface SonarQubeConfig {
   server_url: string;
   project_key: string | null;
   timeout_s: number;
+  wait_for_quality_gate: boolean;
+  quality_gate_timeout_s: number;
+  new_code_only: boolean;
+  scanner: "auto" | "maven" | "gradle" | "cli";
 }
 
 export interface UiConfig {
@@ -168,9 +174,22 @@ export interface Project {
   current_branch: string | null;
   branches: string[];
   languages: string[];
+  checkstyle_command: string[];
+  test_command: string[];
+  build_command: string[];
   archived: boolean;
   created_at: string;
   last_reviewed_at: string | null;
+}
+
+export interface AnalyzerPreflight {
+  ready: boolean;
+  analyzers: Array<{
+    name: string;
+    status: "ready" | "unavailable" | "unsupported";
+    detail: string;
+    remediation: string | null;
+  }>;
 }
 
 export interface ProjectsResponse {
@@ -226,9 +245,11 @@ export type FindingSource =
   | "sonarqube";
 
 export type ReviewMode = "static" | "ai_assisted" | "both";
+export type ReviewScope = "branch_diff" | "selected_files" | "whole_project";
 
 export interface Finding {
   id: string;
+  fingerprint: string;
   severity: Severity;
   category: FindingCategory;
   title: string;
@@ -250,6 +271,9 @@ export interface ReviewStats {
   hunks_total: number;
   hunks_sent_to_ai: number;
   chunks_prepared: number;
+  chunks_sent_to_ai: number;
+  files_sent_to_ai: number;
+  secrets_redacted: number;
   estimated_context_tokens: number;
   tokens_input: number;
   tokens_output: number;
@@ -264,14 +288,21 @@ export interface Review {
   project_id: string;
   scope: "branch_diff" | "selected_files" | "whole_project";
   mode: ReviewMode;
-  status: "queued" | "running" | "completed" | "failed" | "aborted";
+  status: "queued" | "running" | "completed" | "degraded" | "failed" | "aborted";
   base_branch: string | null;
   head_branch: string | null;
   selected_files: string[];
   provider_id: ProviderId | null;
   model: string | null;
+  effective_model: string | null;
+  provider_version: string | null;
+  config_hash: string | null;
+  prompt_hash: string | null;
   findings: Finding[];
   stats: ReviewStats;
+  stages: PipelineStage[];
+  analyzers: AnalyzerRun[];
+  events: Array<Record<string, string | number | boolean | null>>;
   error: string | null;
   created_at: string;
   finished_at: string | null;
@@ -279,17 +310,19 @@ export interface Review {
 
 export interface PipelineStage {
   name: "collect" | "filter" | "parse" | "static" | "chunk" | "ai" | "merge";
-  status: "completed" | "failed";
+  status: "completed" | "degraded" | "failed" | "skipped";
   duration_ms: number;
   detail: string | null;
 }
 
 export interface AnalyzerRun {
   name: string;
-  status: "completed" | "unavailable" | "failed";
+  status: "completed" | "degraded" | "unavailable" | "failed" | "skipped";
   findings: number;
   duration_ms: number;
   detail: string | null;
+  files_analyzed: string[];
+  metadata: Record<string, string | number | boolean | null>;
 }
 
 export interface ReviewChunk {
@@ -324,7 +357,8 @@ export type ReviewStreamEvent =
       is_estimated: boolean;
     }
   | { type: "completed"; result: DeterministicReview }
-  | { type: "failed"; message: string };
+  | { type: "failed"; message: string }
+  | { type: "aborted"; review_id: string };
 
 export interface StreamReviewOptions {
   signal?: AbortSignal;
@@ -336,11 +370,13 @@ async function streamReview(
   base: string,
   head: string,
   mode: Exclude<ReviewMode, "static">,
+  scope: ReviewScope,
+  selectedFiles: string[],
   options: StreamReviewOptions = {},
 ): Promise<DeterministicReview> {
   const path = `/api/projects/${projectId}/reviews/stream`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...json("POST", { base, head, mode }),
+    ...json("POST", { base, head, mode, scope, selected_files: selectedFiles }),
     cache: "no-store",
     headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
     signal: options.signal,
@@ -390,7 +426,7 @@ export interface ReviewsResponse {
 // --- export and insights (phase 7) ---------------------------------------
 
 export type InsightRange = "7d" | "30d" | "90d" | "all";
-export type ExportFormat = "json" | "md" | "html";
+export type ExportFormat = "json" | "md" | "html" | "sarif";
 
 export interface InsightTotals {
   reviews: number;
@@ -569,6 +605,10 @@ export const api = {
   getProjects: () => request<ProjectsResponse>("/api/projects"),
   getProject: (projectId: string) =>
     request<Project>(`/api/projects/${projectId}`),
+  updateProject: (
+    projectId: string,
+    update: Partial<Pick<Project, "base_branch" | "archived" | "checkstyle_command" | "test_command" | "build_command">>,
+  ) => request<Project>(`/api/projects/${projectId}`, json("PATCH", update)),
   openProject: (path: string) =>
     request<Project>("/api/projects/open", json("POST", { path })),
   cloneProject: (remoteUrl: string, destinationPath: string) =>
@@ -587,18 +627,39 @@ export const api = {
     request<ProjectTree>(
       `/api/projects/${projectId}/tree?ref=${encodeURIComponent(ref)}`,
     ),
-  getProjectDiff: (projectId: string, base: string, head: string) =>
-    request<DiffPreview>(
-      `/api/projects/${projectId}/diff?base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`,
-    ),
-  runDeterministicReview: (projectId: string, base: string, head: string) =>
+  getAnalyzerPreflight: (projectId: string) =>
+    request<AnalyzerPreflight>(`/api/projects/${projectId}/analyzers/preflight`),
+  getProjectDiff: (
+    projectId: string,
+    base: string,
+    head: string,
+    scope: ReviewScope = "branch_diff",
+    selectedFiles: string[] = [],
+  ) => {
+    const query = new URLSearchParams({ base, head, scope });
+    selectedFiles.forEach((file) => query.append("files", file));
+    return request<DiffPreview>(
+      `/api/projects/${projectId}/diff?${query.toString()}`,
+    );
+  },
+  runDeterministicReview: (
+    projectId: string,
+    base: string,
+    head: string,
+    scope: ReviewScope = "branch_diff",
+    selectedFiles: string[] = [],
+  ) =>
     request<DeterministicReview>(
       `/api/projects/${projectId}/reviews/deterministic`,
-      json("POST", { base, head }),
+      json("POST", { base, head, scope, selected_files: selectedFiles }),
     ),
   streamReview,
   getProjectReviews: (projectId: string) =>
     request<ReviewsResponse>(`/api/projects/${projectId}/reviews`),
+  cancelReview: (projectId: string, reviewId: string) =>
+    request<Review>(`/api/projects/${projectId}/reviews/${reviewId}/cancel`, {
+      method: "POST",
+    }),
   updateFindingStatus: (
     projectId: string,
     reviewId: string,

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +18,9 @@ from revai.api.routes import projects as project_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
 from revai.config import Settings, get_settings
+from revai.domain.enums import ReviewStatus
 from revai.pipeline.limiter import ReviewLimiter
+from revai.storage import ReviewRepository
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,25 +33,47 @@ logger = logging.getLogger("revai")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Start-up and shut-down hooks."""
-    settings: Settings = get_settings()
+    settings: Settings = app.state.settings
     settings.ensure_dirs()
 
     logger.info("%s %s starting", settings.app_name, settings.version)
     logger.info("data directory: %s", settings.data_dir)
     logger.info("listening on http://%s:%s", settings.host, settings.port)
 
-    yield
+    # Jobs survive browser disconnects, but this local process is their execution
+    # boundary. After an unclean restart, never leave stale "running" history that
+    # implies work still exists; make the interruption explicit and retryable.
+    review_repo = ReviewRepository(settings)
+    recovered = 0
+    for review in review_repo.list():
+        if review.status not in {ReviewStatus.QUEUED, ReviewStatus.RUNNING}:
+            continue
+        review.status = ReviewStatus.ABORTED
+        review.error = "Review interrupted because the RevAI process restarted. Retry it."
+        review.finished_at = datetime.now(UTC)
+        review_repo.save(review)
+        recovered += 1
+    if recovered:
+        logger.warning("marked %s interrupted review job(s) as aborted", recovered)
 
-    logger.info("shutting down")
+    try:
+        yield
+    finally:
+        tasks = list(getattr(app.state, "review_tasks", {}).values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("shutting down")
 
 
-def create_app() -> FastAPI:
+def create_app(settings_override: Settings | None = None) -> FastAPI:
     """Build the application.
 
     A factory rather than a module-level instance so tests can construct an app
     with overridden settings.
     """
-    settings = get_settings()
+    settings = settings_override or get_settings()
 
     app = FastAPI(
         title=settings.app_name,
@@ -61,6 +87,10 @@ def create_app() -> FastAPI:
     # A single local process owns the queue. Each job persists its own state in
     # YAML; this object only coordinates live execution slots.
     app.state.review_limiter = ReviewLimiter()
+    app.state.settings = settings
+    # Strong references keep background reviews alive after an SSE client leaves.
+    # The map is also the explicit cancellation boundary.
+    app.state.review_tasks = {}
 
     # The web app is served from a different port during development, so CORS is
     # required. Restricted to explicit loopback origins — never "*".

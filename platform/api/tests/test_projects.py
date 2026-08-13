@@ -220,7 +220,7 @@ def test_clone_creates_a_project_in_the_selected_folder(client: TestClient, tmp_
     assert clone_path == destination / "source"
     assert clone_path.joinpath(".git").is_dir()
     assert project["remote_url"] == source.as_uri()
-    assert project["branches"] == ["main"]
+    assert project["branches"] == ["main", "origin/main"]
 
 
 def test_clone_does_not_overwrite_an_existing_destination(
@@ -256,6 +256,26 @@ def test_clone_requires_a_destination_folder(client: TestClient, tmp_path: Path)
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][-1] == "destination_path"
+
+
+def test_project_quality_commands_are_explicit_shell_free_arrays(
+    client: TestClient, tmp_path: Path
+) -> None:
+    repo = _repository(tmp_path / "quality-commands")
+    project = client.post("/api/projects/open", json={"path": str(repo)}).json()
+
+    response = client.patch(
+        f"/api/projects/{project['id']}",
+        json={
+            "base_branch": "main",
+            "checkstyle_command": ["./mvnw", "checkstyle:check"],
+            "test_command": ["./mvnw", "verify"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["checkstyle_command"] == ["./mvnw", "checkstyle:check"]
+    assert response.json()["test_command"] == ["./mvnw", "verify"]
 
 
 def test_unknown_project_returns_404(client: TestClient) -> None:

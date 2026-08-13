@@ -84,7 +84,10 @@ def build_insights(
     durations = [review.stats.duration_ms for review in scoped if review.stats.duration_ms > 0]
     totals = InsightTotals(
         reviews=len(scoped),
-        completed_reviews=sum(review.status is ReviewStatus.COMPLETED for review in scoped),
+        completed_reviews=sum(
+            review.status in {ReviewStatus.COMPLETED, ReviewStatus.DEGRADED}
+            for review in scoped
+        ),
         findings=len(findings),
         open_findings=len(open_findings),
         open_critical=sum(finding.severity is Severity.CRITICAL for finding in open_findings),

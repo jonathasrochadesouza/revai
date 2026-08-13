@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -106,3 +107,44 @@ def test_doctor_rejects_a_world_readable_credentials_file(
 def test_no_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 0
     assert "doctor" in capsys.readouterr().out
+
+
+def test_headless_static_review_writes_sarif_and_uses_quality_exit_codes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    subprocess.run(["git", "-C", str(repository), "init", "-b", "main"], check=True)
+    subprocess.run(["git", "-C", str(repository), "config", "user.name", "CLI Test"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repository), "config", "user.email", "cli@example.com"],
+        check=True,
+    )
+    (repository / "app.py").write_text("answer = 42\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+    subprocess.run(["git", "-C", str(repository), "commit", "-m", "initial"], check=True)
+    (repository / "app.py").write_text("result = eval(input())\n", encoding="utf-8")
+    output = tmp_path / "review.sarif"
+    monkeypatch.setenv("REVAI_DATA_DIR", str(tmp_path / "state"))
+
+    exit_code = main(
+        [
+            "review",
+            str(repository),
+            "--mode",
+            "static",
+            "--format",
+            "sarif",
+            "--output",
+            str(output),
+            "--fail-on",
+            "critical",
+            "--no-persist",
+        ]
+    )
+
+    assert exit_code == 1
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["version"] == "2.1.0"
+    assert payload["runs"][0]["results"][0]["level"] == "error"

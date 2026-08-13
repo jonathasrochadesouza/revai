@@ -11,6 +11,7 @@ Design rules applied throughout:
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Literal, Self
@@ -80,6 +81,7 @@ class Finding(_Base):
     """
 
     id: str = Field(default_factory=_new_id)
+    fingerprint: str = ""
     severity: Severity
     category: Category
     title: str = Field(min_length=1, max_length=200)
@@ -104,6 +106,23 @@ class Finding(_Base):
         """A range that ends before it starts silently breaks the diff viewer."""
         if self.line_end is not None and self.line_end < self.line_start:
             raise ValueError(f"line_end ({self.line_end}) precedes line_start ({self.line_start})")
+        if not self.fingerprint:
+            identity = "\0".join(
+                (
+                    self.file.replace("\\", "/"),
+                    str(self.line_start),
+                    self.rule_id or self.title.lower(),
+                )
+            )
+            object.__setattr__(
+                self,
+                "fingerprint",
+                hashlib.sha256(identity.encode()).hexdigest()[:16],
+            )
+        if self.suggested_patch and not _looks_like_unified_diff(self.suggested_patch):
+            # Provider prose is a suggestion, not an applicable patch. Never let
+            # the UI represent unvalidated output as something Git can apply.
+            object.__setattr__(self, "suggested_patch", None)
         return self
 
     @property
@@ -146,6 +165,9 @@ class ReviewStats(_Base):
     hunks_total: int = 0
     hunks_sent_to_ai: int = 0
     chunks_prepared: int = 0
+    chunks_sent_to_ai: int = 0
+    files_sent_to_ai: int = 0
+    secrets_redacted: int = 0
     estimated_context_tokens: int = 0
 
     tokens_input: int = 0
@@ -170,7 +192,36 @@ class ReviewStats(_Base):
         """
         if self.hunks_total == 0:
             return 0.0
-        return 1.0 - (self.hunks_sent_to_ai / self.hunks_total)
+        return max(0.0, min(1.0, 1.0 - (self.hunks_sent_to_ai / self.hunks_total)))
+
+
+class PipelineStageRecord(_Base):
+    """Persisted pipeline stage, used both live and when replaying history."""
+
+    name: str
+    status: Literal["completed", "degraded", "failed", "skipped"]
+    duration_ms: int = Field(ge=0)
+    detail: str | None = None
+
+
+class AnalyzerRecord(_Base):
+    """Persisted analyzer outcome and its real coverage."""
+
+    name: str
+    status: Literal["completed", "degraded", "unavailable", "failed", "skipped"]
+    findings: int = Field(default=0, ge=0)
+    duration_ms: int = Field(default=0, ge=0)
+    detail: str | None = None
+    files_analyzed: list[str] = Field(default_factory=list)
+    metadata: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+
+
+class FindingDecision(_Base):
+    finding_id: str
+    from_status: FindingStatus
+    to_status: FindingStatus
+    reason: str | None = None
+    decided_at: datetime = Field(default_factory=_now)
 
 
 class Review(_Document):
@@ -189,9 +240,19 @@ class Review(_Document):
 
     provider_id: ProviderId | None = None
     model: str | None = None
+    effective_model: str | None = None
+    provider_version: str | None = None
+    config_hash: str | None = None
+    prompt_hash: str | None = None
 
     findings: list[Finding] = Field(default_factory=list)
     stats: ReviewStats = Field(default_factory=ReviewStats)
+    stages: list[PipelineStageRecord] = Field(default_factory=list)
+    analyzers: list[AnalyzerRecord] = Field(default_factory=list)
+    # Capped, sanitized event envelopes; model deltas and source content are never
+    # persisted. They make completed reviews faithfully replayable after restart.
+    events: list[dict[str, str | int | float | bool | None]] = Field(default_factory=list)
+    decisions: list[FindingDecision] = Field(default_factory=list)
 
     # Populated from git, mirroring the legacy aditional-data.json.
     author: str = "Undefined"
@@ -236,6 +297,9 @@ class Project(_Document):
     base_branch: str = "main"
 
     languages: list[str] = Field(default_factory=list)
+    checkstyle_command: list[str] = Field(default_factory=list)
+    test_command: list[str] = Field(default_factory=list)
+    build_command: list[str] = Field(default_factory=list)
     archived: bool = False
 
     created_at: datetime = Field(default_factory=_now)
@@ -303,6 +367,10 @@ class SonarQubeConfig(_Base):
     server_url: str = "http://127.0.0.1:9000"
     project_key: str | None = None
     timeout_s: int = Field(default=300, ge=10, le=3600)
+    wait_for_quality_gate: bool = True
+    quality_gate_timeout_s: int = Field(default=300, ge=10, le=3600)
+    new_code_only: bool = True
+    scanner: Literal["auto", "maven", "gradle", "cli"] = "auto"
 
 
 class AnalyzerConfig(_Base):
@@ -314,6 +382,8 @@ class AnalyzerConfig(_Base):
     eslint: bool = True
     gitleaks: bool = True
     checkstyle: bool = False
+    project_tests: bool = False
+    project_build: bool = False
     treesitter: bool = True
     sonarqube: SonarQubeConfig = Field(default_factory=SonarQubeConfig)
 
@@ -330,6 +400,8 @@ class AnalyzerConfig(_Base):
             "eslint",
             "gitleaks",
             "checkstyle",
+            "project_tests",
+            "project_build",
             "treesitter",
         )
         enabled = [name for name in flags if getattr(self, name)]
@@ -365,6 +437,12 @@ class EngineConfig(_Base):
     # For a provider proxy or a self-hosted endpoint such as Ollama.
     base_url: str | None = None
 
+    @model_validator(mode="after")
+    def _migrate_kiro_default(self) -> Self:
+        if self.provider_id is ProviderId.KIRO_CLI and self.model == "kiro-default":
+            object.__setattr__(self, "model", "claude-haiku-4.5")
+        return self
+
 
 class UiConfig(_Base):
     """Presentation preferences."""
@@ -394,6 +472,17 @@ class RevaiConfig(_Document):
     ui: UiConfig = Field(default_factory=UiConfig)
 
     updated_at: datetime = Field(default_factory=_now)
+
+
+def _looks_like_unified_diff(value: str) -> bool:
+    """Accept only a real file patch, never a fenced snippet or instructions."""
+    lines = value.replace("\r\n", "\n").splitlines()
+    return (
+        len(lines) >= 3
+        and lines[0].startswith("--- ")
+        and lines[1].startswith("+++ ")
+        and any(line.startswith("@@ ") for line in lines[2:])
+    )
 
 
 # ===========================================================================

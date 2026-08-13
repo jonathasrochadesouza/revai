@@ -162,14 +162,15 @@ export const PROVIDER_CATALOGUE: ProviderCatalogue[] = [
     id: "kiro_cli",
     label: "Kiro CLI",
     adapterReady: true,
-    allowsCustomModel: false,
+    allowsCustomModel: true,
     models: [
       {
-        id: "kiro-default",
-        label: "Configured in Kiro CLI",
-        note: "set by Kiro CLI settings",
+        id: "claude-haiku-4.5",
+        label: "Claude Haiku 4.5",
+        note: "fast and cost-efficient",
         recommended: true,
       },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "stronger reasoning" },
     ],
   },
 ];

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { UiPreferenceBootstrap } from "@/components/ui-preference-bootstrap";
+import { UiPreferenceProvider } from "@/components/ui-preference-bootstrap";
 import "./globals.css";
 
 /**
@@ -36,7 +36,7 @@ export default function RootLayout({
       data-theme="system"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col"><UiPreferenceBootstrap />{children}</body>
+      <body className="min-h-full flex flex-col"><UiPreferenceProvider>{children}</UiPreferenceProvider></body>
     </html>
   );
 }

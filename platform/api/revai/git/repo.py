@@ -20,6 +20,7 @@ from revai.shell import command_for_execution
 _GIT_TIMEOUT_SECONDS = 30
 _PATCH_LIMIT_BYTES = 1_000_000
 _ESTIMATED_INPUT_USD_PER_MILLION_TOKENS = 3.0
+_EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 _LANGUAGES = {
     ".c": "C",
@@ -122,16 +123,45 @@ def branches(path: Path) -> list[str]:
     output = _run(
         path,
         "for-each-ref",
-        "--format=%(refname:short)",
+        "--format=%(refname:short)%09%(symref)",
         "--sort=refname",
         "refs/heads",
+        "refs/remotes",
     )
-    return [line for line in output.splitlines() if line]
+    return sorted(
+        {
+            line.split("\t", 1)[0]
+            for line in output.splitlines()
+            if line and not line.partition("\t")[2]
+        }
+    )
 
 
 def current_branch(path: Path) -> str | None:
     branch = _run(path, "branch", "--show-current").strip()
     return branch or None
+
+
+def review_identities(path: Path, ref: str) -> tuple[str, str]:
+    """Return commit author and local reviewer identity without changing Git state."""
+    _verify_ref(path, ref)
+    author = _run(path, "show", "-s", "--format=%an <%ae>", ref).strip() or "Undefined"
+    name = _run(
+        path,
+        "config",
+        "--get",
+        "user.name",
+        allowed_returncodes=(0, 1),
+    ).strip()
+    email = _run(
+        path,
+        "config",
+        "--get",
+        "user.email",
+        allowed_returncodes=(0, 1),
+    ).strip()
+    reviewer = f"{name} <{email}>" if name and email else name or email or "Undefined"
+    return author, reviewer
 
 
 def tracked_files(path: Path, ref: str = "HEAD") -> list[str]:
@@ -285,6 +315,50 @@ def diff_preview(
         estimated_cost_usd=estimated_cost,
         patch=patch,
         truncated=truncated,
+    )
+
+
+def snapshot_preview(
+    path: Path,
+    head: str,
+    *,
+    selected_files: list[str] | None = None,
+) -> DiffPreview:
+    """Represent tracked content as additions for whole-project/selected-file review."""
+    _verify_ref(path, head)
+    args = [_EMPTY_TREE, head]
+    if selected_files:
+        known = set(tracked_files(path, head))
+        unknown = sorted(set(selected_files) - known)
+        if unknown:
+            raise GitError(f"Files are not tracked at {head}: {', '.join(unknown)}")
+        args.extend(["--", *selected_files])
+    patch = _run(
+        path,
+        "diff",
+        "--no-ext-diff",
+        "--no-color",
+        "--find-renames",
+        *args,
+    )
+    numstat = _run(path, "diff", "--numstat", *args)
+    files = [_parse_numstat(line) for line in numstat.splitlines() if line]
+    additions = sum(item.additions for item in files)
+    deletions = sum(item.deletions for item in files)
+    estimated_tokens = math.ceil(len(patch) / 4) if patch else 0
+    return DiffPreview(
+        base="<empty-tree>",
+        head=head,
+        files=files,
+        additions=additions,
+        deletions=deletions,
+        estimated_tokens=estimated_tokens,
+        estimated_cost_usd=round(
+            estimated_tokens * _ESTIMATED_INPUT_USD_PER_MILLION_TOKENS / 1_000_000,
+            6,
+        ),
+        patch=patch,
+        truncated=False,
     )
 
 

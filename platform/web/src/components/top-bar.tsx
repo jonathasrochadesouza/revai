@@ -3,10 +3,13 @@
  * status chips. Sticky, with a hairline bottom border.
  */
 
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Wordmark } from "@/components/logo";
+import { useUiText } from "@/components/ui-preference-bootstrap";
 
 /** A breadcrumb entry. A bare string renders as plain text; add `href` to link it. */
 export type Crumb = string | { label: string; href: string };
@@ -18,6 +21,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ breadcrumb = [], children }: TopBarProps) {
+  const { t } = useUiText();
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <div className="mx-auto flex h-14 min-w-0 max-w-[1180px] items-center gap-3 px-4 sm:gap-[18px] sm:px-7">
@@ -27,12 +31,12 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           <>
             <span aria-hidden className="hidden h-[18px] w-px bg-line-strong sm:block" />
             <nav
-              aria-label="Breadcrumb"
+              aria-label={t("Breadcrumb")}
               className="min-w-0 flex-1 overflow-hidden text-[13.5px] text-ink-muted"
             >
               {breadcrumb.map((crumb, index) => {
                 const isLast = index === breadcrumb.length - 1;
-                const label = typeof crumb === "string" ? crumb : crumb.label;
+                const label = t(typeof crumb === "string" ? crumb : crumb.label);
                 const href = typeof crumb === "string" ? undefined : crumb.href;
 
                 return (
@@ -77,36 +81,36 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
         )}
 
         <nav
-          aria-label="Primary navigation"
+          aria-label={t("Primary navigation")}
           className="ml-auto hidden items-center gap-1 md:flex"
         >
           <Link href="/" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            Projects
+            {t("Projects")}
           </Link>
           <Link href="/insights" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            Insights
+            {t("Insights")}
           </Link>
           <Link href="/settings/data" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            Data
+            {t("Data")}
           </Link>
           <Link href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            Appearance
+            {t("Appearance")}
           </Link>
           <Link href="/settings/engine" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            Settings
+            {t("Settings")}
           </Link>
         </nav>
 
         <details className="ml-auto shrink-0 md:hidden">
           <summary className="cursor-pointer list-none rounded-control border border-line-strong px-2.5 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">
-            Menu
+            {t("Menu")}
           </summary>
-          <nav aria-label="Primary navigation" className="absolute right-5 top-[52px] z-30 grid min-w-40 overflow-hidden rounded-control border border-line-strong bg-paper p-1 shadow-sm">
-            <Link href="/" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Projects</Link>
-            <Link href="/insights" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Insights</Link>
-            <Link href="/settings/data" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Data</Link>
-            <Link href="/settings/appearance" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Appearance</Link>
-            <Link href="/settings/engine" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Settings</Link>
+          <nav aria-label={t("Primary navigation")} className="absolute right-5 top-[52px] z-30 grid min-w-40 overflow-hidden rounded-control border border-line-strong bg-paper p-1 shadow-sm">
+            <Link href="/" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("Projects")}</Link>
+            <Link href="/insights" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("Insights")}</Link>
+            <Link href="/settings/data" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("Data")}</Link>
+            <Link href="/settings/appearance" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("Appearance")}</Link>
+            <Link href="/settings/engine" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("Settings")}</Link>
           </nav>
         </details>
 

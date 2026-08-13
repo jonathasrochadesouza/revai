@@ -40,6 +40,12 @@ Every setting is overridable with a `REVAI_` prefixed environment variable, or v
 | `REVAI_DATA_DIR` | `~/.revai` | Where projects, reviews and config live |
 | `REVAI_ENVIRONMENT` | `development` | Enables auto-reload when `development` |
 | `REVAI_KIRO_CLI_PATH` | _(PATH lookup)_ | Absolute Kiro CLI path, for services whose PATH does not include it |
+| `SONAR_TOKEN` | _(none)_ | SonarQube token; never persisted in `config.yaml` |
+
+`revai review` provides a headless CI contract with JSON, Markdown, HTML and SARIF
+output. Run `revai review --help` for scopes, provider/model overrides and threshold
+exit codes. Project quality commands are stored as argument arrays and executed with
+`shell=False`.
 
 ## Layout
 

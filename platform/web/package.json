@@ -10,7 +10,7 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "eslint",
+    "lint": "eslint src next.config.ts",
     "typecheck": "tsc --noEmit",
     "audit:prod": "npm audit --omit=dev"
   },

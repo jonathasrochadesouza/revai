@@ -252,6 +252,15 @@ def test_resolve_executable_prefers_an_explicit_path(monkeypatch) -> None:
     assert resolve_executable(spec) == ("kiro-cli", r"C:\Tools\kiro-cli.exe")
 
 
+def test_windows_path_is_converted_for_wsl_execution() -> None:
+    from revai.providers.detection import _windows_path_to_wsl
+
+    assert _windows_path_to_wsl(r"C:\Program Files\Kiro\kiro-cli.exe") == (
+        "/mnt/c/Program Files/Kiro/kiro-cli.exe"
+    )
+    assert _windows_path_to_wsl("kiro-cli") is None
+
+
 
 # ---------------------------------------------------------------------------
 # Detection contract

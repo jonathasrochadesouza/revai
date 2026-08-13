@@ -56,7 +56,7 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
       <section className="surface overflow-hidden">
         <header className="border-b border-line px-5 py-4">
           <h2 className="text-[13px] font-semibold">Recent review exports</h2>
-          <p className="mt-1 text-[11px] text-ink-subtle">JSON for integrations, Markdown for pull requests, or a standalone offline HTML report.</p>
+          <p className="mt-1 text-[11px] text-ink-subtle">JSON and SARIF for automation, Markdown for pull requests, or a standalone offline HTML report.</p>
         </header>
         {reviews.length === 0 ? (
           <div className="px-5 py-10 text-center text-[12px] text-ink-muted">Run a review before exporting a report.</div>
@@ -74,6 +74,7 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
                 <div className="flex flex-wrap gap-2">
                   <ExportLink href={reviewExportUrl(review.id, "json")} icon={<FileJson2 />} label="JSON" />
                   <ExportLink href={reviewExportUrl(review.id, "md")} icon={<FileText />} label="Markdown" />
+                  <ExportLink href={reviewExportUrl(review.id, "sarif")} icon={<FileCode2 />} label="SARIF" />
                   <ExportLink href={reviewExportUrl(review.id, "html")} icon={<FileCode2 />} label="HTML" primary />
                   <ExportLink href={reviewExportUrl(review.id, "json", true)} icon={<FileJson2 />} label="Legacy" />
                 </div>

@@ -17,13 +17,14 @@ from revai.export.serializers import (
     render_json,
     render_legacy_json,
     render_markdown,
+    render_sarif,
     safe_export_stem,
 )
 from revai.storage.base import StorageError
 
 router = APIRouter(tags=["exports"])
 
-ExportFormat = Literal["json", "md", "html"]
+ExportFormat = Literal["json", "md", "html", "sarif"]
 
 
 class DataSummaryResponse(BaseModel):
@@ -62,7 +63,7 @@ async def export_review(
         content = render_markdown(review, project)
         suffix = ".md"
         media_type = "text/markdown; charset=utf-8"
-    else:
+    elif format == "html":
         if legacy:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -71,6 +72,15 @@ async def export_review(
         content = render_html(review, project)
         suffix = ".html"
         media_type = "text/html; charset=utf-8"
+    else:
+        if legacy:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Legacy compatibility is available only for JSON exports.",
+            )
+        content = render_sarif(review, project)
+        suffix = ".sarif"
+        media_type = "application/sarif+json"
 
     return Response(
         content=content,

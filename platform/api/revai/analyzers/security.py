@@ -15,6 +15,22 @@ from revai.domain.enums import Category, FindingSource, Severity
 from revai.domain.models import Finding
 
 _JAVASCRIPT_CALLS = re.compile(r"\b(?P<name>eval|Function)\s*\(")
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b[\w$]*(?:api[_-]?key|access[_-]?token|auth[_-]?token|token|secret|password)[\w$]*"
+    r"\s*(?:=|:)\s*['\"][^'\"\r\n]{8,}['\"]"
+)
+_JAVA_SQL_CONCAT = re.compile(
+    r"\b(?:executeQuery|executeUpdate|prepareStatement|createQuery)\s*\([^;\n]*\+"
+)
+_JAVA_SQL_VARIABLE_CONCAT = re.compile(
+    r"(?i)\b(?:String|var)\s+[\w$]*(?:sql|query)[\w$]*\s*=\s*"
+    r"[^;\n]*(?:select|insert|update|delete)[^;\n]*\+"
+)
+_JAVA_COMMAND = re.compile(r"\b(?:Runtime\.getRuntime\(\)\.exec|new\s+ProcessBuilder)\s*\(")
+_JAVA_PATH_INPUT = re.compile(
+    r"(?i)(?:\b(?:Path\.of|Paths\.get)\s*\([^)]*,\s*|\.resolve\(\s*)"
+    r"(?:user|input|request|file|path)[A-Za-z0-9_$]*\s*\)"
+)
 
 
 def find_security_issues(repository: Path, paths: list[str]) -> list[Finding]:
@@ -30,10 +46,13 @@ def find_security_issues(repository: Path, paths: list[str]) -> list[Finding]:
         if not path.is_file():
             continue
         suffix = path.suffix.lower()
+        findings.extend(_secret_findings(path, relative_path))
         if suffix in {".py", ".pyi"}:
             findings.extend(_python_findings(path, relative_path))
         elif suffix in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"}:
             findings.extend(_javascript_findings(path, relative_path))
+        elif suffix == ".java":
+            findings.extend(_java_findings(path, relative_path))
     return findings
 
 
@@ -118,6 +137,62 @@ def _javascript_findings(path: Path, relative_path: str) -> list[Finding]:
             "Dynamic JavaScript execution can run attacker-controlled code.",
         )
         for match in _JAVASCRIPT_CALLS.finditer(source)
+    ]
+
+
+def _secret_findings(path: Path, relative_path: str) -> list[Finding]:
+    source = path.read_text(encoding="utf-8", errors="replace")
+    return [
+        _finding(
+            relative_path,
+            source.count("\n", 0, match.start()) + 1,
+            "hardcoded-secret",
+            "Remove the hardcoded credential",
+            "A credential-like value is embedded in source. Rotate it and load it "
+            "from a secret store.",
+        )
+        for match in _SECRET_ASSIGNMENT.finditer(source)
+    ]
+
+
+def _java_findings(path: Path, relative_path: str) -> list[Finding]:
+    source = path.read_text(encoding="utf-8", errors="replace")
+    rules = (
+        (
+            _JAVA_SQL_CONCAT,
+            "java-sql-concatenation",
+            "Use a parameterized SQL statement",
+            "Concatenating values into a SQL execution call can allow SQL injection.",
+        ),
+        (
+            _JAVA_SQL_VARIABLE_CONCAT,
+            "java-sql-concatenation",
+            "Use a parameterized SQL statement",
+            "Building a SQL variable by concatenating values can allow SQL injection.",
+        ),
+        (
+            _JAVA_COMMAND,
+            "java-command-execution",
+            "Avoid commands assembled from untrusted input",
+            "Runtime command construction can allow command injection.",
+        ),
+        (
+            _JAVA_PATH_INPUT,
+            "java-path-boundary",
+            "Validate the resolved path remains inside its allowed root",
+            "A variable path segment must be normalized and checked against the allowed root.",
+        ),
+    )
+    return [
+        _finding(
+            relative_path,
+            source.count("\n", 0, match.start()) + 1,
+            rule_id,
+            title,
+            rationale,
+        )
+        for pattern, rule_id, title, rationale in rules
+        for match in pattern.finditer(source)
     ]
 
 

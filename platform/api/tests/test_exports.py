@@ -131,6 +131,24 @@ def test_markdown_and_standalone_html_exports_are_safe(
     assert "https://" not in html.text
 
 
+def test_sarif_export_contains_rules_locations_and_ci_severity(
+    client: TestClient,
+    settings: Settings,
+) -> None:
+    _, review = _seed(settings)
+
+    response = client.get(f"/api/reviews/{review.id}/export?format=sarif")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/sarif+json")
+    payload = response.json()
+    assert payload["version"] == "2.1.0"
+    result = payload["runs"][0]["results"][0]
+    assert result["ruleId"] == "CWE-79"
+    assert result["level"] == "error"
+    assert result["locations"][0]["physicalLocation"]["region"]["startLine"] == 10
+
+
 def test_invalid_export_combinations_and_unknown_reviews_return_errors(
     client: TestClient,
     settings: Settings,

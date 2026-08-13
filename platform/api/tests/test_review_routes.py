@@ -105,7 +105,9 @@ def test_deterministic_review_finds_changed_lines_without_tokens(
             "status": "completed",
             "findings": 1,
             "duration_ms": payload["analyzers"][0]["duration_ms"],
-            "detail": None,
+                "detail": None,
+                "files_analyzed": ["app.py"],
+                "metadata": {},
         }
     ]
     assert payload["chunks"][0]["estimated_tokens"] > 0
@@ -176,6 +178,38 @@ def test_deterministic_review_analyzes_a_non_checked_out_head(
     assert response.status_code == 201
     assert [item["rule_id"] for item in response.json()["review"]["findings"]] == ["F401"]
     assert _git(repository, "branch", "--show-current") == "main"
+
+
+def test_whole_project_and_selected_file_scopes_review_committed_content(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+) -> None:
+    _ruff_only(settings)
+    repository = _repository(tmp_path / "scopes")
+    (repository / "other.py").write_text("answer = 42\n", encoding="utf-8")
+    _git(repository, "add", ".")
+    _git(repository, "commit", "-m", "add another file")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+
+    whole = client.post(
+        f"/api/projects/{project['id']}/reviews/deterministic",
+        json={"base": "main", "head": "main", "scope": "whole_project"},
+    )
+    selected = client.post(
+        f"/api/projects/{project['id']}/reviews/deterministic",
+        json={
+            "base": "main",
+            "head": "main",
+            "scope": "selected_files",
+            "selected_files": ["other.py"],
+        },
+    )
+
+    assert whole.status_code == 201
+    assert set(whole.json()["review"]["selected_files"]) == {"app.py", "other.py"}
+    assert selected.status_code == 201
+    assert selected.json()["review"]["selected_files"] == ["other.py"]
 
 
 class _AIProvider:

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import tempfile
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from revai.domain.enums import ProviderId, ProviderKind
 from revai.providers.base import (
@@ -34,7 +37,20 @@ class KiroCliProvider:
         self._executable = executable
 
     async def health(self) -> ProviderHealth:
-        return await detect_cli(_SPEC)
+        health = await detect_cli(_SPEC)
+        if health.is_usable and health.version and _version_tuple(health.version) < (2, 18):
+            return health.model_copy(
+                update={
+                    "state": "error",
+                    "detail": (
+                        f"Kiro CLI {health.version} is too old for isolated, "
+                        "explicit-model reviews. "
+                        "RevAI requires 2.18 or newer."
+                    ),
+                    "remediation": "kiro-cli update",
+                }
+            )
+        return health
 
     async def analyze(self, request: AnalysisRequest) -> AsyncIterator[ProviderEvent]:
         executable = executable_for(_SPEC, self._executable)
@@ -42,18 +58,45 @@ class KiroCliProvider:
             yield FailedEvent(message="Kiro CLI is not installed or is not on PATH.")
             return
 
-        # Kiro CLI's current headless contract selects the model from its own
-        # ``chat.defaultModel`` setting.  It has no supported ``--model`` flag,
-        # so passing the RevAI catalogue value here would either be ignored or
-        # make an otherwise valid review fail.  The UI makes that ownership
-        # explicit and records the configured value for audit history.
-        #
-        # The prompt already contains a filtered diff and schema.  Deliberately
-        # do not grant tool trust: a review has no reason to read, write or run
-        # anything else in the target repository.
-        args = ["chat", "--no-interactive", combined_prompt(request, include_json_schema=True)]
-        yield StartedEvent(model=request.model)
-        result = await run_cli_command(executable, args, request.timeout_s)
+        # A per-invocation workspace prevents global/user MCP configuration from
+        # loading. The agent itself has no resources or tools, and the command also
+        # explicitly trusts an empty tool set. Nothing in a review needs filesystem,
+        # shell, network, or MCP access.
+        with tempfile.TemporaryDirectory(prefix="revai-kiro-") as directory:
+            workspace = Path(directory)
+            agents = workspace / ".kiro" / "agents"
+            agents.mkdir(parents=True)
+            (agents / "revai-review.json").write_text(
+                json.dumps(
+                    {
+                        "name": "revai-review",
+                        "description": "Read-only structured code review for RevAI",
+                        "model": request.model,
+                        "tools": [],
+                        "allowedTools": [],
+                        "resources": [],
+                        "includeMcpJson": False,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = [
+                "chat",
+                "--no-interactive",
+                "--agent",
+                "revai-review",
+                "--model",
+                request.model,
+                "--trust-tools=",
+                combined_prompt(request, include_json_schema=True),
+            ]
+            yield StartedEvent(model=request.model)
+            result = await run_cli_command(
+                executable,
+                args,
+                request.timeout_s,
+                cwd=workspace,
+            )
         if failure := command_failure(
             result,
             label="Kiro CLI",
@@ -69,3 +112,7 @@ class KiroCliProvider:
         usage = UsageStats(is_estimated=True)
         yield DeltaEvent(text=text)
         yield FinishedEvent(text=text, usage=usage)
+
+
+def _version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split("-")[0].split(".") if part.isdigit())

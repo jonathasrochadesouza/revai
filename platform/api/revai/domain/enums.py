@@ -11,7 +11,7 @@ from enum import StrEnum
 
 # Bumped whenever a persisted shape changes. Documents carry this so a future
 # release can migrate instead of failing to parse.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class Severity(StrEnum):
@@ -90,6 +90,7 @@ class ReviewStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
+    DEGRADED = "degraded"
     FAILED = "failed"
     ABORTED = "aborted"
 
@@ -97,6 +98,7 @@ class ReviewStatus(StrEnum):
     def is_terminal(self) -> bool:
         return self in {
             ReviewStatus.COMPLETED,
+            ReviewStatus.DEGRADED,
             ReviewStatus.FAILED,
             ReviewStatus.ABORTED,
         }

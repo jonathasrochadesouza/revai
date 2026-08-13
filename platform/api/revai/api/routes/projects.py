@@ -8,8 +8,9 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
+from revai.analyzers.preflight import preflight_analyzers
 from revai.api.deps import ConfigRepo, ProjectRepo
-from revai.domain.enums import ProviderId
+from revai.domain.enums import ProviderId, ReviewScope
 from revai.domain.models import Project
 from revai.git.repo import (
     GitError,
@@ -18,6 +19,7 @@ from revai.git.repo import (
     current_branch,
     diff_preview,
     inspect_project,
+    snapshot_preview,
     tracked_files,
 )
 from revai.system.folder_picker import FolderPickerError, pick_directory
@@ -43,6 +45,9 @@ class ProjectView(BaseModel):
     current_branch: str | None
     branches: list[str]
     languages: list[str]
+    checkstyle_command: list[str]
+    test_command: list[str]
+    build_command: list[str]
     archived: bool
     created_at: str
     last_reviewed_at: str | None
@@ -50,6 +55,14 @@ class ProjectView(BaseModel):
 
 class ProjectsResponse(BaseModel):
     projects: list[ProjectView]
+
+
+class UpdateProjectRequest(BaseModel):
+    base_branch: str | None = Field(default=None, min_length=1)
+    archived: bool | None = None
+    checkstyle_command: list[str] | None = None
+    test_command: list[str] | None = None
+    build_command: list[str] | None = None
 
 
 class FolderPickerResponse(BaseModel):
@@ -78,6 +91,18 @@ class DiffResponse(BaseModel):
     estimated_cost_usd: float
     patch: str
     truncated: bool
+
+
+class AnalyzerCapabilityResponse(BaseModel):
+    name: str
+    status: str
+    detail: str
+    remediation: str | None
+
+
+class AnalyzerPreflightResponse(BaseModel):
+    analyzers: list[AnalyzerCapabilityResponse]
+    ready: bool
 
 
 def _project(project_repo: ProjectRepo, project_id: str) -> Project:
@@ -170,6 +195,38 @@ def get_project(project_id: str, project_repo: ProjectRepo) -> ProjectView:
     return _view(_project(project_repo, project_id))
 
 
+@router.patch("/{project_id}", response_model=ProjectView)
+def update_project(
+    project_id: str,
+    request: UpdateProjectRequest,
+    project_repo: ProjectRepo,
+) -> ProjectView:
+    project = _project(project_repo, project_id)
+    if request.base_branch is not None:
+        try:
+            known = branches(Path(project.path))
+        except GitError as exc:
+            raise _unprocessable(exc) from exc
+        if request.base_branch not in known:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Unknown local base branch: {request.base_branch}",
+            )
+        project.base_branch = request.base_branch
+    if request.archived is not None:
+        project.archived = request.archived
+    for name in ("checkstyle_command", "test_command", "build_command"):
+        value = getattr(request, name)
+        if value is not None:
+            if any(not argument.strip() for argument in value):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"{name} cannot contain empty arguments.",
+                )
+            setattr(project, name, value)
+    return _view(project_repo.save(project))
+
+
 @router.get("/{project_id}/tree", response_model=TreeResponse)
 def get_tree(
     project_id: str,
@@ -184,6 +241,21 @@ def get_tree(
     return TreeResponse(ref=ref, files=files)
 
 
+@router.get("/{project_id}/analyzers/preflight", response_model=AnalyzerPreflightResponse)
+def analyzer_preflight(
+    project_id: str,
+    project_repo: ProjectRepo,
+    config_repo: ConfigRepo,
+) -> AnalyzerPreflightResponse:
+    capabilities = preflight_analyzers(
+        _project(project_repo, project_id), config_repo.load().analyzers
+    )
+    return AnalyzerPreflightResponse(
+        analyzers=[AnalyzerCapabilityResponse(**item.__dict__) for item in capabilities],
+        ready=all(item.status == "ready" for item in capabilities),
+    )
+
+
 @router.get("/{project_id}/diff", response_model=DiffResponse)
 def get_diff(
     project_id: str,
@@ -191,10 +263,25 @@ def get_diff(
     config_repo: ConfigRepo,
     base: Annotated[str, Query(min_length=1)],
     head: Annotated[str, Query(min_length=1)],
+    scope: ReviewScope = ReviewScope.BRANCH_DIFF,
+    files: Annotated[list[str] | None, Query()] = None,
 ) -> DiffResponse:
     project = _project(project_repo, project_id)
+    if scope is ReviewScope.SELECTED_FILES and not files:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Select at least one tracked file for selected_files scope.",
+        )
     try:
-        preview = diff_preview(Path(project.path), base, head)
+        preview = (
+            diff_preview(Path(project.path), base, head)
+            if scope is ReviewScope.BRANCH_DIFF
+            else snapshot_preview(
+                Path(project.path),
+                head,
+                selected_files=files if scope is ReviewScope.SELECTED_FILES else None,
+            )
+        )
     except GitError as exc:
         raise _unprocessable(exc) from exc
 
