@@ -5,6 +5,8 @@ import {
   ArrowRight,
   Boxes,
   Check,
+  ChevronDown,
+  ChevronUp,
   CircleAlert,
   CircleCheck,
   CircleDollarSign,
@@ -384,6 +386,9 @@ function EmptyProjects({
 function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
   const [config, setConfig] = useState<RevaiConfig | null>(null);
   const [providerReady, setProviderReady] = useState<boolean | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+  const collapseInitialized = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -394,10 +399,13 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
         return api.verifyProvider(saved.config.engine.provider_id);
       })
       .then((health) => {
-        if (active && health) setProviderReady(isUsable(health));
+        if (active) setProviderReady(health ? isUsable(health) : false);
       })
       .catch(() => {
         if (active) setProviderReady(false);
+      })
+      .finally(() => {
+        if (active) setLoaded(true);
       });
     return () => { active = false; };
   }, []);
@@ -407,23 +415,50 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
     { label: "Verify provider access", done: providerReady === true, href: "/settings/engine" },
     { label: "Add a repository", done: hasProjects, href: "#repositories" },
   ];
-  if (steps.every((step) => step.done)) return null;
+  const allDone = steps.every((step) => step.done);
+
+  useEffect(() => {
+    if (loaded && !collapseInitialized.current) {
+      collapseInitialized.current = true;
+      setCollapsed(allDone);
+    }
+  }, [loaded, allDone]);
+
+  if (!loaded) return null;
+
   return (
     <section className="mb-6 border border-line bg-paper px-5 py-4" aria-label="Getting started">
-      <div className="mb-3 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setCollapsed((current) => !current)}
+        aria-expanded={!collapsed}
+        className={`flex w-full items-center gap-2 text-left ${collapsed ? "" : "mb-3"}`}
+      >
         <ClipboardCheck className="size-4 text-low" />
-        <h2 className="text-[13px] font-semibold">Get ready for your first review</h2>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {steps.map((step) => (
-          <a key={step.label} href={step.href} className="flex items-center gap-2 border border-line px-3 py-2 text-[11.5px] hover:bg-canvas">
-            <span className={`grid size-5 place-items-center rounded-full ${step.done ? "bg-success-surface text-success" : "bg-canvas text-ink-subtle"}`}>
-              {step.done ? <Check className="size-3" /> : ""}
-            </span>
-            <span>{step.label}</span>
-          </a>
-        ))}
-      </div>
+        <h2 className="flex-1 text-[13px] font-semibold">Get ready for your first review</h2>
+        {allDone && (
+          <span className="rounded-chip bg-success-surface px-2 py-0.5 text-[10px] font-medium text-success">
+            Complete
+          </span>
+        )}
+        {collapsed ? (
+          <ChevronDown className="size-4 text-ink-subtle" />
+        ) : (
+          <ChevronUp className="size-4 text-ink-subtle" />
+        )}
+      </button>
+      {!collapsed && (
+        <div className="grid gap-2 sm:grid-cols-3">
+          {steps.map((step) => (
+            <a key={step.label} href={step.href} className="flex items-center gap-2 border border-line px-3 py-2 text-[11.5px] hover:bg-canvas">
+              <span className={`grid size-5 place-items-center rounded-full ${step.done ? "bg-success-surface text-success" : "bg-canvas text-ink-subtle"}`}>
+                {step.done ? <Check className="size-3" /> : ""}
+              </span>
+              <span>{step.label}</span>
+            </a>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

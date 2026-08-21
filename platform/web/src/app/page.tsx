@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { TopBar } from "@/components/top-bar";
 import { Badge } from "@/components/ui/badge";
@@ -29,18 +27,6 @@ export default async function Home() {
   return (
     <>
       <TopBar breadcrumb={["Platform", "Projects"]}>
-        <Link
-          href="/insights"
-          className="rounded-control border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
-        >
-          Insights
-        </Link>
-        <Link
-          href="/settings/engine"
-          className="rounded-control border border-line-strong px-3 py-1.5 text-[12.5px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
-        >
-          Settings
-        </Link>
         <span className="hidden sm:inline-flex">
           <Badge tone={state.connected ? "success" : "critical"} dot>
             {state.connected ? "API connected" : "API unreachable"}

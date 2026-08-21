@@ -40,7 +40,7 @@ export function Wordmark({ href = "/" }: { href?: string }) {
     <Link
       href={href}
       aria-label="RevAI — go to the dashboard"
-      className="flex items-center gap-2.5 rounded-control px-1 py-0.5 -mx-1 transition-colors hover:bg-canvas"
+      className="flex shrink-0 items-center gap-2.5 rounded-control px-1 py-0.5 -mx-1 transition-colors hover:bg-canvas"
     >
       <Logo />
       <span className="text-[14.5px] font-bold tracking-[-0.3px]">RevAI</span>

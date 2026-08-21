@@ -32,19 +32,22 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
             <span aria-hidden className="hidden h-[18px] w-px bg-line-strong sm:block" />
             <nav
               aria-label={t("Breadcrumb")}
-              className="min-w-0 flex-1 overflow-hidden text-[13.5px] text-ink-muted"
+              className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden text-[13.5px] text-ink-muted"
             >
               {breadcrumb.map((crumb, index) => {
                 const isLast = index === breadcrumb.length - 1;
+                // Only crumbs that are neither first nor last collapse on narrow
+                // screens — the current page (last) must always stay visible.
+                const isMiddle = index > 0 && !isLast;
                 const label = t(typeof crumb === "string" ? crumb : crumb.label);
                 const href = typeof crumb === "string" ? undefined : crumb.href;
 
                 return (
                   <span
-                    key={label}
+                    key={`${label}-${index}`}
                     className={`min-w-0 items-center gap-2.5 ${
-                      index === 1 ? "hidden sm:flex" : "flex"
-                    }`}
+                      isMiddle ? "hidden sm:flex" : "flex"
+                    } ${isLast ? "min-w-0 flex-1" : "shrink-0"}`}
                   >
                     {index > 0 && (
                       <svg
@@ -53,7 +56,7 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                         fill="none"
                         stroke="currentColor"
                         strokeWidth={2}
-                        className="size-3 text-ink-subtle"
+                        className="size-3 shrink-0 text-ink-subtle"
                       >
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
@@ -66,12 +69,12 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                     ) : href ? (
                       <Link
                         href={href}
-                        className="truncate rounded-xs font-semibold text-ink transition-colors hover:text-low hover:underline"
+                        className="shrink-0 truncate rounded-xs font-semibold text-ink transition-colors hover:text-low hover:underline"
                       >
                         {label}
                       </Link>
                     ) : (
-                      <span className="truncate font-semibold text-ink">{label}</span>
+                      <span className="shrink-0 truncate font-semibold text-ink">{label}</span>
                     )}
                   </span>
                 );
