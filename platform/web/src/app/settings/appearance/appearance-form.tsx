@@ -1,7 +1,7 @@
 "use client";
 
 import { Monitor, Moon, Sun } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { SaveBar } from "@/components/save-bar";
 import { Card, CardBody, CardHeader, CardRow } from "@/components/ui/card";
@@ -24,11 +24,20 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
   const [error, setError] = useState<string | null>(null);
   const changes = useMemo(() => countChanges(saved, draft), [saved, draft]);
 
+  // Side effects that reach outside this component (DOM attributes, the
+  // cross-component preference event) must happen after commit, not inside
+  // a setState updater or synchronously alongside another setState call.
+  // Otherwise React can warn/error with "Cannot update a component while
+  // rendering a different component" when UiPreferenceProvider reacts to
+  // the dispatched event.
+  useEffect(() => {
+    applyPreferences(draft);
+  }, [draft]);
+
   function patch(update: (config: RevaiConfig) => void) {
     setDraft((current) => {
       const next = structuredClone(current);
       update(next);
-      applyPreferences(next);
       return next;
     });
     setStatus("idle");
@@ -41,7 +50,6 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
       const response = await api.saveConfig(draft);
       setSaved(response.config);
       setDraft(response.config);
-      applyPreferences(response.config);
       setStatus("saved");
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "Could not save preferences.");
@@ -51,7 +59,6 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
 
   function discard() {
     setDraft(saved);
-    applyPreferences(saved);
     setError(null);
     setStatus("idle");
   }
