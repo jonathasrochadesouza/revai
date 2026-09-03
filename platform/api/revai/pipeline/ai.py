@@ -33,10 +33,23 @@ _ESTIMATED_INPUT_USD_PER_MILLION_TOKENS = 3.0
 
 
 class AIReviewError(RuntimeError):
-    """The model stage could not produce a usable review."""
+    """The model stage could not produce a usable review.
 
-    def __init__(self, message: str, *, retryable: bool = False) -> None:
-        super().__init__(message)
+    Carries a namespaced ``error_key`` and structured ``params`` so it can be
+    resolved through the frontend's translation catalog instead of being
+    forwarded as raw English text through the SSE ``failed`` event.
+    """
+
+    def __init__(
+        self,
+        error_key: str,
+        params: dict[str, Any] | None = None,
+        *,
+        retryable: bool = False,
+    ) -> None:
+        super().__init__(error_key)
+        self.error_key = error_key
+        self.params = params or {}
         self.retryable = retryable
 
 
@@ -99,7 +112,7 @@ def extract_findings(text: str) -> list[Finding]:
     start = candidate.find("{")
     end = candidate.rfind("}")
     if start < 0 or end < start:
-        raise FindingExtractionError("The provider returned no JSON findings object.")
+        raise FindingExtractionError("ai_pipeline.no_json_findings_object")
 
     try:
         payload = candidate[start : end + 1]
@@ -108,9 +121,11 @@ def extract_findings(text: str) -> list[Finding]:
         except json.JSONDecodeError:
             raw = json.loads(re.sub(r",(?=\s*[}\]])", "", payload))
         if not isinstance(raw, dict) or not isinstance(raw.get("findings"), list):
-            raise ValueError("the top-level object must contain a findings array")
+            raise ValueError("missing findings array")
     except (json.JSONDecodeError, ValidationError, ValueError) as exc:
-        raise FindingExtractionError(f"The provider returned invalid findings: {exc}") from exc
+        raise FindingExtractionError(
+            "ai_pipeline.invalid_findings", {"detail": str(exc)}
+        ) from exc
 
     valid: list[_AIFinding] = []
     errors: list[ValidationError] = []
@@ -120,7 +135,7 @@ def extract_findings(text: str) -> list[Finding]:
         except ValidationError as exc:
             errors.append(exc)
     if errors and not valid:
-        raise FindingExtractionError(f"The provider returned invalid findings: {errors[0]}")
+        raise FindingExtractionError("ai_pipeline.invalid_findings", {"detail": str(errors[0])})
 
     return [
         Finding(
@@ -156,8 +171,11 @@ def preflight_ai_stage(config: RevaiConfig, chunks: list[CodeChunk]) -> None:
         and estimated_tokens > config.budget.max_context_tokens
     ):
         raise BudgetExceededError(
-            f"Prepared context ({estimated_tokens} tokens) exceeds the configured "
-            f"limit ({config.budget.max_context_tokens} tokens)."
+            "budget.context_exceeds_max",
+            {
+                "estimated_tokens": estimated_tokens,
+                "max_context_tokens": config.budget.max_context_tokens,
+            },
         )
 
     # Ollama runs locally and does not bill per token. Context limits still apply,
@@ -166,8 +184,11 @@ def preflight_ai_stage(config: RevaiConfig, chunks: list[CodeChunk]) -> None:
     estimated_cost = estimate_input_cost(chunks, provider_id=config.engine.provider_id)
     if config.budget.max_spend_usd is not None and estimated_cost > config.budget.max_spend_usd:
         raise BudgetExceededError(
-            f"The estimated input cost (${estimated_cost:.4f}) exceeds the configured "
-            f"review limit (${config.budget.max_spend_usd:.4f})."
+            "budget.estimated_cost_exceeds_max",
+            {
+                "estimated_cost_usd": round(estimated_cost, 4),
+                "max_spend_usd": config.budget.max_spend_usd,
+            },
         )
 
 
@@ -208,25 +229,38 @@ async def run_ai_stage(
                 elif isinstance(event, UsageEvent):
                     latest_usage = event.usage
                 elif isinstance(event, FailedEvent):
-                    raise AIReviewError(event.message, retryable=event.retryable)
+                    # The provider's own failure message is genuinely dynamic
+                    # (rate limits, auth, network) and has no fixed error_key of
+                    # its own — it is carried as a param on a generic key.
+                    raise AIReviewError(
+                        "ai_pipeline.provider_failed",
+                        {"detail": event.message},
+                        retryable=event.retryable,
+                    )
                 elif isinstance(event, FinishedEvent):
                     finished = event
                     latest_usage = event.usage or latest_usage
             if finished is not None:
                 break
-            raise AIReviewError(
-                "The provider stream ended without a final response.", retryable=True
-            )
+            raise AIReviewError("ai_pipeline.stream_ended_without_response", retryable=True)
         except AIReviewError as exc:
             if not exc.retryable or attempt >= config.budget.max_retry_attempts:
                 raise
             # A short linear backoff keeps local UI feedback responsive while
             # avoiding an immediate repeat of a rate-limited request.
-            await _emit(on_event, {"type": "retry", "attempt": attempt + 1, "message": str(exc)})
+            await _emit(
+                on_event,
+                {
+                    "type": "retry",
+                    "attempt": attempt + 1,
+                    "error_key": exc.error_key,
+                    "params": exc.params,
+                },
+            )
             await asyncio.sleep(attempt + 1)
 
     if finished is None:  # Defensive: the loop above either breaks or raises.
-        raise AIReviewError("The provider stream ended without a final response.")
+        raise AIReviewError("ai_pipeline.stream_ended_without_response")
 
     usage = latest_usage or UsageStats(is_estimated=True)
     await _emit(on_event, {"type": "usage", **usage.model_dump()})

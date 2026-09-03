@@ -63,8 +63,8 @@ def _locked(path: Path) -> Iterator[None]:
             yield
     except Timeout as exc:
         raise StorageError(
-            f"Timed out after {LOCK_TIMEOUT_S:g}s waiting for a lock on {path.name}. "
-            "Another RevAI process may be writing to it."
+            "storage.lock_timeout",
+            {"filename": path.name, "timeout_s": LOCK_TIMEOUT_S},
         ) from exc
 
 
@@ -110,12 +110,15 @@ def atomic_write(path: Path, content: str) -> None:
         # Without this branch the caller would see a bare UnicodeEncodeError and
         # return 500, instead of a storage error naming the offending character.
         raise StorageError(
-            f"Could not write {path}: the content contains character "
-            f"{exc.object[exc.start : exc.end]!r} at position {exc.start}, "
-            "which cannot be encoded as UTF-8."
+            "storage.write_unencodable_character",
+            {
+                "path": str(path),
+                "character": repr(exc.object[exc.start : exc.end]),
+                "position": exc.start,
+            },
         ) from exc
     except OSError as exc:
-        raise StorageError(f"Could not write {path}: {exc}") from exc
+        raise StorageError("storage.write_failed", {"path": str(path), "detail": str(exc)}) from exc
     finally:
         # Losing a stray temporary file is never worth masking the original
         # exception that sent us into this block.
@@ -169,24 +172,32 @@ class YamlStore[T: BaseModel]:
         try:
             raw = path.read_text(encoding="utf-8")
         except OSError as exc:
-            raise StorageError(f"Could not read {path}: {exc}") from exc
+            raise StorageError(
+                "storage.read_failed", {"path": str(path), "detail": str(exc)}
+            ) from exc
 
         try:
             data = self._yaml.load(raw)
         except YAMLError as exc:
-            raise StorageError(f"{path.name} is not valid YAML: {exc}") from exc
+            raise StorageError(
+                "storage.invalid_yaml", {"filename": path.name, "detail": str(exc)}
+            ) from exc
 
         if data is None:  # an empty file
             return None
 
         if not isinstance(data, dict):
-            raise StorageError(f"{path.name} should contain a mapping, found {type(data).__name__}")
+            raise StorageError(
+                "storage.not_a_mapping",
+                {"filename": path.name, "found_type": type(data).__name__},
+            )
 
         try:
             return self._model.model_validate(dict(data))
         except ValidationError as exc:
             raise StorageError(
-                f"{path.name} does not match the expected schema: {_describe(exc)}"
+                "storage.schema_mismatch",
+                {"filename": path.name, "detail": _describe(exc)},
             ) from exc
 
     # -- write --------------------------------------------------------------
@@ -199,7 +210,9 @@ class YamlStore[T: BaseModel]:
         try:
             self._yaml.dump(payload, buffer)
         except YAMLError as exc:
-            raise StorageError(f"Could not serialise {path.name}: {exc}") from exc
+            raise StorageError(
+                "storage.serialize_failed", {"filename": path.name, "detail": str(exc)}
+            ) from exc
 
         with _locked(path):
             atomic_write(path, buffer.getvalue())

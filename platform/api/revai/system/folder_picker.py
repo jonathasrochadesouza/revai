@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 
 class FolderPickerError(RuntimeError):
-    """The native directory dialog could not be opened."""
+    """The native directory dialog could not be opened.
+
+    Carries a namespaced ``error_key`` and structured ``params`` for the
+    API's error contract.
+    """
+
+    def __init__(self, error_key: str, params: dict[str, Any] | None = None) -> None:
+        self.error_key = error_key
+        self.params = params or {}
+        super().__init__(error_key)
 
 
 def pick_directory() -> Path | None:
@@ -19,9 +29,7 @@ def pick_directory() -> Path | None:
         import tkinter as tk
         from tkinter import filedialog
     except ImportError as exc:
-        raise FolderPickerError(
-            "Native folder selection is unavailable because Tk is not installed."
-        ) from exc
+        raise FolderPickerError("folder_picker.tk_not_installed") from exc
 
     root: tk.Tk | None = None
     try:
@@ -34,9 +42,7 @@ def pick_directory() -> Path | None:
             mustexist=True,
         )
     except tk.TclError as exc:
-        raise FolderPickerError(
-            "Native folder selection is unavailable in this desktop session."
-        ) from exc
+        raise FolderPickerError("folder_picker.unavailable_in_session") from exc
     finally:
         if root is not None:
             root.destroy()

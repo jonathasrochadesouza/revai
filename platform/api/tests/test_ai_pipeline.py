@@ -82,7 +82,7 @@ def test_extract_findings_accepts_fenced_structured_json() -> None:
 
 
 def test_extract_findings_rejects_an_invalid_schema() -> None:
-    with pytest.raises(FindingExtractionError, match="invalid findings"):
+    with pytest.raises(FindingExtractionError, match=r"ai_pipeline\.invalid_findings"):
         extract_findings('{"findings":[{"severity":"urgent"}]}')
 
 
@@ -119,7 +119,7 @@ def test_estimated_cost_enforces_the_configured_spend_cap() -> None:
     config.budget.max_spend_usd = 0.001
 
     assert estimate_input_cost([_chunk(tokens=1_000)]) == pytest.approx(0.003)
-    with pytest.raises(BudgetExceededError, match="estimated input cost"):
+    with pytest.raises(BudgetExceededError, match=r"budget\.estimated_cost_exceeds_max"):
         preflight_ai_stage(config, [_chunk(tokens=1_000)])
 
 
@@ -200,4 +200,9 @@ async def test_ai_stage_retries_a_transient_provider_failure() -> None:
 
     assert result.findings == []
     assert provider.calls == 2
-    assert events[0] == {"type": "retry", "attempt": 1, "message": "rate limited"}
+    assert events[0] == {
+        "type": "retry",
+        "attempt": 1,
+        "error_key": "ai_pipeline.provider_failed",
+        "params": {"detail": "rate limited"},
+    }

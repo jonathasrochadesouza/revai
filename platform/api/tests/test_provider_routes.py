@@ -218,7 +218,9 @@ def test_malformed_config_yields_422_not_500(client: TestClient, settings: Setti
     response = client.get("/api/providers")
 
     assert response.status_code == 422
-    assert "config.yaml" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "storage.invalid_yaml"
+    assert detail["params"]["filename"] == "config.yaml"
 
 
 def test_openapi_documents_the_provider_endpoints(client: TestClient) -> None:

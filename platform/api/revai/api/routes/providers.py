@@ -14,11 +14,12 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 from pydantic import BaseModel, Field
 
 from revai.api.deps import ConfigRepo, CredentialsRepo
 from revai.domain.enums import ProviderId, ProviderKind
+from revai.errors import RevaiError
 from revai.providers.base import ProviderHealth
 from revai.providers.registry import build_registry
 from revai.storage.base import StorageError
@@ -47,9 +48,7 @@ def _load(config_repo: ConfigRepo, credentials_repo: CredentialsRepo):
     try:
         return config_repo.load(), credentials_repo.load()
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        ) from exc
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params) from exc
 
 
 @router.get(
@@ -122,7 +121,8 @@ async def verify_provider(
 
     # Unreachable while ProviderId stays exhaustive, but a 404 beats a 500 if a
     # member is ever added without a corresponding probe.
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"No probe is implemented for {provider_id.value}.",
+    raise RevaiError(
+        status.HTTP_404_NOT_FOUND,
+        "provider.no_probe_implemented",
+        {"provider_id": provider_id.value},
     )

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic_core import PydanticCustomError
 
 from revai.config import Settings
 from revai.domain.enums import Category, FindingSource, Severity
@@ -36,7 +37,11 @@ class LegacyFinding(BaseModel):
     @classmethod
     def _valid_lines(cls, value: str) -> str:
         if _LEGACY_LINES.fullmatch(value) is None:
-            raise ValueError("lines must be a line number or inclusive range")
+            raise PydanticCustomError(
+                "export.invalid_legacy_lines",
+                "lines must be a line number or inclusive range",
+                {"lines": value},
+            )
         return value
 
 

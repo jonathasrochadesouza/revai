@@ -209,7 +209,9 @@ def test_malformed_config_file_yields_422_not_500(client: TestClient, settings: 
     response = client.get("/api/config")
 
     assert response.status_code == 422
-    assert "config.yaml" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "storage.invalid_yaml"
+    assert detail["params"]["filename"] == "config.yaml"
 
 
 # ---------------------------------------------------------------------------

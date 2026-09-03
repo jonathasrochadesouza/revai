@@ -13,15 +13,22 @@ inherit anything from the YAML one.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 class StorageError(RuntimeError):
     """Raised when persistence fails for a reason the caller can report.
 
     Deliberately not an ``HTTPException``: the storage layer must not know it is
-    being used behind an HTTP API.
+    being used behind an HTTP API. Carries a namespaced ``error_key`` and
+    structured ``params`` (never pre-formatted prose) so a route handler can
+    translate it into the API's error contract.
     """
+
+    def __init__(self, error_key: str, params: dict[str, Any] | None = None) -> None:
+        self.error_key = error_key
+        self.params = params or {}
+        super().__init__(error_key)
 
 
 @runtime_checkable

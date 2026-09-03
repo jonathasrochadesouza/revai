@@ -5,13 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, Field
 
 from revai.analyzers.preflight import preflight_analyzers
 from revai.api.deps import ConfigRepo, ProjectRepo
 from revai.domain.enums import ProviderId, ReviewScope
 from revai.domain.models import Project
+from revai.errors import RevaiError
 from revai.git.repo import (
     GitError,
     branches,
@@ -108,7 +109,7 @@ class AnalyzerPreflightResponse(BaseModel):
 def _project(project_repo: ProjectRepo, project_id: str) -> Project:
     project = project_repo.get(project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     return project
 
 
@@ -128,8 +129,8 @@ def _view(project: Project) -> ProjectView:
     )
 
 
-def _unprocessable(exc: GitError) -> HTTPException:
-    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
+def _unprocessable(exc: GitError) -> RevaiError:
+    return RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params)
 
 
 @router.get("", response_model=ProjectsResponse)
@@ -183,10 +184,7 @@ def pick_project_folder() -> FolderPickerResponse:
     try:
         selected = pick_directory()
     except FolderPickerError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+        raise RevaiError(status.HTTP_503_SERVICE_UNAVAILABLE, exc.error_key, exc.params) from exc
     return FolderPickerResponse(path=str(selected) if selected is not None else None)
 
 
@@ -208,9 +206,10 @@ def update_project(
         except GitError as exc:
             raise _unprocessable(exc) from exc
         if request.base_branch not in known:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=f"Unknown local base branch: {request.base_branch}",
+            raise RevaiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "project.unknown_base_branch",
+                {"base_branch": request.base_branch},
             )
         project.base_branch = request.base_branch
     if request.archived is not None:
@@ -219,9 +218,10 @@ def update_project(
         value = getattr(request, name)
         if value is not None:
             if any(not argument.strip() for argument in value):
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    detail=f"{name} cannot contain empty arguments.",
+                raise RevaiError(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "project.command_has_empty_argument",
+                    {"command_name": name},
                 )
             setattr(project, name, value)
     return _view(project_repo.save(project))
@@ -268,9 +268,10 @@ def get_diff(
 ) -> DiffResponse:
     project = _project(project_repo, project_id)
     if scope is ReviewScope.SELECTED_FILES and not files:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Select at least one tracked file for selected_files scope.",
+        raise RevaiError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "review.selected_files_required",
+            {},
         )
     try:
         preview = (

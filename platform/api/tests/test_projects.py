@@ -73,7 +73,8 @@ def test_open_rejects_a_folder_that_is_not_a_git_repository(
     response = client.post("/api/projects/open", json={"path": str(folder)})
 
     assert response.status_code == 422
-    assert response.json()["detail"] == "The selected folder is not a Git repository."
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "git.not_a_repository"
 
 
 def test_project_tree_lists_tracked_files(client: TestClient, tmp_path: Path) -> None:
@@ -242,7 +243,8 @@ def test_clone_does_not_overwrite_an_existing_destination(
     )
 
     assert response.status_code == 422
-    assert "already exists" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "git.destination_already_exists"
     assert marker.read_text(encoding="utf-8") == "keep me"
 
 
@@ -255,7 +257,10 @@ def test_clone_requires_a_destination_folder(client: TestClient, tmp_path: Path)
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"][-1] == "destination_path"
+    detail = response.json()["detail"]
+    entry = detail[0] if isinstance(detail, list) else detail
+    assert entry["error_key"] == "validation.invalid_field"
+    assert entry["params"]["field"] == "destination_path"
 
 
 def test_project_quality_commands_are_explicit_shell_free_arrays(
@@ -298,7 +303,9 @@ def test_diff_rejects_an_unknown_branch(client: TestClient, tmp_path: Path) -> N
     )
 
     assert response.status_code == 422
-    assert "does-not-exist" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "git.unknown_ref"
+    assert detail["params"]["ref"] == "does-not-exist"
 
 
 def test_folder_picker_returns_the_native_absolute_path(

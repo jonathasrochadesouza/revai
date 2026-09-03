@@ -90,7 +90,7 @@ def test_atomic_write_reports_a_useful_error(tmp_path: Path) -> None:
     blocked = tmp_path / "blocked"
     blocked.mkdir()
 
-    with pytest.raises(StorageError, match="Could not write"):
+    with pytest.raises(StorageError, match=r"storage\.write_failed"):
         atomic_write(blocked, "x: 1\n")
 
 
@@ -119,9 +119,9 @@ def test_read_rejects_malformed_yaml_naming_the_file(tmp_path: Path) -> None:
     path.write_text("engine: [unclosed\n", encoding="utf-8")
     store: YamlStore[RevaiConfig] = YamlStore(RevaiConfig)
 
-    # Escaped: an unescaped "." would match any character, weakening the assertion.
-    with pytest.raises(StorageError, match=r"broken\.yaml is not valid YAML"):
+    with pytest.raises(StorageError, match=r"storage\.invalid_yaml") as excinfo:
         store.read(path)
+    assert excinfo.value.params["filename"] == "broken.yaml"
 
 
 def test_read_rejects_a_non_mapping_document(tmp_path: Path) -> None:
@@ -129,7 +129,7 @@ def test_read_rejects_a_non_mapping_document(tmp_path: Path) -> None:
     path.write_text("- one\n- two\n", encoding="utf-8")
     store: YamlStore[RevaiConfig] = YamlStore(RevaiConfig)
 
-    with pytest.raises(StorageError, match="should contain a mapping"):
+    with pytest.raises(StorageError, match=r"storage\.not_a_mapping"):
         store.read(path)
 
 
@@ -139,8 +139,9 @@ def test_read_reports_which_field_failed_validation(tmp_path: Path) -> None:
     path.write_text("budget:\n  max_spend_usd: -5\n", encoding="utf-8")
     store: YamlStore[RevaiConfig] = YamlStore(RevaiConfig)
 
-    with pytest.raises(StorageError, match="max_spend_usd"):
+    with pytest.raises(StorageError, match=r"storage\.schema_mismatch") as excinfo:
         store.read(path)
+    assert "max_spend_usd" in excinfo.value.params["detail"]
 
 
 def test_read_rejects_unknown_fields(tmp_path: Path) -> None:
@@ -402,7 +403,7 @@ def test_unencodable_content_raises_storage_error(tmp_path: Path) -> None:
     """
     path = tmp_path / "surrogate.yaml"
 
-    with pytest.raises(StorageError, match="cannot be encoded as UTF-8"):
+    with pytest.raises(StorageError, match=r"storage\.write_unencodable_character"):
         atomic_write(path, "\ud800")
 
 

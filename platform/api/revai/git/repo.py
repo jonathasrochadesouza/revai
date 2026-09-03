@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 
 from revai.domain.models import Project
 from revai.shell import command_for_execution
@@ -51,7 +52,17 @@ _LANGUAGES = {
 
 
 class GitError(RuntimeError):
-    """A user-actionable Git failure."""
+    """A user-actionable Git failure.
+
+    Carries a namespaced ``error_key`` and structured ``params`` so a route
+    handler can translate it into the API's error contract without
+    forwarding raw stderr as the primary message text.
+    """
+
+    def __init__(self, error_key: str, params: dict[str, Any] | None = None) -> None:
+        self.error_key = error_key
+        self.params = params or {}
+        super().__init__(error_key)
 
 
 @dataclass(frozen=True)
@@ -99,23 +110,23 @@ def _run(
             env=environment,
         )
     except FileNotFoundError as exc:
-        raise GitError("Git is not installed or is not available on PATH.") from exc
+        raise GitError("git.not_installed") from exc
     except subprocess.TimeoutExpired as exc:
-        raise GitError("Git did not finish within 30 seconds.") from exc
+        raise GitError("git.timed_out", {"timeout_s": timeout}) from exc
 
     if result.returncode not in allowed_returncodes:
         detail = result.stderr.strip() or result.stdout.strip() or "Git command failed."
-        raise GitError(detail)
+        raise GitError("git.command_failed", {"detail": detail})
     return result.stdout
 
 
 def repository_root(path: Path) -> Path:
     if not path.exists() or not path.is_dir():
-        raise GitError("The selected folder does not exist.")
+        raise GitError("git.folder_does_not_exist", {"path": str(path)})
     try:
         root = _run(path, "rev-parse", "--show-toplevel").strip()
     except GitError as exc:
-        raise GitError("The selected folder is not a Git repository.") from exc
+        raise GitError("git.not_a_repository", {"path": str(path)}) from exc
     return Path(root).resolve()
 
 
@@ -207,7 +218,7 @@ def detect_base_branch(path: Path) -> str:
         return active
     if known:
         return known[0]
-    raise GitError("The repository has no commits or branches yet.")
+    raise GitError("git.no_commits_or_branches", {"path": str(path)})
 
 
 def inspect_project(path: Path, *, source_url: str | None = None) -> Project:
@@ -226,7 +237,7 @@ def clone_repository(remote: str, destination_root: Path) -> Project:
     destination_root.mkdir(parents=True, exist_ok=True)
     destination = destination_root / name
     if destination.exists():
-        raise GitError(f"Destination already exists: {destination}")
+        raise GitError("git.destination_already_exists", {"destination": str(destination)})
 
     try:
         _run(None, "clone", "--", remote, str(destination), timeout=120)
@@ -252,12 +263,12 @@ def materialized_tree(path: Path, ref: str) -> Iterator[Path]:
             env=environment,
         )
     except FileNotFoundError as exc:
-        raise GitError("Git is not installed or is not available on PATH.") from exc
+        raise GitError("git.not_installed") from exc
     except subprocess.TimeoutExpired as exc:
-        raise GitError("Git did not finish within 30 seconds.") from exc
+        raise GitError("git.timed_out", {"timeout_s": _GIT_TIMEOUT_SECONDS}) from exc
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
-        raise GitError(detail or f"Could not materialize Git ref: {ref}")
+        raise GitError("git.materialize_ref_failed", {"ref": ref, "detail": detail})
 
     with tempfile.TemporaryDirectory(prefix="revai-review-") as directory:
         destination = Path(directory)
@@ -331,7 +342,7 @@ def snapshot_preview(
         known = set(tracked_files(path, head))
         unknown = sorted(set(selected_files) - known)
         if unknown:
-            raise GitError(f"Files are not tracked at {head}: {', '.join(unknown)}")
+            raise GitError("git.files_not_tracked", {"ref": head, "files": unknown})
         args.extend(["--", *selected_files])
     patch = _run(
         path,
@@ -366,7 +377,7 @@ def _verify_ref(path: Path, ref: str) -> None:
     try:
         _run(path, "rev-parse", "--verify", f"{ref}^{{commit}}")
     except GitError as exc:
-        raise GitError(f"Unknown Git branch or ref: {ref}") from exc
+        raise GitError("git.unknown_ref", {"ref": ref}) from exc
 
 
 def _parse_numstat(line: str) -> DiffFile:
@@ -422,5 +433,5 @@ def _remote_name(remote: str) -> str:
     raw = cleaned.rsplit("/", 1)[-1].rsplit(":", 1)[-1]
     safe = "".join(character for character in raw if character.isalnum() or character in "-_.")
     if not safe or safe in {".", ".."}:
-        raise GitError("Could not derive a repository name from that remote URL.")
+        raise GitError("git.cannot_derive_repository_name", {"remote": remote})
     return safe[:80]

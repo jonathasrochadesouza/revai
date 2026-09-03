@@ -7,9 +7,12 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from revai.api.routes import config as config_routes
 from revai.api.routes import exports as export_routes
@@ -19,6 +22,7 @@ from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
 from revai.config import Settings, get_settings
 from revai.domain.enums import ReviewStatus
+from revai.errors import RevaiError
 from revai.pipeline.limiter import ReviewLimiter
 from revai.storage import ReviewRepository
 
@@ -110,7 +114,56 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(review_routes.router, prefix="/api")
     app.include_router(export_routes.router, prefix="/api")
 
+    app.add_exception_handler(RevaiError, _handle_revai_error)
+    app.add_exception_handler(RequestValidationError, _handle_validation_error)
+    app.add_exception_handler(Exception, _handle_unexpected_error)
+
     return app
+
+
+async def _handle_revai_error(_request: Request, exc: RevaiError) -> JSONResponse:
+    """The single place that renders the structured error contract for `RevaiError`."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": {"error_key": exc.error_key, "params": exc.params}},
+    )
+
+
+async def _handle_validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Render every pydantic validation failure through the same contract.
+
+    A `PydanticCustomError` raised inside a `@field_validator`/`@model_validator`
+    carries its `error_key` as pydantic's `type` and its `params` as `ctx` — both
+    survive into `exc.errors()`. Anything pydantic raised itself (a bare
+    `min_length` violation, a type mismatch FastAPI caught before a custom
+    validator ran) has no such key, so it maps to a generic, still-structured
+    fallback that names the offending field instead of pydantic's own `msg` text.
+    """
+    details: list[dict[str, Any]] = []
+    for error in exc.errors():
+        ctx = error.get("ctx") or {}
+        error_key = error.get("type", "")
+        if "." in error_key:
+            # A namespaced key means this came from our own PydanticCustomError.
+            details.append({"error_key": error_key, "params": ctx})
+        else:
+            field = ".".join(str(part) for part in error.get("loc", ()) if part != "body")
+            details.append({"error_key": "validation.invalid_field", "params": {"field": field}})
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": details if len(details) > 1 else details[0]},
+    )
+
+
+async def _handle_unexpected_error(_request: Request, exc: Exception) -> JSONResponse:
+    """Never let a raw traceback or exception message reach the client."""
+    logger.exception("unhandled exception", exc_info=exc)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"detail": {"error_key": "internal.unexpected_error", "params": {}}},
+    )
 
 
 app = create_app()

@@ -60,7 +60,7 @@ def test_doctor_reports_invalid_yaml_without_a_traceback(
     assert payload["status"] == "error"
     config = next(check for check in payload["checks"] if check["name"] == "config")
     assert config["status"] == "error"
-    assert "not valid YAML" in config["detail"]
+    assert config["detail"] == "storage.invalid_yaml"
 
 
 def test_serve_preserves_loopback_and_accepts_a_valid_port_override(

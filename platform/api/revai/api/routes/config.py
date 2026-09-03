@@ -14,12 +14,13 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
 from revai.api.deps import ConfigRepo, CredentialsRepo
 from revai.domain.enums import ProviderId
 from revai.domain.models import Credentials, ProviderCredential, RevaiConfig
+from revai.errors import RevaiError
 from revai.storage.base import StorageError
 
 router = APIRouter(tags=["configuration"])
@@ -46,10 +47,8 @@ async def read_config(repo: ConfigRepo) -> ConfigResponse:
         config = repo.load()
     except StorageError as exc:
         # 422 rather than 500: the file is hand-editable, so this is almost always
-        # a malformed edit the user can fix. The message names the file and field.
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        ) from exc
+        # a malformed edit the user can fix. error_key/params name the file and field.
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params) from exc
 
     return ConfigResponse(config=config, path=str(repo.path), exists=repo.exists())
 
@@ -70,9 +69,7 @@ async def write_config(payload: RevaiConfig, repo: ConfigRepo) -> ConfigResponse
     try:
         saved = repo.save(payload)
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail=str(exc)
-        ) from exc
+        raise RevaiError(status.HTTP_507_INSUFFICIENT_STORAGE, exc.error_key, exc.params) from exc
 
     return ConfigResponse(config=saved, path=str(repo.path), exists=True)
 
@@ -125,9 +122,7 @@ async def list_credentials(repo: CredentialsRepo) -> CredentialsResponse:
     try:
         credentials = repo.load()
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        ) from exc
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params) from exc
 
     return CredentialsResponse(credentials=_summarise(credentials), path=str(repo.path))
 
@@ -149,9 +144,7 @@ async def put_credential(payload: CredentialRequest, repo: CredentialsRepo) -> C
         )
         saved = repo.save(credentials)
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail=str(exc)
-        ) from exc
+        raise RevaiError(status.HTTP_507_INSUFFICIENT_STORAGE, exc.error_key, exc.params) from exc
 
     return CredentialsResponse(credentials=_summarise(saved), path=str(repo.path))
 
@@ -165,12 +158,11 @@ async def delete_credential(provider_id: ProviderId, repo: CredentialsRepo) -> N
     try:
         credentials = repo.load()
         if not credentials.remove(provider_id):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No credential stored for {provider_id.value}",
+            raise RevaiError(
+                status.HTTP_404_NOT_FOUND,
+                "credential.not_found",
+                {"provider_id": provider_id.value},
             )
         repo.save(credentials)
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail=str(exc)
-        ) from exc
+        raise RevaiError(status.HTTP_507_INSUFFICIENT_STORAGE, exc.error_key, exc.params) from exc

@@ -9,8 +9,9 @@ from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, Field, model_validator
+from pydantic_core import PydanticCustomError
 from starlette.responses import StreamingResponse
 
 from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewLimiterDep, ReviewRepo
@@ -22,8 +23,9 @@ from revai.domain.models import (
     Review,
     ReviewStats,
 )
+from revai.errors import RevaiError
 from revai.git.repo import GitError
-from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
+from revai.pipeline.ai import BudgetExceededError, estimate_input_cost, merge_findings, run_ai_stage
 from revai.pipeline.runner import DeterministicResult, StageRun, run_deterministic_pipeline
 from revai.pipeline.safety import redact_secrets
 from revai.providers.base import UsageStats
@@ -42,7 +44,11 @@ class DeterministicReviewRequest(BaseModel):
     @model_validator(mode="after")
     def validate_scope(self):
         if self.scope is ReviewScope.SELECTED_FILES and not self.selected_files:
-            raise ValueError("selected_files is required for selected_files scope")
+            raise PydanticCustomError(
+                "review.selected_files_required",
+                "selected_files is required for selected_files scope",
+                {},
+            )
         return self
 
 
@@ -111,7 +117,7 @@ async def create_deterministic_review(
 ) -> DeterministicReviewResponse:
     project = project_repo.get(project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     try:
         result = await run_deterministic_pipeline(
             project,
@@ -131,10 +137,7 @@ async def create_deterministic_review(
             selected_files=request.selected_files,
         )
     except GitError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
+        raise _git_unprocessable(exc) from exc
 
     review_repo.save(result.review)
     project.last_reviewed_at = datetime.now(UTC)
@@ -155,30 +158,26 @@ async def create_ai_review(
 ) -> StreamingResponse:
     project = project_repo.get(project_id)
     if project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     if payload.mode is ReviewMode.STATIC:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Static-only reviews use the deterministic endpoint.",
-        )
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "review.static_only_endpoint")
 
     config = config_repo.load()
     provider = build_registry(config, credentials_repo.load()).active()
     health = None
     if payload.mode is not ReviewMode.STATIC:
         if provider is None:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="The configured AI provider is not available.",
-            )
+            raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "provider.unavailable")
         health = await provider.health()
         if not health.is_usable:
-            detail = health.detail or f"{health.provider_id.value} is not ready."
-            if health.remediation:
-                detail = f"{detail} Fix: {health.remediation}"
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=detail,
+            raise RevaiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "provider.not_ready",
+                {
+                    "provider_id": health.provider_id.value,
+                    "detail": health.detail,
+                    "remediation": health.remediation,
+                },
             )
 
     # A disconnected browser must not cancel the job, but it also must not turn
@@ -261,9 +260,12 @@ async def create_ai_review(
                     config.budget.max_spend_usd is not None
                     and estimated_cost > config.budget.max_spend_usd
                 ):
-                    raise ValueError(
-                        f"Estimated input cost (${estimated_cost:.4f}) exceeds this review's "
-                        f"budget (${config.budget.max_spend_usd:.4f})."
+                    raise BudgetExceededError(
+                        "budget.estimated_cost_exceeds_max",
+                        {
+                            "estimated_cost_usd": round(estimated_cost, 4),
+                            "max_spend_usd": config.budget.max_spend_usd,
+                        },
                     )
                 ai_result = await run_ai_stage(
                     provider,
@@ -377,11 +379,12 @@ async def create_ai_review(
         except Exception as exc:
             persisted = result.review if result is not None else review
             persisted.status = ReviewStatus.FAILED
-            persisted.error = redact_secrets(str(exc))[0]
+            error_key, params = _error_key_and_params(exc)
+            persisted.error = error_key
             persisted.finished_at = datetime.now(UTC)
             persisted.stats.duration_ms = _duration_ms(started)
             review_repo.save(persisted)
-            await emit({"type": "failed", "message": persisted.error})
+            await emit({"type": "failed", "error_key": error_key, "params": params})
         finally:
             if acquired_slot:
                 await limiter.release()
@@ -421,10 +424,10 @@ async def get_review(
     review_repo: ReviewRepo,
 ) -> DeterministicReviewResponse:
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     review = review_repo.get(review_id, project_id)
     if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
     return _stored_response(review)
 
 
@@ -436,9 +439,9 @@ async def replay_review_events(
     review_repo: ReviewRepo,
 ) -> StreamingResponse:
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     if review_repo.get(review_id, project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
 
     async def events():
         seen = 0
@@ -469,18 +472,15 @@ async def cancel_review(
     review_repo: ReviewRepo,
 ) -> Review:
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     review = review_repo.get(review_id, project_id)
     if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
     task = http_request.app.state.review_tasks.get(review_id)
     if task is None or task.done():
         if review.status.is_terminal:
             return review
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Review job is not active.",
-        )
+        raise RevaiError(status.HTTP_409_CONFLICT, "review.not_active", {"review_id": review_id})
     task.cancel()
     with suppress(asyncio.CancelledError):
         await task
@@ -500,12 +500,9 @@ async def retry_review(
 ) -> StreamingResponse:
     previous = review_repo.get(review_id, project_id)
     if previous is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
     if previous.mode is ReviewMode.STATIC:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Retry static reviews from the deterministic endpoint.",
-        )
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "review.retry_static_endpoint")
     return await create_ai_review(
         project_id,
         DeterministicReviewRequest(
@@ -527,7 +524,7 @@ async def retry_review(
 @router.get("", response_model=ReviewsResponse)
 async def list_reviews(project_id: str, project_repo: ProjectRepo, review_repo: ReviewRepo):
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     return ReviewsResponse(reviews=review_repo.list(project_id))
 
 
@@ -540,11 +537,15 @@ async def compare_reviews(
     review_repo: ReviewRepo,
 ) -> ReviewComparisonResponse:
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     left = review_repo.get(left_review_id, project_id)
     right = review_repo.get(right_review_id, project_id)
     if left is None or right is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(
+            status.HTTP_404_NOT_FOUND,
+            "review.not_found",
+            {"review_id": left_review_id if left is None else right_review_id},
+        )
     left_ids = {finding.fingerprint for finding in left.findings}
     right_ids = {finding.fingerprint for finding in right.findings}
     return ReviewComparisonResponse(
@@ -568,13 +569,15 @@ async def update_finding_status(
     review_repo: ReviewRepo,
 ) -> Review:
     if project_repo.get(project_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "project.not_found", {"project_id": project_id})
     review = review_repo.get(review_id, project_id)
     if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
     finding = next((item for item in review.findings if item.id == finding_id), None)
     if finding is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found.")
+        raise RevaiError(
+            status.HTTP_404_NOT_FOUND, "review.finding_not_found", {"finding_id": finding_id}
+        )
     previous = finding.status
     finding.status = request.status
     review.decisions.append(
@@ -695,6 +698,31 @@ def _stage_payload(stage: StageRun) -> dict[str, Any]:
 
 def _duration_ms(started: float) -> int:
     return max(0, round((time.perf_counter() - started) * 1000))
+
+
+def _git_unprocessable(exc: GitError) -> RevaiError:
+    return RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params)
+
+
+def _error_key_and_params(exc: Exception) -> tuple[str, dict[str, Any]]:
+    """Resolve any exception raised mid-review into `(error_key, params)`.
+
+    Covers the internal exception types that carry their own key (AIReviewError,
+    GitError, StorageError) and falls back to a generic key for anything else,
+    so a review's persisted `error` field and its SSE `failed` event are always
+    resolvable through the frontend's translation catalog rather than raw text.
+    String params are passed through `redact_secrets` — a provider failure
+    message could otherwise leak a credential fragment into review history.
+    """
+    error_key = getattr(exc, "error_key", None)
+    params = getattr(exc, "params", None)
+    if error_key is None:
+        return "internal.unexpected_error", {}
+    safe_params = {
+        key: redact_secrets(value)[0] if isinstance(value, str) else value
+        for key, value in (params or {}).items()
+    }
+    return error_key, safe_params
 
 
 def _enqueue_latest(

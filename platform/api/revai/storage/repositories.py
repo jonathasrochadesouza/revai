@@ -244,9 +244,7 @@ def _safe(identifier: str) -> str:
     a future route forgets to check.
     """
     if not identifier:
-        raise StorageError("identifier must not be empty")
+        raise StorageError("storage.empty_identifier")
     if not set(identifier) <= _ALLOWED:
-        raise StorageError(
-            f"identifier {identifier!r} contains characters that are not allowed in a filename"
-        )
+        raise StorageError("storage.invalid_identifier_characters", {"identifier": identifier})
     return identifier

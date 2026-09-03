@@ -303,7 +303,9 @@ def test_ai_review_rejects_an_unusable_provider_before_persisting_work(
     )
 
     assert response.status_code == 422
-    assert "Kiro CLI is not installed" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "provider.not_ready"
+    assert "Kiro CLI is not installed" in (detail["params"].get("detail") or "")
     reviews = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
     assert reviews == []
 

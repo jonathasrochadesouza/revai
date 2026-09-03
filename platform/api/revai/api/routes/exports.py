@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, ConfigDict
 from starlette.responses import Response
 
 from revai.api.deps import ConfigRepo, ProjectRepo, ReviewRepo, SettingsDep
+from revai.errors import RevaiError
 from revai.export.insights import InsightRange, InsightsResponse, build_insights
 from revai.export.serializers import (
     build_data_archive,
@@ -56,27 +57,30 @@ async def export_review(
         media_type = "application/json"
     elif format == "md":
         if legacy:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Legacy compatibility is available only for JSON exports.",
+            raise RevaiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "export.legacy_json_only",
+                {"format": "md"},
             )
         content = render_markdown(review, project)
         suffix = ".md"
         media_type = "text/markdown; charset=utf-8"
     elif format == "html":
         if legacy:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Legacy compatibility is available only for JSON exports.",
+            raise RevaiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "export.legacy_json_only",
+                {"format": "html"},
             )
         content = render_html(review, project)
         suffix = ".html"
         media_type = "text/html; charset=utf-8"
     else:
         if legacy:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Legacy compatibility is available only for JSON exports.",
+            raise RevaiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "export.legacy_json_only",
+                {"format": "sarif"},
             )
         content = render_sarif(review, project)
         suffix = ".sarif"
@@ -137,10 +141,11 @@ def _find_review(review_repo: ReviewRepo, review_id: str):
     try:
         review = review_repo.get(review_id)
     except StorageError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Review not found.",
+        raise RevaiError(
+            status.HTTP_404_NOT_FOUND,
+            "review.not_found",
+            {"review_id": review_id},
         ) from exc
     if review is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found.")
+        raise RevaiError(status.HTTP_404_NOT_FOUND, "review.not_found", {"review_id": review_id})
     return review

@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic_core import PydanticCustomError
 
 from revai.domain.enums import (
     SCHEMA_VERSION,
@@ -105,7 +106,11 @@ class Finding(_Base):
     def _check_line_range(self) -> Self:
         """A range that ends before it starts silently breaks the diff viewer."""
         if self.line_end is not None and self.line_end < self.line_start:
-            raise ValueError(f"line_end ({self.line_end}) precedes line_start ({self.line_start})")
+            raise PydanticCustomError(
+                "finding.line_end_precedes_line_start",
+                "line_end ({line_end}) precedes line_start ({line_start})",
+                {"line_end": self.line_end, "line_start": self.line_start},
+            )
         if not self.fingerprint:
             identity = "\0".join(
                 (
@@ -310,7 +315,11 @@ class Project(_Document):
     def _no_path_separators(cls, value: str) -> str:
         """The name is used in filenames, so separators would escape the directory."""
         if "/" in value or "\\" in value:
-            raise ValueError("project name must not contain path separators")
+            raise PydanticCustomError(
+                "project.name_contains_path_separators",
+                "project name must not contain path separators",
+                {"name": value},
+            )
         return value
 
 
@@ -343,7 +352,11 @@ class BudgetConfig(_Base):
         threshold to exceed, so any warning value is meaningful.
         """
         if self.max_spend_usd is not None and self.warn_above_usd > self.max_spend_usd:
-            raise ValueError("warn_above_usd must not exceed max_spend_usd")
+            raise PydanticCustomError(
+                "budget.warn_above_exceeds_max",
+                "warn_above_usd ({warn_above_usd}) must not exceed max_spend_usd ({max_spend_usd})",
+                {"warn_above_usd": self.warn_above_usd, "max_spend_usd": self.max_spend_usd},
+            )
         return self
 
     @property
