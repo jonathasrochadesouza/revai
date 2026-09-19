@@ -10,7 +10,7 @@ export default function Loading() {
   return (
     <>
       <TopBar breadcrumb={[{ label: "Projects", href: "/" }, "Review"]} />
-      <LoadingPanel variant="skeleton" />
+      <LoadingPanel />
     </>
   );
 }

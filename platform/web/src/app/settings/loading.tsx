@@ -11,7 +11,7 @@ export default function Loading() {
   return (
     <>
       <TopBar />
-      <LoadingPanel variant="snake" />
+      <LoadingPanel />
     </>
   );
 }

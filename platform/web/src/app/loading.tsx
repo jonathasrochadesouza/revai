@@ -10,7 +10,7 @@ export default function Loading() {
   return (
     <>
       <TopBar />
-      <LoadingPanel variant="spinner" />
+      <LoadingPanel />
     </>
   );
 }
