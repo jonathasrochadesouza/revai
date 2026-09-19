@@ -20,7 +20,7 @@ import uvicorn
 from revai import __version__
 from revai.config import Settings, get_settings
 from revai.domain.enums import ProviderId, ReviewMode, ReviewScope, ReviewStatus, Severity
-from revai.domain.models import PipelineStageRecord, Review, ReviewStats
+from revai.domain.models import PipelineStageRecord, PromptOverride, Review, ReviewStats
 from revai.export.serializers import render_html, render_json, render_markdown, render_sarif
 from revai.git.repo import GitError, current_branch, inspect_project
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
@@ -31,6 +31,7 @@ from revai.storage import (
     ConfigRepository,
     CredentialsRepository,
     ProjectRepository,
+    PromptRepository,
     ReviewRepository,
     StorageError,
 )
@@ -93,6 +94,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review.add_argument("--provider", choices=[provider.value for provider in ProviderId])
     review.add_argument("--model", help="override the configured model for this run")
+    review.add_argument(
+        "--scenario",
+        help="prompt scenario id or name to review with; defaults to the configured prompts",
+    )
     review.add_argument("--format", choices=("json", "md", "html", "sarif"), default="json")
     review.add_argument("--output", type=Path, help="write the report to this file")
     review.add_argument(
@@ -248,6 +253,27 @@ async def _run_headless_review(args: argparse.Namespace):
         raise ValueError("--scope selected_files requires at least one --file")
     base = args.base or project.base_branch
     head = args.head or current_branch(Path(project.path)) or base
+    scenario = None
+    if args.scenario:
+        prompt_settings = PromptRepository(settings).load()
+        scenario = next(
+            (
+                item
+                for item in prompt_settings.scenarios
+                if item.id == args.scenario or item.name.casefold() == args.scenario.casefold()
+            ),
+            None,
+        )
+        if scenario is None:
+            raise ValueError(f"Unknown prompt scenario: {args.scenario}")
+    prompt_override = (
+        PromptOverride(
+            system_prompt=scenario.system_prompt,
+            user_prompt=scenario.user_prompt,
+        )
+        if scenario is not None
+        else PromptRepository(settings).effective(config.ui.locale)
+    )
     review = Review(
         project_id=project.id,
         scope=scope,
@@ -256,6 +282,7 @@ async def _run_headless_review(args: argparse.Namespace):
         head_branch=head,
         provider_id=config.engine.provider_id if mode is not ReviewMode.STATIC else None,
         model=config.engine.model if mode is not ReviewMode.STATIC else None,
+        scenario_id=scenario.id if scenario is not None else None,
         selected_files=args.selected_files,
     )
     started = time.perf_counter()
@@ -277,7 +304,7 @@ async def _run_headless_review(args: argparse.Namespace):
         health = await provider.health()
         if not health.is_usable:
             raise RuntimeError(health.detail or "The configured AI provider is not usable.")
-        ai = await run_ai_stage(provider, config, result.chunks)
+        ai = await run_ai_stage(provider, config, result.chunks, prompt_override=prompt_override)
         result.review.findings = merge_findings(
             result.review.findings,
             ai.findings,

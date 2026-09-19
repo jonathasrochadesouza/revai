@@ -10,6 +10,7 @@ from revai.storage.repositories import (
     ConfigRepository,
     CredentialsRepository,
     ProjectRepository,
+    PromptRepository,
     ReviewRepository,
 )
 from revai.storage.yaml_store import YamlStore, atomic_write
@@ -19,6 +20,7 @@ __all__ = [
     "CredentialsRepository",
     "DocumentRepository",
     "ProjectRepository",
+    "PromptRepository",
     "Repository",
     "ReviewRepository",
     "StorageError",

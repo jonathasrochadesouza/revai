@@ -18,15 +18,19 @@ from revai.domain.models import (
     EngineConfig,
     Finding,
     Project,
+    PromptOverride,
+    PromptScenario,
     ProviderCredential,
     RevaiConfig,
     Review,
 )
+from revai.domain.prompts import DEFAULT_SYSTEM_PROMPT, DEFAULT_USER_INSTRUCTIONS
 from revai.storage.base import StorageError
 from revai.storage.repositories import (
     ConfigRepository,
     CredentialsRepository,
     ProjectRepository,
+    PromptRepository,
     ReviewRepository,
 )
 
@@ -130,6 +134,81 @@ def test_credentials_live_outside_any_project(settings: Settings) -> None:
 
     assert repo.path.parent == settings.data_dir
     assert "projects" not in repo.path.parts
+
+
+# ---------------------------------------------------------------------------
+# Prompts
+# ---------------------------------------------------------------------------
+
+
+def test_prompts_defaults_to_builtins_when_no_file_exists(settings: Settings) -> None:
+    repo = PromptRepository(settings)
+
+    document = repo.load()
+
+    assert repo.exists() is False
+    assert document.overrides == {}
+    assert document.scenarios == []
+    effective = repo.effective("pt-BR")
+    assert effective.system_prompt == DEFAULT_SYSTEM_PROMPT["pt-BR"]
+    assert effective.user_prompt == DEFAULT_USER_INSTRUCTIONS["pt-BR"]
+
+
+def test_prompts_round_trip_overrides_and_scenarios(settings: Settings) -> None:
+    repo = PromptRepository(settings)
+    document = repo.load()
+    document.overrides["en-US"] = PromptOverride(
+        system_prompt="Custom system prompt.",
+        user_prompt="Custom instructions.",
+    )
+    document.scenarios.append(
+        PromptScenario(name="Backend - Java", system_prompt="Java.", user_prompt="JVM rules.")
+    )
+    repo.save(document)
+
+    reloaded = PromptRepository(settings).load()
+
+    assert reloaded.overrides["en-US"].user_prompt == "Custom instructions."
+    assert reloaded.scenarios[0].name == "Backend - Java"
+    assert reloaded.scenario(reloaded.scenarios[0].id) is not None
+
+
+def test_prompts_effective_prefers_the_override(settings: Settings) -> None:
+    repo = PromptRepository(settings)
+    document = repo.load()
+    document.overrides["pt-BR"] = PromptOverride(
+        system_prompt="Revisor personalizado.",
+        user_prompt="Instruções personalizadas.",
+    )
+    repo.save(document)
+
+    effective = repo.effective("pt-BR")
+
+    assert effective.system_prompt == "Revisor personalizado."
+
+
+def test_prompts_effective_falls_back_to_en_us(settings: Settings) -> None:
+    """An unknown locale must resolve to the English builtins, never raise."""
+    repo = PromptRepository(settings)
+
+    effective = repo.effective("fr-FR")
+
+    assert effective.system_prompt == DEFAULT_SYSTEM_PROMPT["en-US"]
+
+
+def test_prompts_scenario_removal(settings: Settings) -> None:
+    repo = PromptRepository(settings)
+    document = repo.load()
+    scenario = PromptScenario(name="Backend - Go", system_prompt="Go.", user_prompt="Race checks.")
+    document.scenarios.append(scenario)
+    repo.save(document)
+
+    reloaded = repo.load()
+    assert reloaded.remove_scenario("does-not-exist") is False
+    assert reloaded.remove_scenario(scenario.id) is True
+    repo.save(reloaded)
+
+    assert PromptRepository(settings).load().scenarios == []
 
 
 # ---------------------------------------------------------------------------

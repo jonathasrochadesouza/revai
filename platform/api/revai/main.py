@@ -18,6 +18,7 @@ from revai.api.routes import config as config_routes
 from revai.api.routes import exports as export_routes
 from revai.api.routes import health
 from revai.api.routes import projects as project_routes
+from revai.api.routes import prompts as prompt_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
 from revai.api.routes import sonarqube as sonarqube_routes
@@ -110,6 +111,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(config_routes.router, prefix="/api")
+    app.include_router(prompt_routes.router, prefix="/api")
     app.include_router(provider_routes.router, prefix="/api")
     app.include_router(project_routes.router, prefix="/api")
     app.include_router(review_routes.router, prefix="/api")
@@ -131,9 +133,7 @@ async def _handle_revai_error(_request: Request, exc: RevaiError) -> JSONRespons
     )
 
 
-async def _handle_validation_error(
-    _request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def _handle_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
     """Render every pydantic validation failure through the same contract.
 
     A `PydanticCustomError` raised inside a `@field_validator`/`@model_validator`

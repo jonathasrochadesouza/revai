@@ -13,6 +13,7 @@ export const enUS = {
   "common.data": "Data",
   "common.appearance": "Appearance",
   "common.engine": "Engine",
+  "common.prompts": "Prompts",
   "common.settings": "Settings",
   "common.menu": "Menu",
   "common.platform": "Platform",
@@ -102,6 +103,8 @@ export const enUS = {
   "review.head": "Head",
   "review.scope": "Scope",
   "review.reviewMode": "Review mode",
+  "review.scenario": "Prompt scenario",
+  "review.scenarioDefault": "Default prompts",
   "review.branchDiff": "Branch diff",
   "review.selectedFiles": "Selected files",
   "review.wholeProject": "Whole project",
@@ -274,6 +277,46 @@ export const enUS = {
   "settings.appearance.confirmExpensive": "Confirm expensive reviews",
   "settings.appearance.confirmExpensiveHint":
     "Show the estimate and ask before a review reaches your warning threshold.",
+
+  // --- prompts --------------------------------------------------------------
+  "settings.prompts.title": "Review prompts",
+  "settings.prompts.subtitle.before": "The two prompts sent to the AI model live in",
+  "settings.prompts.subtitle.after":
+    "and follow the interface language you are using right now:",
+  "settings.prompts.unavailable": "Prompt templates unavailable",
+  "settings.prompts.startBackendHint": "Start the local backend and try again.",
+  "prompts.defaults.title": "Default prompts",
+  "prompts.builtin": "built-in",
+  "prompts.customized": "customised",
+  "prompts.defaultsIntro":
+    "These two prompts are sent to the AI provider on every review. The text is always wrapped by a fixed safety boundary that marks repository content as untrusted data — it is not shown here and cannot be edited.",
+  "prompts.systemPrompt": "System prompt",
+  "prompts.systemPromptHint": "Who the reviewer is and what it must never do.",
+  "prompts.userPrompt": "User prompt",
+  "prompts.userPromptHint":
+    "Review instructions. The changed-code context is appended as JSON below this text automatically.",
+  "prompts.restoreBuiltin": "Restore built-in text",
+  "prompts.resetDefaults": "Restore both to built-in",
+  "prompts.unsavedDefaults": "Unsaved prompt changes",
+  "prompts.resetDialog.title": "Restore built-in prompts?",
+  "prompts.resetDialog.body":
+    "Both prompts for the current language go back to the text that ships with RevAI. Scenarios are not touched.",
+  "prompts.resetDialog.confirm": "Restore built-in",
+  "prompts.scenarios.title": "Scenarios",
+  "prompts.scenarios.count": "{count} scenario(s)",
+  "prompts.scenariosIntro":
+    "A scenario is an independent copy of the two prompts — e.g. “Backend - Java”. It starts from the current defaults, keeps its own text afterwards, and can be picked in the review panel.",
+  "prompts.scenarios.newName": "New scenario",
+  "prompts.scenarios.namePlaceholder": "e.g. Backend - Java",
+  "prompts.scenarios.create": "Create",
+  "prompts.scenarios.creating": "Creating…",
+  "prompts.scenarios.name": "Name",
+  "prompts.scenarios.delete": "Delete",
+  "prompts.deleteDialog.title": "Delete “{name}”?",
+  "prompts.deleteDialog.body": "The scenario and its prompt copy are removed permanently.",
+  "prompts.error.notFound": "This scenario no longer exists. Refresh the page.",
+  "prompts.error.duplicateName": "A scenario with this name already exists.",
+  "prompts.error.generic": "Could not save the prompt changes.",
 
   // --- save bar -------------------------------------------------------------
   "save.discard": "Discard",

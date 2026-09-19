@@ -66,6 +66,10 @@ class Settings(BaseSettings):
         return self.data_dir / "credentials.yaml"
 
     @property
+    def prompts_file(self) -> Path:
+        return self.data_dir / "prompts.yaml"
+
+    @property
     def projects_dir(self) -> Path:
         return self.data_dir / "projects"
 

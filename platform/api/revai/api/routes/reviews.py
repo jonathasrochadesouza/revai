@@ -14,12 +14,20 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
 from starlette.responses import StreamingResponse
 
-from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewLimiterDep, ReviewRepo
+from revai.api.deps import (
+    ConfigRepo,
+    CredentialsRepo,
+    ProjectRepo,
+    PromptRepo,
+    ReviewLimiterDep,
+    ReviewRepo,
+)
 from revai.domain.enums import FindingStatus, ReviewMode, ReviewScope, ReviewStatus
 from revai.domain.models import (
     AnalyzerRecord,
     FindingDecision,
     PipelineStageRecord,
+    PromptOverride,
     Review,
     ReviewStats,
 )
@@ -31,6 +39,7 @@ from revai.pipeline.safety import redact_secrets
 from revai.providers.base import UsageStats
 from revai.providers.registry import build_registry
 from revai.sonarqube.local import resolve_sonar_token
+from revai.storage.base import StorageError
 
 router = APIRouter(prefix="/projects/{project_id}/reviews", tags=["reviews"])
 
@@ -41,6 +50,9 @@ class DeterministicReviewRequest(BaseModel):
     mode: ReviewMode = ReviewMode.BOTH
     scope: ReviewScope = ReviewScope.BRANCH_DIFF
     selected_files: list[str] = Field(default_factory=list)
+    # None reviews with the default prompts; otherwise it must name an existing
+    # prompt scenario.
+    scenario_id: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def validate_scope(self):
@@ -104,6 +116,37 @@ class FindingStatusRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=1_000)
 
 
+def _resolve_prompt_override(
+    config, prompt_repo: PromptRepo, scenario_id: str | None
+) -> tuple[PromptOverride, str | None]:
+    """Resolve the prompt pair a review runs with, and the scenario behind it.
+
+    A scenario carries its own prompt snapshot; without one the effective
+    defaults of the configured UI locale apply (custom override or built-in).
+    Resolving here — before the job is queued — makes an unknown scenario an
+    immediate HTTP 404 instead of a mid-stream failure.
+    """
+    try:
+        if scenario_id:
+            settings = prompt_repo.load()
+            scenario = settings.scenario(scenario_id)
+            if scenario is None:
+                raise RevaiError(
+                    status.HTTP_404_NOT_FOUND,
+                    "prompt_scenario.not_found",
+                    {"scenario_id": scenario_id},
+                )
+            override = PromptOverride(
+                system_prompt=scenario.system_prompt,
+                user_prompt=scenario.user_prompt,
+            )
+        else:
+            override = prompt_repo.effective(config.ui.locale)
+    except StorageError as exc:
+        raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.error_key, exc.params) from exc
+    return override, scenario_id
+
+
 @router.post(
     "/deterministic",
     response_model=DeterministicReviewResponse,
@@ -156,6 +199,7 @@ async def create_ai_review(
     config_repo: ConfigRepo,
     credentials_repo: CredentialsRepo,
     project_repo: ProjectRepo,
+    prompt_repo: PromptRepo,
     review_repo: ReviewRepo,
     limiter: ReviewLimiterDep,
 ) -> StreamingResponse:
@@ -166,6 +210,9 @@ async def create_ai_review(
         raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "review.static_only_endpoint")
 
     config = config_repo.load()
+    prompt_override, scenario_id = _resolve_prompt_override(
+        config, prompt_repo, payload.scenario_id
+    )
     provider = build_registry(config, credentials_repo.load()).active()
     health = None
     if payload.mode is not ReviewMode.STATIC:
@@ -196,6 +243,7 @@ async def create_ai_review(
         provider_id=config.engine.provider_id,
         model=config.engine.model,
         provider_version=health.version if health else None,
+        scenario_id=scenario_id,
         selected_files=payload.selected_files,
     )
     # Persist before work starts. A browser can close while this job is waiting
@@ -275,6 +323,7 @@ async def create_ai_review(
                     provider,
                     config,
                     result.chunks,
+                    prompt_override=prompt_override,
                     on_event=emit,
                 )
                 ai_findings = ai_result.findings
@@ -515,6 +564,7 @@ async def retry_review(
             mode=previous.mode,
             scope=previous.scope,
             selected_files=previous.selected_files,
+            scenario_id=previous.scenario_id,
         ),
         http_request,
         config_repo,

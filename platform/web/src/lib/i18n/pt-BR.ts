@@ -15,6 +15,7 @@ export const ptBR: Record<MessageKey, string> = {
   "common.data": "Dados",
   "common.appearance": "Aparência",
   "common.engine": "Engine",
+  "common.prompts": "Prompts",
   "common.settings": "Configurações",
   "common.menu": "Menu",
   "common.platform": "Plataforma",
@@ -104,6 +105,8 @@ export const ptBR: Record<MessageKey, string> = {
   "review.head": "Head",
   "review.scope": "Escopo",
   "review.reviewMode": "Modo de revisão",
+  "review.scenario": "Cenário de prompt",
+  "review.scenarioDefault": "Prompts padrão",
   "review.branchDiff": "Diff entre branches",
   "review.selectedFiles": "Arquivos selecionados",
   "review.wholeProject": "Projeto inteiro",
@@ -279,6 +282,46 @@ export const ptBR: Record<MessageKey, string> = {
   "settings.appearance.confirmExpensiveHint":
     "Mostra a estimativa e pede confirmação antes que a revisão ultrapasse o seu limite de aviso.",
 
+  // --- prompts --------------------------------------------------------------
+  "settings.prompts.title": "Prompts de revisão",
+  "settings.prompts.subtitle.before": "Os dois prompts enviados ao modelo de IA ficam em",
+  "settings.prompts.subtitle.after":
+    "e seguem o idioma da interface que você está usando agora:",
+  "settings.prompts.unavailable": "Templates de prompt indisponíveis",
+  "settings.prompts.startBackendHint": "Inicie o backend local e tente novamente.",
+  "prompts.defaults.title": "Prompts padrão",
+  "prompts.builtin": "padrão do produto",
+  "prompts.customized": "personalizado",
+  "prompts.defaultsIntro":
+    "Esses dois prompts são enviados ao provedor de IA em toda revisão. O texto é sempre envolvido por uma proteção fixa que marca o conteúdo do repositório como dados não confiáveis — ela não aparece aqui e não pode ser editada.",
+  "prompts.systemPrompt": "Prompt de sistema",
+  "prompts.systemPromptHint": "Quem é o revisor e o que ele nunca deve fazer.",
+  "prompts.userPrompt": "Prompt do usuário",
+  "prompts.userPromptHint":
+    "Instruções de revisão. O contexto de código alterado é anexado como JSON abaixo deste texto automaticamente.",
+  "prompts.restoreBuiltin": "Restaurar texto padrão",
+  "prompts.resetDefaults": "Restaurar ambos ao padrão",
+  "prompts.unsavedDefaults": "Alterações de prompt não salvas",
+  "prompts.resetDialog.title": "Restaurar os prompts padrão?",
+  "prompts.resetDialog.body":
+    "Os dois prompts do idioma atual voltam ao texto que acompanha o RevAI. Os cenários não são alterados.",
+  "prompts.resetDialog.confirm": "Restaurar padrão",
+  "prompts.scenarios.title": "Cenários",
+  "prompts.scenarios.count": "{count} cenário(s)",
+  "prompts.scenariosIntro":
+    "Um cenário é uma cópia independente dos dois prompts — ex.: “Backend - Java”. Ele nasce dos padrões atuais, mantém o próprio texto depois e pode ser escolhido no painel de revisão.",
+  "prompts.scenarios.newName": "Novo cenário",
+  "prompts.scenarios.namePlaceholder": "ex.: Backend - Java",
+  "prompts.scenarios.create": "Criar",
+  "prompts.scenarios.creating": "Criando…",
+  "prompts.scenarios.name": "Nome",
+  "prompts.scenarios.delete": "Excluir",
+  "prompts.deleteDialog.title": "Excluir “{name}”?",
+  "prompts.deleteDialog.body": "O cenário e a cópia dos prompts são removidos permanentemente.",
+  "prompts.error.notFound": "Este cenário não existe mais. Atualize a página.",
+  "prompts.error.duplicateName": "Já existe um cenário com esse nome.",
+  "prompts.error.generic": "Não foi possível salvar as alterações de prompt.",
+
   // --- save bar -------------------------------------------------------------
   "save.discard": "Descartar",
   "save.saving": "Salvando…",
@@ -432,7 +475,7 @@ export const ptBR: Record<MessageKey, string> = {
   "engine.sonar.action.start": "Iniciar SonarQube local",
   "engine.sonar.action.stop": "Parar container",
   "engine.sonar.docker": "Docker",
-  "engine.sonar.container": "Container",
+  "engine.sonar.container": "Contêiner",
   "engine.sonar.server": "Servidor",
   "engine.sonar.token": "Token provisionado",
   "engine.sonar.forgetToken": "Esquecer token",

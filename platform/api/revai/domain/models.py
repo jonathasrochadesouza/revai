@@ -31,6 +31,7 @@ from revai.domain.enums import (
     ReviewStatus,
     Severity,
 )
+from revai.domain.prompts import PromptLocale
 
 
 def _now() -> datetime:
@@ -249,6 +250,9 @@ class Review(_Document):
     provider_version: str | None = None
     config_hash: str | None = None
     prompt_hash: str | None = None
+    # Prompt scenario chosen for this run (None = the default prompts). Stored
+    # so retry re-runs with the same prompt pair the user selected.
+    scenario_id: str | None = None
 
     findings: list[Finding] = Field(default_factory=list)
     stats: ReviewStats = Field(default_factory=ReviewStats)
@@ -569,3 +573,60 @@ class Credentials(_Document):
     @property
     def configured(self) -> list[ProviderId]:
         return sorted(self.providers, key=lambda p: p.value)
+
+
+# ===========================================================================
+# Prompt templates — separate file, follows the selected interface language
+# ===========================================================================
+
+
+class PromptOverride(_Base):
+    """A customised default prompt pair for one interface locale.
+
+    ``user_prompt`` holds only the editable review instructions. The
+    anti-injection guard and the JSON payload sentinel are fixed server-side
+    scaffolding (see ``revai.domain.prompts``), so no edit — however careless —
+    can remove the untrusted-data boundary from a model request.
+    """
+
+    system_prompt: str = Field(min_length=1, max_length=20_000)
+    user_prompt: str = Field(min_length=1, max_length=20_000)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PromptScenario(_Document):
+    """A named prompt pair — e.g. "Backend - Java" — chosen per review.
+
+    The prompts are an independent snapshot, copied from the effective defaults
+    of the interface language at creation time: later edits to the defaults
+    never silently rewrite a scenario the user curated on purpose.
+    """
+
+    id: str = Field(default_factory=_new_id)
+    name: str = Field(min_length=1, max_length=120)
+    system_prompt: str = Field(min_length=1, max_length=20_000)
+    user_prompt: str = Field(min_length=1, max_length=20_000)
+
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PromptSettings(_Document):
+    """``~/.revai/prompts.yaml``.
+
+    Every field has a default, so a missing file means "built-in prompts, no
+    scenarios" rather than a startup failure. Overrides are keyed by locale so
+    each language keeps its own customisation — the two defaults are code
+    constants and are therefore never deletable entities.
+    """
+
+    overrides: dict[PromptLocale, PromptOverride] = Field(default_factory=dict)
+    scenarios: list[PromptScenario] = Field(default_factory=list)
+
+    def scenario(self, scenario_id: str) -> PromptScenario | None:
+        return next((item for item in self.scenarios if item.id == scenario_id), None)
+
+    def remove_scenario(self, scenario_id: str) -> bool:
+        before = len(self.scenarios)
+        self.scenarios = [item for item in self.scenarios if item.id != scenario_id]
+        return len(self.scenarios) < before

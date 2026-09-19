@@ -5,6 +5,7 @@ Layout on disk:
     ~/.revai/
     ├── config.yaml                  RevaiConfig      (single document)
     ├── credentials.yaml             Credentials      (single document, chmod 600)
+    ├── prompts.yaml                 PromptSettings   (single document)
     ├── projects/<id>.yaml           Project          (collection)
     └── reviews/<project_id>/<id>.yaml   Review       (collection, partitioned)
 
@@ -22,7 +23,15 @@ import sys
 from pathlib import Path
 
 from revai.config import Settings
-from revai.domain.models import Credentials, Project, RevaiConfig, Review
+from revai.domain.models import (
+    Credentials,
+    Project,
+    PromptOverride,
+    PromptSettings,
+    RevaiConfig,
+    Review,
+)
+from revai.domain.prompts import builtin_prompts, normalise_locale
 from revai.storage.base import StorageError
 from revai.storage.yaml_store import YamlStore
 
@@ -85,6 +94,40 @@ class CredentialsRepository:
         saved = self._store.write(self._path, document)
         _restrict_permissions(self._path)
         return saved
+
+    def exists(self) -> bool:
+        return self._path.is_file()
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+class PromptRepository:
+    """``prompts.yaml``. A missing file means built-in prompts, no scenarios."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._path = settings.prompts_file
+        self._store: YamlStore[PromptSettings] = YamlStore(PromptSettings)
+
+    def load(self) -> PromptSettings:
+        return self._store.read(self._path) or PromptSettings()
+
+    def save(self, document: PromptSettings) -> PromptSettings:
+        return self._store.write(self._path, document)
+
+    def effective(self, locale: object) -> PromptOverride:
+        """The default prompt pair for a locale: custom override or built-in.
+
+        This is the language rule in one place — a customised locale uses its
+        own texts, anything else resolves to the built-in translation for that
+        locale, and an unknown locale falls back to en-US.
+        """
+        system_prompt, user_prompt = builtin_prompts(locale)
+        override = self.load().overrides.get(normalise_locale(locale))
+        if override is not None:
+            system_prompt, user_prompt = override.system_prompt, override.user_prompt
+        return PromptOverride(system_prompt=system_prompt, user_prompt=user_prompt)
 
     def exists(self) -> bool:
         return self._path.is_file()

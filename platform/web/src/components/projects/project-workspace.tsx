@@ -57,6 +57,7 @@ import {
   type Finding,
   type Project,
   type ProjectTree,
+  type PromptScenario,
   type ProviderHealth,
   type Review,
   type ReviewMode,
@@ -694,6 +695,8 @@ export function RepositoryInspector({
   const [confirming, setConfirming] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("both");
   const [reviewScope, setReviewScope] = useState<ReviewScope>("branch_diff");
+  const [scenarios, setScenarios] = useState<PromptScenario[]>([]);
+  const [scenarioId, setScenarioId] = useState<string>("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [fileUniverse, setFileUniverse] = useState<FileUniverse>("changed");
   const [fileLayout, setFileLayout] = useState<FileLayout>("flat");
@@ -713,6 +716,23 @@ export function RepositoryInspector({
 
   useEffect(() => {
     return () => reviewAbort.current?.abort();
+  }, []);
+
+  // Prompt scenarios are global, so one cheap fetch per mount is enough. A
+  // failure is silent by design: reviewing with the default prompts still works.
+  useEffect(() => {
+    let active = true;
+    api
+      .getPrompts()
+      .then((response) => {
+        if (active) setScenarios(response.scenarios);
+      })
+      .catch(() => {
+        // Scenario picking is optional; never block the review panel on it.
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const fetchTree = useCallback(
@@ -916,6 +936,7 @@ export function RepositoryInspector({
         reviewScope,
         selectedFiles,
         {
+        scenarioId: scenarioId || undefined,
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === "review_queued") activeReviewId.current = event.review_id;
@@ -1087,6 +1108,24 @@ export function RepositoryInspector({
                 <option value="both">{t("review.both")}</option>
               </select>
             </label>
+            {reviewMode !== "static" && (
+              <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
+                {t("review.scenario")}
+                <select
+                  value={scenarioId}
+                  onChange={(event) => setScenarioId(event.target.value)}
+                  disabled={reviewing}
+                  className="h-9 max-w-[150px] rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none focus:border-ink disabled:opacity-50"
+                >
+                  <option value="">{t("review.scenarioDefault")}</option>
+                  {scenarios.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>
+                      {scenario.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button
               type="button"
               onClick={() => void load()}

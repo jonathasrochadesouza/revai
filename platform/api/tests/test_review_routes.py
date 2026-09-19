@@ -105,9 +105,9 @@ def test_deterministic_review_finds_changed_lines_without_tokens(
             "status": "completed",
             "findings": 1,
             "duration_ms": payload["analyzers"][0]["duration_ms"],
-                "detail": None,
-                "files_analyzed": ["app.py"],
-                "metadata": {},
+            "detail": None,
+            "files_analyzed": ["app.py"],
+            "metadata": {},
         }
     ]
     assert payload["chunks"][0]["estimated_tokens"] > 0
@@ -353,3 +353,96 @@ def test_ai_review_streams_progress_and_persists_combined_findings(
     assert {item["source"] for item in review["findings"]} == {"ruff", "ai"}
     stored = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
     assert stored[0]["id"] == review["id"]
+
+
+class _RecordingRegistry:
+    """Captures the AnalysisRequest so tests can assert prompt resolution."""
+
+    def __init__(self, captured: list) -> None:
+        self._captured = captured
+
+    def active(self):
+        return _RecordingProvider(self._captured)
+
+
+class _RecordingProvider:
+    def __init__(self, captured: list) -> None:
+        self._captured = captured
+
+    async def health(self) -> ProviderHealth:
+        return ProviderHealth(
+            provider_id="openrouter",
+            kind="api",
+            state=HealthState.READY,
+        )
+
+    async def analyze(self, request):
+        self._captured.append(request)
+        yield StartedEvent(model="test/model")
+        yield FinishedEvent(text='{"findings":[]}', usage=UsageStats())
+
+
+def test_ai_review_runs_with_the_selected_prompt_scenario(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    _ruff_only(settings)
+    repository = _repository(tmp_path / "scenario-demo")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+    (repository / "app.py").write_text(
+        "import os\n\nanswer = 42\n",
+        encoding="utf-8",
+    )
+    scenario = client.post(
+        "/api/prompts/scenarios",
+        json={
+            "name": "Backend - Java",
+            "system_prompt": "Java reviewer.",
+            "user_prompt": "Nullability.",
+        },
+    ).json()
+    captured: list = []
+    monkeypatch.setattr(
+        "revai.api.routes.reviews.build_registry",
+        lambda _config, _credentials: _RecordingRegistry(captured),
+    )
+
+    with client.stream(
+        "POST",
+        f"/api/projects/{project['id']}/reviews/stream",
+        json={"base": "main", "head": "main", "scenario_id": scenario["id"]},
+    ) as response:
+        events = _stream_events(response)
+
+    assert response.status_code == 200
+    assert events[-1]["type"] == "completed"
+    assert len(captured) == 1
+    assert captured[0].system_prompt == "Java reviewer."
+    assert "Nullability." in captured[0].user_prompt
+    # The safety guard is never editable, so it must still wrap the payload.
+    assert "untrusted repository data" in captured[0].user_prompt
+    stored = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
+    assert stored[0]["scenario_id"] == scenario["id"]
+
+
+def test_ai_review_rejects_an_unknown_prompt_scenario(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+) -> None:
+    _ruff_only(settings)
+    repository = _repository(tmp_path / "scenario-missing")
+    project = client.post("/api/projects/open", json={"path": str(repository)}).json()
+
+    response = client.post(
+        f"/api/projects/{project['id']}/reviews/stream",
+        json={"base": "main", "head": "main", "scenario_id": "missing"},
+    )
+
+    assert response.status_code == 404
+    detail = response.json()["detail"]
+    assert detail["error_key"] == "prompt_scenario.not_found"
+    reviews = client.get(f"/api/projects/{project['id']}/reviews").json()["reviews"]
+    assert reviews == []

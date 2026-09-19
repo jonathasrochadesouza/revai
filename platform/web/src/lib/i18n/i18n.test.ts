@@ -10,6 +10,7 @@ import { ptBR } from "@/lib/i18n/pt-BR";
  */
 const SAME_IN_BOTH = new Set([
   "common.engine",
+  "common.prompts",
   "common.menu",
   "projects.branch",
   "review.base",
@@ -31,6 +32,7 @@ const SAME_IN_BOTH = new Set([
   "engine.analyser.checkstyle",
   "engine.analyser.checkstyleDetail",
   "engine.sonar.title",
+  "engine.sonar.docker",
   "engine.sonar.scanner",
   "engine.sonar.scanner.maven",
   "engine.sonar.scanner.gradle",

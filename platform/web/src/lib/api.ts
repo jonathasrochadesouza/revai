@@ -132,6 +132,39 @@ export interface CredentialsResponse {
   path: string;
 }
 
+// --- prompt templates (settings › prompts) ----------------------------------
+
+/** The two editable prompt texts. The anti-injection guard is server-side scaffolding, never part of these strings. */
+export interface PromptPair {
+  system_prompt: string;
+  user_prompt: string;
+}
+
+export interface PromptDefaults extends PromptPair {
+  locale: "en-US" | "pt-BR";
+  /** False while the pair still equals the code builtins for this locale. */
+  customized: boolean;
+  updated_at: string | null;
+}
+
+export interface PromptScenario {
+  schema_version: number;
+  id: string;
+  name: string;
+  system_prompt: string;
+  user_prompt: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptsResponse {
+  locale: "en-US" | "pt-BR";
+  builtin: PromptPair;
+  defaults: PromptDefaults;
+  scenarios: PromptScenario[];
+  path: string;
+}
+
 // --- provider detection (phase 2) ------------------------------------------
 
 export type ProviderKind = "api" | "cli";
@@ -301,6 +334,7 @@ export interface Review {
   provider_version: string | null;
   config_hash: string | null;
   prompt_hash: string | null;
+  scenario_id: string | null;
   findings: Finding[];
   stats: ReviewStats;
   stages: PipelineStage[];
@@ -365,6 +399,8 @@ export type ReviewStreamEvent =
 
 export interface StreamReviewOptions {
   signal?: AbortSignal;
+  /** Prompt scenario id; omitted runs the configured default prompts. */
+  scenarioId?: string;
   onEvent?: (event: ReviewStreamEvent) => void;
 }
 
@@ -379,7 +415,14 @@ async function streamReview(
 ): Promise<DeterministicReview> {
   const path = `/api/projects/${projectId}/reviews/stream`;
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...json("POST", { base, head, mode, scope, selected_files: selectedFiles }),
+    ...json("POST", {
+      base,
+      head,
+      mode,
+      scope,
+      selected_files: selectedFiles,
+      scenario_id: options.scenarioId || null,
+    }),
     cache: "no-store",
     headers: { Accept: "text/event-stream", "Content-Type": "application/json" },
     signal: options.signal,
@@ -643,6 +686,15 @@ async function describeFailure(
     if (typeof body.detail === "string") {
       return body.detail;
     }
+    if (
+      body.detail &&
+      typeof body.detail === "object" &&
+      "error_key" in (body.detail as Record<string, unknown>)
+    ) {
+      // The structured error contract: { error_key, params }. Surfacing the key
+      // lets screens map it through the translation catalog.
+      return String((body.detail as { error_key: unknown }).error_key);
+    }
     if (Array.isArray(body.detail)) {
       // Pydantic validation errors: [{ loc: [...], msg: "..." }, ...]
       return body.detail
@@ -681,6 +733,26 @@ export const api = {
   }) => request<CredentialsResponse>("/api/credentials", json("PUT", input)),
   deleteCredential: (providerId: ProviderId) =>
     request<void>(`/api/credentials/${providerId}`, { method: "DELETE" }),
+
+  /** Prompt templates follow the UI locale; pass `locale` to pin one. */
+  getPrompts: (locale?: "en-US" | "pt-BR") =>
+    request<PromptsResponse>(`/api/prompts${locale ? `?locale=${locale}` : ""}`),
+  savePromptDefaults: (input: { locale: "en-US" | "pt-BR" } & PromptPair) =>
+    request<PromptDefaults>("/api/prompts/defaults", json("PUT", input)),
+  resetPromptDefaults: (locale: "en-US" | "pt-BR") =>
+    request<PromptDefaults>("/api/prompts/defaults/reset", json("POST", { locale })),
+  createPromptScenario: (input: {
+    name: string;
+    system_prompt?: string;
+    user_prompt?: string;
+    locale?: "en-US" | "pt-BR";
+  }) => request<PromptScenario>("/api/prompts/scenarios", json("POST", input)),
+  updatePromptScenario: (
+    scenarioId: string,
+    input: { name: string } & PromptPair,
+  ) => request<PromptScenario>(`/api/prompts/scenarios/${scenarioId}`, json("PUT", input)),
+  deletePromptScenario: (scenarioId: string) =>
+    request<void>(`/api/prompts/scenarios/${scenarioId}`, { method: "DELETE" }),
 
   /** Pass `kind` to list only CLI agents or only hosted APIs. */
   getProviders: (kind?: ProviderKind) =>
