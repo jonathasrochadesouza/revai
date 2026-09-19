@@ -158,6 +158,36 @@ def test_default_budget_is_bounded(client: TestClient) -> None:
     assert budget["max_context_tokens"] is not None
 
 
+def test_auto_save_is_undecided_by_default(client: TestClient) -> None:
+    """`null` is what makes the web UI keep offering auto-save until answered."""
+    config = client.get("/api/config").json()["config"]
+
+    assert config["ui"]["auto_save"] is None
+
+
+def test_auto_save_accepts_all_three_states(client: TestClient) -> None:
+    """Undecided, enabled and dismissed are all first-class values."""
+    payload = client.get("/api/config").json()["config"]
+
+    for value in (True, False, None):
+        payload["ui"]["auto_save"] = value
+        response = client.put("/api/config", json=payload)
+
+        assert response.status_code == 200
+        assert response.json()["config"]["ui"]["auto_save"] is value
+
+
+def test_auto_save_decision_survives_a_reload(client: TestClient) -> None:
+    """"Don't ask again" must hold across sessions, not just the current page."""
+    payload = client.get("/api/config").json()["config"]
+    payload["ui"]["auto_save"] = False
+    client.put("/api/config", json=payload)
+
+    reread = client.get("/api/config").json()
+
+    assert reread["config"]["ui"]["auto_save"] is False
+
+
 # ---------------------------------------------------------------------------
 # Legacy migration
 # ---------------------------------------------------------------------------

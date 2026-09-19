@@ -466,6 +466,12 @@ class UiConfig(_Base):
     theme: Literal["light", "dark", "system"] = "system"
     confirm_expensive_reviews: bool = True
 
+    # Three states on purpose. ``None`` means the user has not answered the
+    # auto-save offer yet, so the web UI keeps asking while changes are pending.
+    # ``True`` enables automatic saves; ``False`` is both "off" and "stop asking",
+    # which keeps the answer re-visitable in Settings without a second field.
+    auto_save: bool | None = None
+
     @field_validator("locale", mode="before")
     @classmethod
     def _migrate_legacy_locale(cls, value: object) -> object:

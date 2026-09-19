@@ -7,6 +7,8 @@
 
 import Link from "next/link";
 
+import { useUiText } from "@/components/ui-preference-bootstrap";
+
 export function Logo({ size = 26 }: { size?: number }) {
   return (
     <span
@@ -36,10 +38,11 @@ export function Logo({ size = 26 }: { size?: number }) {
  * new tab, and a visible focus ring all come for free.
  */
 export function Wordmark({ href = "/" }: { href?: string }) {
+  const { t } = useUiText();
   return (
     <Link
       href={href}
-      aria-label="RevAI — go to the dashboard"
+      aria-label={t("logo.aria")}
       className="flex shrink-0 items-center gap-2.5 rounded-control px-1 py-0.5 -mx-1 transition-colors hover:bg-canvas"
     >
       <Logo />

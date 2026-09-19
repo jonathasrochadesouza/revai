@@ -13,6 +13,7 @@ import {
 import { useDeferredValue, useId, useMemo, useState } from "react";
 
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import type { TranslateParams } from "@/lib/i18n";
 
 export type FileUniverse = "changed" | "all";
 export type FileLayout = "flat" | "tree";
@@ -145,7 +146,7 @@ function FileRow({
   selected: boolean;
   tracked: boolean;
   onSelectionChange: (path: string, checked: boolean) => void;
-  translate: (value: string) => string;
+  translate: (key: string, params?: TranslateParams) => string;
 }) {
   const reasonId = useId();
   const unavailable = selectableMode && !tracked;
@@ -173,10 +174,10 @@ function FileRow({
       {unavailable ? (
         <>
           <span className="shrink-0 text-[8.5px] font-semibold uppercase tracking-wide text-medium">
-            {translate("Not at Head")}
+            {translate("files.notAtHead")}
           </span>
           <span id={reasonId} className="sr-only">
-            {translate("This path is not tracked at Head. Use Branch diff to review it.")}
+            {translate("files.notAtHeadReason")}
           </span>
         </>
       ) : null}
@@ -205,7 +206,7 @@ function TreeRows({
   selectableMode: boolean;
   onToggle: (path: string) => void;
   onSelectionChange: (path: string, checked: boolean) => void;
-  translate: (value: string) => string;
+  translate: (key: string, params?: TranslateParams) => string;
 }) {
   return nodes.map((node) => {
     if (node.kind === "file") {
@@ -334,19 +335,19 @@ export function ReviewFileBrowser({
       <div className="flex min-h-11 items-center justify-between border-b border-line bg-sunken px-4 py-2">
         <h3 className="flex items-center gap-2 text-[11.5px] font-semibold">
           <Files className="size-3.5 text-ink-subtle" aria-hidden="true" />
-          {t("Tracked files")}
+          {t("files.trackedFiles")}
         </h3>
         <span className="numeric text-[10.5px] text-ink-subtle" aria-live="polite">
           {visibleFiles.length}/{sourceFiles.length}
-          {selectableMode ? ` · ${selectedFiles.length} ${t("selected")}` : ""}
+          {selectableMode ? ` · ${selectedFiles.length} ${t("files.selected")}` : ""}
         </span>
       </div>
 
       <div className="space-y-2 border-b border-line p-3">
         <div className="grid grid-cols-2 rounded-control border border-line bg-sunken p-0.5">
           {([
-            ["changed", "Changed", normalizedChanged.length],
-            ["all", "All", normalizedTracked.length],
+            ["changed", "files.changed", normalizedChanged.length],
+            ["all", "files.all", normalizedTracked.length],
           ] as const).map(([value, label, count]) => (
             <button
               key={value}
@@ -373,15 +374,15 @@ export function ReviewFileBrowser({
             type="search"
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder={t("Search files")}
-            aria-label={t("Search files")}
+            placeholder={t("files.searchFiles")}
+            aria-label={t("files.searchFiles")}
             className="h-8 w-full rounded-control border border-line-strong bg-paper pl-8 pr-8 font-mono text-[10.5px] text-ink outline-none placeholder:text-ink-subtle focus:border-ink"
           />
           {query ? (
             <button
               type="button"
               onClick={() => onQueryChange("")}
-              aria-label={t("Clear file search")}
+              aria-label={t("files.clearSearch")}
               className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-chip p-1 text-ink-subtle hover:bg-canvas hover:text-ink"
             >
               <X className="size-3" aria-hidden="true" />
@@ -394,7 +395,7 @@ export function ReviewFileBrowser({
             <button
               type="button"
               aria-pressed={layout === "flat"}
-              aria-label={t("Show flat list")}
+              aria-label={t("files.showFlatList")}
               onClick={() => onLayoutChange("flat")}
               className={`rounded-chip p-1.5 ${layout === "flat" ? "bg-paper text-ink shadow-sm" : "text-ink-subtle hover:text-ink"}`}
             >
@@ -403,7 +404,7 @@ export function ReviewFileBrowser({
             <button
               type="button"
               aria-pressed={layout === "tree"}
-              aria-label={t("Show folder tree")}
+              aria-label={t("files.showFolderTree")}
               onClick={() => onLayoutChange("tree")}
               className={`rounded-chip p-1.5 ${layout === "tree" ? "bg-paper text-ink shadow-sm" : "text-ink-subtle hover:text-ink"}`}
             >
@@ -416,7 +417,7 @@ export function ReviewFileBrowser({
                 type="button"
                 disabled={!folders.length || Boolean(normalizedQuery)}
                 onClick={() => setCollapsed(new Set())}
-                aria-label={t("Expand all folders")}
+                aria-label={t("files.expandAllFolders")}
                 className="rounded-chip p-1.5 text-ink-subtle hover:bg-canvas hover:text-ink disabled:opacity-35"
               >
                 <ChevronDown className="size-3.5" aria-hidden="true" />
@@ -425,14 +426,14 @@ export function ReviewFileBrowser({
                 type="button"
                 disabled={!folders.length || Boolean(normalizedQuery)}
                 onClick={() => setCollapsed(new Set(folders))}
-                aria-label={t("Collapse all folders")}
+                aria-label={t("files.collapseAllFolders")}
                 className="rounded-chip p-1.5 text-ink-subtle hover:bg-canvas hover:text-ink disabled:opacity-35"
               >
                 <ChevronUp className="size-3.5" aria-hidden="true" />
               </button>
             </div>
           ) : (
-            <span className="text-[9.5px] text-ink-subtle">{t("Flat list")}</span>
+            <span className="text-[9.5px] text-ink-subtle">{t("files.flatList")}</span>
           )}
         </div>
       </div>
@@ -475,10 +476,10 @@ export function ReviewFileBrowser({
         ) : (
           <p role="status" className="px-2 py-6 text-center text-[11px] text-ink-subtle">
             {normalizedQuery
-              ? t("No files match your search.")
+              ? t("files.noFilesMatch")
               : universe === "changed"
-                ? t("No changed files.")
-                : t("No tracked files.")}
+                ? t("files.noChangedFiles")
+                : t("files.noTrackedFiles")}
           </p>
         )}
       </div>

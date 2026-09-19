@@ -20,7 +20,7 @@ function ReviewBranches({
   return (
     <>
       <BranchSelect
-        label="Base"
+        label="review.base"
         value={base}
         branches={branches}
         onChange={(branch) => {
@@ -29,7 +29,7 @@ function ReviewBranches({
         }}
       />
       <BranchSelect
-        label="Head"
+        label="review.head"
         value={head}
         branches={branches}
         onChange={(branch) => {

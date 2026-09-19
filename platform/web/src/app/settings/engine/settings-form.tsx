@@ -14,6 +14,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ModeSelector } from "@/components/mode-selector";
 import { ProviderPanel } from "@/components/provider-panel";
 import { SaveBar } from "@/components/save-bar";
+import { useUiText } from "@/components/ui-preference-bootstrap";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardRow } from "@/components/ui/card";
 import { Field, Select, TextInput } from "@/components/ui/field";
@@ -37,41 +38,65 @@ import {
   labelForProvider,
   providersForMode,
 } from "@/lib/models";
+import { useAutoSave } from "@/lib/use-auto-save";
 
 /** Restored when a limit is switched from unlimited back to bounded. */
 const DEFAULT_SPEND = 0.5;
 const DEFAULT_CONTEXT = 60_000;
 
 /** Deterministic analysers, with the tool each one shells out to. */
-const ANALYSERS: { key: keyof AnalyzerConfig; label: string; detail: string }[] = [
-  { key: "security", label: "Built-in security", detail: "dangerous execution APIs" },
-  { key: "semgrep", label: "Semgrep", detail: "security patterns" },
-  { key: "ruff", label: "Ruff", detail: "python" },
-  { key: "eslint", label: "ESLint", detail: "javascript / typescript" },
-  { key: "gitleaks", label: "Gitleaks", detail: "leaked secrets" },
-  { key: "treesitter", label: "tree-sitter", detail: "AST, built in" },
-  { key: "checkstyle", label: "Checkstyle", detail: "java" },
-  { key: "project_tests", label: "Project tests", detail: "configured per project" },
-  { key: "project_build", label: "Project build", detail: "configured per project" },
+const ANALYSERS: { key: keyof AnalyzerConfig; labelKey: string; detailKey: string }[] = [
+  { key: "security", labelKey: "engine.analyser.builtinSecurity", detailKey: "engine.analyser.builtinSecurityDetail" },
+  { key: "semgrep", labelKey: "engine.analyser.semgrep", detailKey: "engine.analyser.semgrepDetail" },
+  { key: "ruff", labelKey: "engine.analyser.ruff", detailKey: "engine.analyser.ruffDetail" },
+  { key: "eslint", labelKey: "engine.analyser.eslint", detailKey: "engine.analyser.eslintDetail" },
+  { key: "gitleaks", labelKey: "engine.analyser.gitleaks", detailKey: "engine.analyser.gitleaksDetail" },
+  { key: "treesitter", labelKey: "engine.analyser.treesitter", detailKey: "engine.analyser.treesitterDetail" },
+  { key: "checkstyle", labelKey: "engine.analyser.checkstyle", detailKey: "engine.analyser.checkstyleDetail" },
+  { key: "project_tests", labelKey: "engine.analyser.projectTests", detailKey: "engine.analyser.projectTestsDetail" },
+  { key: "project_build", labelKey: "engine.analyser.projectBuild", detailKey: "engine.analyser.projectBuildDetail" },
 ];
 
-const BEHAVIOUR: { key: keyof AnalyzerConfig; label: string; hint: string }[] = [
+const BEHAVIOUR: { key: keyof AnalyzerConfig; labelKey: string; hintKey: string }[] = [
   {
     key: "skip_noise",
-    label: "Skip noise automatically",
-    hint: "Drops lockfiles, generated code, minified bundles, snapshots and binaries before anything else runs.",
+    labelKey: "engine.behaviour.skip_noise",
+    hintKey: "engine.behaviour.skip_noise_hint",
   },
   {
     key: "changed_lines_only",
-    label: "Only review changed lines",
-    hint: "Context lines are sent for understanding but never reported as findings.",
+    labelKey: "engine.behaviour.changed_lines_only",
+    hintKey: "engine.behaviour.changed_lines_only_hint",
   },
   {
     key: "dedupe_across_sources",
-    label: "Merge duplicate findings",
-    hint: "When a linter and the model report the same problem, keep the higher-confidence one and merge the explanation.",
+    labelKey: "engine.behaviour.dedupe_across_sources",
+    hintKey: "engine.behaviour.dedupe_across_sources_hint",
   },
 ];
+
+/** Map a model-catalogue note to its message key. Unknown notes pass through. */
+const MODEL_NOTE_KEYS: Record<string, string> = {
+  "strong on long diffs": "models.note.longDiffs",
+  "highest quality": "models.note.highestQuality",
+  "fast and cheap": "models.note.fastAndCheap",
+  "frontier coding": "models.note.frontierCoding",
+  balanced: "models.note.balanced",
+  "large context": "models.note.largeContext",
+  "very large context": "models.note.veryLargeContext",
+  fast: "models.note.fast",
+  "open weights": "models.note.openWeights",
+  "code specialist": "models.note.codeSpecialist",
+  "fast and capable": "models.note.fastAndCapable",
+  "lowest cost": "models.note.lowestCost",
+  fastest: "models.note.fastest",
+  cheapest: "models.note.cheapest",
+  "the CLI default": "models.note.cliDefault",
+  "let Copilot choose": "models.note.letCopilotChoose",
+  "fast and cost-efficient": "models.note.fastAndCostEfficient",
+  "stronger reasoning": "models.note.strongerReasoning",
+  Auto: "models.note.auto",
+};
 
 interface SettingsFormProps {
   initial: ConfigResponse;
@@ -84,6 +109,7 @@ export function SettingsForm({
   initialCredentials,
   credentialsPath,
 }: SettingsFormProps) {
+  const { t } = useUiText();
   const [saved, setSaved] = useState<RevaiConfig>(initial.config);
   const [draft, setDraft] = useState<RevaiConfig>(initial.config);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -110,11 +136,11 @@ export function SettingsForm({
     setStatus("idle");
   }, []);
 
-  async function save() {
+  async function saveDocument(document: RevaiConfig) {
     setStatus("saving");
     setError(null);
     try {
-      const response = await api.saveConfig(draft);
+      const response = await api.saveConfig(document);
       setSaved(response.config);
       setDraft(response.config);
       // Re-derive from what the server actually stored, so the select reflects
@@ -124,10 +150,27 @@ export function SettingsForm({
       );
       setStatus("saved");
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Could not save");
+      setError(cause instanceof ApiError ? cause.message : t("save.couldNotSave"));
       setStatus("error");
     }
   }
+
+  function save() {
+    void saveDocument(draft);
+  }
+
+  /**
+   * Answer the auto-save offer. The decision travels with the current draft, so
+   * answering also commits whatever the user had already changed — which is
+   * what "yes, save automatically" means anyway.
+   */
+  function decideAutoSave(value: boolean) {
+    const next = structuredClone(draft);
+    next.ui.auto_save = value;
+    void saveDocument(next);
+  }
+
+  useAutoSave(saved, dirty, status === "saving", save);
 
   function discard() {
     setDraft(saved);
@@ -152,7 +195,7 @@ export function SettingsForm({
       setApiKey(""); // never keep a secret in component state longer than needed
       setKeyStatus("idle");
     } catch (cause) {
-      setKeyError(cause instanceof ApiError ? cause.message : "Could not store the key");
+      setKeyError(cause instanceof ApiError ? cause.message : t("engine.couldNotStoreKey"));
       setKeyStatus("error");
     }
   }
@@ -162,7 +205,7 @@ export function SettingsForm({
       await api.deleteCredential(providerId);
       setCredentials((current) => current.filter((c) => c.provider_id !== providerId));
     } catch (cause) {
-      setKeyError(cause instanceof ApiError ? cause.message : "Could not remove the key");
+      setKeyError(cause instanceof ApiError ? cause.message : t("engine.couldNotRemoveKey"));
     }
   }
 
@@ -184,7 +227,7 @@ export function SettingsForm({
     <>
       {/* ---------------- engine ---------------- */}
       <Card className="mb-3.5">
-        <CardHeader title="Execution mode" icon={BOLT} />
+        <CardHeader title={t("engine.executionMode")} icon={BOLT} />
         <CardBody>
           <div className="mb-4">
             <ModeSelector
@@ -206,7 +249,7 @@ export function SettingsForm({
             />
           </div>
 
-          <Field label="Provider" htmlFor="provider">
+          <Field label={t("engine.provider")} htmlFor="provider">
             <Select
               id="provider"
               value={draft.engine.provider_id}
@@ -226,7 +269,7 @@ export function SettingsForm({
               {providers.map((provider) => (
                 <option key={provider.id} value={provider.id}>
                   {provider.label}
-                  {provider.adapterReady ? "" : " — adapter arrives later"}
+                  {provider.adapterReady ? "" : t("engine.adapterLater")}
                 </option>
               ))}
             </Select>
@@ -235,15 +278,15 @@ export function SettingsForm({
           {/* Model is a list, not free text: a typo in a model id only surfaces as
               a provider error mid-review, after tokens have been spent. */}
           <Field
-            label="Model"
+            label={t("engine.model")}
             htmlFor="model"
-            note={`${catalogue?.models.length ?? 0} offline suggestions`}
+            note={t("engine.offlineSuggestions", { count: catalogue?.models.length ?? 0 })}
             hint={
               isKiroCli
-                ? "RevAI passes this exact model to Kiro CLI 2.18+ and runs an isolated, read-only agent with MCP and tools disabled."
+                ? t("engine.modelHint.kiro")
                 : usingCustomModel
-                ? "Custom ids are passed through verbatim. Confirm the id in your provider dashboard before running a review."
-                : "These are offline suggestions. Provider model catalogs change frequently; use Custom when your provider lists a newer id."
+                ? t("engine.modelHint.custom")
+                : t("engine.modelHint.catalogue")
             }
           >
             <Select
@@ -265,18 +308,18 @@ export function SettingsForm({
               {catalogue?.models.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.label}
-                  {model.recommended ? " — recommended" : ""}
-                  {model.note && !model.recommended ? ` — ${model.note}` : ""}
+                  {model.recommended ? t("engine.recommended") : ""}
+                  {model.note && !model.recommended ? ` — ${t(MODEL_NOTE_KEYS[model.note] ?? model.note)}` : ""}
                 </option>
               ))}
               {catalogue?.allowsCustomModel && (
-                <option value={CUSTOM_MODEL}>Custom…</option>
+                <option value={CUSTOM_MODEL}>{t("engine.customModel")}</option>
               )}
             </Select>
 
             {usingCustomModel && (
               <TextInput
-                aria-label="Custom model id"
+                aria-label={t("engine.customModelAria")}
                 className="mt-2.5"
                 placeholder="provider/model-id"
                 value={draft.engine.model}
@@ -292,10 +335,10 @@ export function SettingsForm({
 
           {isApiMode && (
             <Field
-              label="Base URL"
+              label={t("engine.baseUrl")}
               htmlFor="base-url"
-              note="optional"
-              hint="Override the selected provider endpoint for a proxy or self-hosted service."
+              note={t("engine.optional")}
+              hint={t("engine.baseUrlHint")}
             >
               <TextInput
                 id="base-url"
@@ -317,21 +360,20 @@ export function SettingsForm({
       {isApiMode && (requiresApiKey || credentials.length > 0) && (
         <Card className="mb-3.5">
           <CardHeader
-            title={requiresApiKey ? "API key" : "Stored API keys"}
+            title={requiresApiKey ? t("engine.apiKey") : t("engine.storedApiKeys")}
             icon={LOCK}
             aside={credentialsPath.split(/[\\/]/).pop()}
           />
           <CardBody>
             {requiresApiKey && (
               <Field
-                label={`Key for ${labelForProvider(draft.engine.provider_id)}`}
+                label={t("engine.keyFor", { provider: labelForProvider(draft.engine.provider_id) })}
                 htmlFor="api-key"
-                note="stored with chmod 600"
+                note={t("engine.keyStoredNote")}
                 hint={
                   <>
-                    Written to <code className="text-[11px]">{credentialsPath}</code>,
-                    never inside a project folder and never in git. The key is never
-                    returned by the API once stored.
+                    {t("engine.keyHint.before")} <code className="text-[11px]">{credentialsPath}</code>
+                    {t("engine.keyHint.after")}
                   </>
                 }
               >
@@ -348,7 +390,7 @@ export function SettingsForm({
                     onClick={storeKey}
                     disabled={!apiKey.trim() || keyStatus === "saving"}
                   >
-                    {keyStatus === "saving" ? "Storing…" : "Store"}
+                    {keyStatus === "saving" ? t("engine.storing") : t("engine.store")}
                   </Button>
                 </div>
               </Field>
@@ -362,7 +404,7 @@ export function SettingsForm({
 
             {credentials.length > 0 && (
               <div className="mt-4 border-t border-line pt-3.5">
-                <p className="eyebrow mb-2.5">Stored keys</p>
+                <p className="eyebrow mb-2.5">{t("engine.storedKeys")}</p>
                 {credentials.map((credential) => (
                   <div
                     key={credential.provider_id}
@@ -379,7 +421,7 @@ export function SettingsForm({
                       className="ml-auto px-3 py-1.5 text-[12px]"
                       onClick={() => removeKey(credential.provider_id)}
                     >
-                      Remove
+                      {t("engine.remove")}
                     </Button>
                   </div>
                 ))}
@@ -390,19 +432,23 @@ export function SettingsForm({
       )}
 
       {/* ---------------- detection ----------------
-          Placed after credentials because storing a key changes what this panel
-          reports, so reading downwards matches the order things are done in. */}
-      <ProviderPanel activeProviderId={draft.engine.provider_id} />
+          Only for the CLI mode. In API mode the cards above already name the
+          provider, ask for its key and offer a base URL, so a status panel of
+          every provider on the machine reads as noise; CLI mode is where the
+          user actually picks between installed agents. */}
+      {draft.engine.mode === "cli" && (
+        <ProviderPanel activeProviderId={draft.engine.provider_id} />
+      )}
 
       {/* ---------------- budget ---------------- */}
       <Card className="mb-3.5">
-        <CardHeader title="Budget & limits" icon={COIN} aside="hard stops" />
+        <CardHeader title={t("engine.budgetCard")} icon={COIN} aside={t("engine.budgetHardStops")} />
         <CardBody>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field
-              label="Max spend per review"
+              label={t("engine.maxSpend")}
               htmlFor="max-spend"
-              note={spendUnlimited ? "no limit" : "aborts when exceeded"}
+              note={spendUnlimited ? t("engine.noLimit") : t("engine.abortsWhenExceeded")}
             >
               <NumberControl
                 id="max-spend"
@@ -412,7 +458,7 @@ export function SettingsForm({
                 suffix="USD"
                 disabled={spendUnlimited}
                 value={draft.budget.max_spend_usd}
-                placeholder={spendUnlimited ? "Unlimited" : undefined}
+                placeholder={spendUnlimited ? t("engine.unlimitedPlaceholder") : undefined}
                 onCommit={(next) =>
                   patch((config) => {
                     config.budget.max_spend_usd = next;
@@ -433,7 +479,7 @@ export function SettingsForm({
               />
             </Field>
 
-            <Field label="Warn above" htmlFor="warn-above" note="asks for confirmation">
+            <Field label={t("engine.warnAbove")} htmlFor="warn-above" note={t("engine.asksConfirmation")}>
               <NumberControl
                 id="warn-above"
                 min={0}
@@ -451,18 +497,18 @@ export function SettingsForm({
             </Field>
 
             <Field
-              label="Context budget"
+              label={t("engine.contextBudget")}
               htmlFor="context"
-              note={contextUnlimited ? "no limit" : "tokens sent to the model"}
+              note={contextUnlimited ? t("engine.noLimit") : t("engine.tokensSent")}
             >
               <NumberControl
                 id="context"
                 min={1000}
                 step={1000}
-                suffix="tokens"
+                suffix={t("engine.unit.tokens")}
                 disabled={contextUnlimited}
                 value={draft.budget.max_context_tokens}
-                placeholder={contextUnlimited ? "Unlimited" : undefined}
+                placeholder={contextUnlimited ? t("engine.unlimitedPlaceholder") : undefined}
                 onCommit={(next) =>
                   patch((config) => {
                     config.budget.max_context_tokens = next;
@@ -483,16 +529,16 @@ export function SettingsForm({
             </Field>
 
             <Field
-              label="Request timeout"
+              label={t("engine.requestTimeout")}
               htmlFor="timeout"
-              note="seconds"
-              hint="Kiro CLI has no timeout of its own, so RevAI enforces this one."
+              note={t("engine.seconds")}
+              hint={t("engine.timeoutHint")}
             >
               <NumberControl
                 id="timeout"
                 min={1}
                 step={30}
-                suffix="sec"
+                suffix={t("engine.unit.sec")}
                 value={draft.budget.request_timeout_s}
                 onCommit={(next) =>
                   patch((config) => {
@@ -504,16 +550,16 @@ export function SettingsForm({
             </Field>
 
             <Field
-              label="Concurrent reviews"
+              label={t("engine.concurrentReviews")}
               htmlFor="concurrent-reviews"
-              note="local queue"
-              hint="Additional reviews wait safely until a running review releases a slot."
+              note={t("engine.localQueue")}
+              hint={t("engine.queueHint")}
             >
               <NumberControl
                 id="concurrent-reviews"
                 min={1}
                 step={1}
-                suffix="runs"
+                suffix={t("engine.unit.runs")}
                 value={draft.budget.max_concurrent_reviews}
                 onCommit={(next) =>
                   patch((config) => {
@@ -525,16 +571,16 @@ export function SettingsForm({
             </Field>
 
             <Field
-              label="Retry transient failures"
+              label={t("engine.retryFailures")}
               htmlFor="retry-attempts"
-              note="same provider"
-              hint="Retries timeouts, rate limits, and transport failures only. It never silently switches models."
+              note={t("engine.sameProvider")}
+              hint={t("engine.retryHint")}
             >
               <NumberControl
                 id="retry-attempts"
                 min={0}
                 step={1}
-                suffix="retries"
+                suffix={t("engine.unit.retries")}
                 value={draft.budget.max_retry_attempts}
                 onCommit={(next) =>
                   patch((config) => {
@@ -554,17 +600,16 @@ export function SettingsForm({
               <div>
                 <p className="mb-1 text-[12.5px] font-semibold text-critical">
                   {spendUnlimited && contextUnlimited
-                    ? "Spend and context are both unlimited"
+                    ? t("engine.warn.both")
                     : spendUnlimited
-                      ? "Spending is unlimited"
-                      : "Context size is unlimited"}
+                      ? t("engine.warn.spend")
+                      : t("engine.warn.context")}
                 </p>
                 <p className="text-[12px] leading-relaxed text-ink-muted">
                   {spendUnlimited
-                    ? "A review will run to completion no matter what it costs. On a large repository with an expensive model this can be tens of dollars in a single run."
-                    : "A single request may send the entire diff, which can exceed the model's context window and fail after you have already paid for the input."}{" "}
-                  Keep the warning threshold set so you are still asked before an
-                  expensive run starts.
+                    ? t("engine.warn.spendBody")
+                    : t("engine.warn.contextBody")}{" "}
+                  {t("engine.warn.keepThreshold")}
                 </p>
               </div>
             </div>
@@ -574,8 +619,7 @@ export function SettingsForm({
             draft.budget.max_spend_usd !== null &&
             draft.budget.warn_above_usd > draft.budget.max_spend_usd && (
               <p className="mt-3 rounded-control border border-medium-line bg-medium-surface px-3 py-2 text-[12px] text-medium">
-                The warning threshold is above the hard cap, so it could never fire. The
-                backend will reject this.
+                {t("engine.warn.thresholdAboveCap")}
               </p>
             )}
         </CardBody>
@@ -583,12 +627,10 @@ export function SettingsForm({
 
       {/* ---------------- deterministic stage ---------------- */}
       <Card className="mb-3.5">
-        <CardHeader title="Deterministic stage" icon={CHECK_CIRCLE} aside="0 tokens" />
+        <CardHeader title={t("engine.deterministicCard")} icon={CHECK_CIRCLE} aside="0 tokens" />
         <CardBody>
           <p className="mb-3.5 text-[12.5px] leading-relaxed text-ink-muted">
-            These run before the model and cost no AI tokens. Results are merged by stable
-            identity after analysis; unavailable tools are reported as degraded instead of
-            silently appearing successful.
+            {t("engine.deterministicIntro")}
           </p>
 
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -598,7 +640,7 @@ export function SettingsForm({
                 className="flex cursor-pointer items-center gap-2.5 rounded-control border border-line bg-canvas px-3 py-2.5 transition-colors hover:bg-paper"
               >
                 <Switch
-                  label={analyser.label}
+                  label={t(analyser.labelKey)}
                   checked={Boolean(draft.analyzers[analyser.key])}
                   onChange={(checked) =>
                     patch((config) => {
@@ -608,9 +650,9 @@ export function SettingsForm({
                   }
                 />
                 <span className="min-w-0">
-                  <b className="block text-[12.5px] font-medium">{analyser.label}</b>
+                  <b className="block text-[12.5px] font-medium">{t(analyser.labelKey)}</b>
                   <span className="numeric text-[10.5px] text-ink-subtle">
-                    {analyser.detail}
+                    {t(analyser.detailKey)}
                   </span>
                 </span>
               </label>
@@ -620,13 +662,13 @@ export function SettingsForm({
           <div className="mt-4 rounded-control border border-line bg-canvas p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <b className="block text-[12.5px] font-medium">SonarQube Server / Community Build</b>
+                <b className="block text-[12.5px] font-medium">{t("engine.sonar.title")}</b>
                 <span className="text-[10.5px] text-ink-subtle">
-                  Build-tool-aware scan, Compute Engine wait, new-code issues and quality gate.
+                  {t("engine.sonar.detail")}
                 </span>
               </div>
               <Switch
-                label="Enable SonarQube"
+                label={t("engine.sonar.enable")}
                 checked={draft.analyzers.sonarqube.enabled}
                 onChange={(checked) => patch((config) => {
                   config.analyzers.sonarqube.enabled = checked;
@@ -636,7 +678,7 @@ export function SettingsForm({
             </div>
             {draft.analyzers.sonarqube.enabled && (
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <Field label="Server URL" htmlFor="sonarqube-server-url">
+                <Field label={t("engine.sonar.serverUrl")} htmlFor="sonarqube-server-url">
                   <input
                     id="sonarqube-server-url"
                     value={draft.analyzers.sonarqube.server_url}
@@ -648,7 +690,7 @@ export function SettingsForm({
                     className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
                   />
                 </Field>
-                <Field label="Project key" htmlFor="sonarqube-project-key">
+                <Field label={t("engine.sonar.projectKey")} htmlFor="sonarqube-project-key">
                   <input
                     id="sonarqube-project-key"
                     value={draft.analyzers.sonarqube.project_key ?? ""}
@@ -660,7 +702,7 @@ export function SettingsForm({
                     className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
                   />
                 </Field>
-                <Field label="Scanner" htmlFor="sonarqube-scanner">
+                <Field label={t("engine.sonar.scanner")} htmlFor="sonarqube-scanner">
                   <select
                     id="sonarqube-scanner"
                     value={draft.analyzers.sonarqube.scanner}
@@ -670,15 +712,15 @@ export function SettingsForm({
                     })}
                     className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 text-[11.5px] outline-none focus:border-ink"
                   >
-                    <option value="auto">Auto — prefer Maven/Gradle</option>
-                    <option value="maven">Maven</option>
-                    <option value="gradle">Gradle</option>
-                    <option value="cli">Generic CLI</option>
+                    <option value="auto">{t("engine.sonar.scanner.auto")}</option>
+                    <option value="maven">{t("engine.sonar.scanner.maven")}</option>
+                    <option value="gradle">{t("engine.sonar.scanner.gradle")}</option>
+                    <option value="cli">{t("engine.sonar.scanner.cli")}</option>
                   </select>
                 </Field>
                 <div className="flex items-center gap-5 sm:col-span-2">
                   <Switch
-                    label="New-code issues only"
+                    label={t("engine.sonar.newCodeOnly")}
                     checked={draft.analyzers.sonarqube.new_code_only}
                     onChange={(checked) => patch((config) => {
                       config.analyzers.sonarqube.new_code_only = checked;
@@ -686,7 +728,7 @@ export function SettingsForm({
                     })}
                   />
                   <Switch
-                    label="Require quality gate"
+                    label={t("engine.sonar.qualityGate")}
                     checked={draft.analyzers.sonarqube.wait_for_quality_gate}
                     onChange={(checked) => patch((config) => {
                       config.analyzers.sonarqube.wait_for_quality_gate = checked;
@@ -700,9 +742,9 @@ export function SettingsForm({
 
           <div className="mt-4 border-t border-line pt-1">
             {BEHAVIOUR.map((item) => (
-              <CardRow key={item.key} label={item.label} hint={item.hint}>
+              <CardRow key={item.key} label={t(item.labelKey)} hint={t(item.hintKey)}>
                 <Switch
-                  label={item.label}
+                  label={t(item.labelKey)}
                   checked={Boolean(draft.analyzers[item.key])}
                   onChange={(checked) =>
                     patch((config) => {
@@ -720,13 +762,10 @@ export function SettingsForm({
       <SaveBar
         dirty={dirty}
         status={status}
-        summary={
-          status === "saved"
-            ? "config.yaml"
-            : `${changes} unsaved ${changes === 1 ? "change" : "changes"}`
-        }
+        summary={t(changes === 1 ? "common.unsavedOne" : "common.unsavedOther", { count: changes })}
         error={error}
-        filename="config.yaml"
+        autoSave={saved.ui.auto_save}
+        onSetAutoSave={decideAutoSave}
         onSave={save}
         onDiscard={discard}
       />
@@ -783,6 +822,7 @@ function UnlimitedToggle({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  const { t } = useUiText();
   return (
     <label
       htmlFor={id}
@@ -795,9 +835,9 @@ function UnlimitedToggle({
         onChange={(event) => onChange(event.target.checked)}
         className="size-3.5 cursor-pointer accent-[var(--color-critical)]"
       />
-      Unlimited
+      {t("engine.unlimited")}
       {checked && (
-        <span className="font-semibold text-critical">— no cap will be enforced</span>
+        <span className="font-semibold text-critical">{t("engine.noCapEnforced")}</span>
       )}
     </label>
   );

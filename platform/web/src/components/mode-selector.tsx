@@ -11,13 +11,14 @@
 
 "use client";
 
+import { useUiText } from "@/components/ui-preference-bootstrap";
 import type { EngineMode } from "@/lib/api";
 
 interface Option {
   mode: EngineMode;
-  title: string;
-  description: string;
-  badge?: string;
+  titleKey: string;
+  descriptionKey: string;
+  badgeKey?: string;
   icon: React.ReactNode;
 }
 
@@ -37,17 +38,15 @@ const TERMINAL = (
 const OPTIONS: Option[] = [
   {
     mode: "api",
-    title: "Model API",
-    description:
-      "Bring your own key and call the provider directly. Full cost and token telemetry, guaranteed structured output.",
-    badge: "Recommended",
+    titleKey: "engine.mode.api.title",
+    descriptionKey: "engine.mode.api.description",
+    badgeKey: "engine.mode.badge",
     icon: EXTERNAL_LINK,
   },
   {
     mode: "cli",
-    title: "Local CLI agent",
-    description:
-      "Reuse an agent CLI already installed and signed in on this machine. Billed to your existing subscription.",
+    titleKey: "engine.mode.cli.title",
+    descriptionKey: "engine.mode.cli.description",
     icon: TERMINAL,
   },
 ];
@@ -58,8 +57,9 @@ interface ModeSelectorProps {
 }
 
 export function ModeSelector({ value, onChange }: ModeSelectorProps) {
+  const { t } = useUiText();
   return (
-    <div role="radiogroup" aria-label="Execution mode" className="grid gap-2.5 sm:grid-cols-2">
+    <div role="radiogroup" aria-label={t("engine.modeAria")} className="grid gap-2.5 sm:grid-cols-2">
       {OPTIONS.map((option) => {
         const selected = option.mode === value;
         return (
@@ -86,7 +86,7 @@ export function ModeSelector({ value, onChange }: ModeSelectorProps) {
               >
                 {option.icon}
               </span>
-              <b className="text-[13.5px] font-semibold">{option.title}</b>
+              <b className="text-[13.5px] font-semibold">{t(option.titleKey)}</b>
               <span
                 aria-hidden
                 className={`ml-auto size-4 shrink-0 rounded-full ${
@@ -94,10 +94,10 @@ export function ModeSelector({ value, onChange }: ModeSelectorProps) {
                 }`}
               />
             </div>
-            <p className="text-[12.5px] leading-relaxed text-ink-muted">{option.description}</p>
-            {option.badge && (
+            <p className="text-[12.5px] leading-relaxed text-ink-muted">{t(option.descriptionKey)}</p>
+            {option.badgeKey && (
               <span className="mt-2.5 inline-block rounded-chip border border-success-line bg-success-surface px-[7px] py-[3px] text-[10px] font-semibold uppercase tracking-wide text-success">
-                {option.badge}
+                {t(option.badgeKey)}
               </span>
             )}
           </button>

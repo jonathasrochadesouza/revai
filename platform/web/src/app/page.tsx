@@ -1,6 +1,6 @@
+import { ApiStatusBadge } from "@/components/api-status-badge";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { TopBar } from "@/components/top-bar";
-import { Badge } from "@/components/ui/badge";
 import { api, type Project } from "@/lib/api";
 
 async function loadProjects(): Promise<{
@@ -26,12 +26,8 @@ export default async function Home() {
 
   return (
     <>
-      <TopBar breadcrumb={["Platform", "Projects"]}>
-        <span className="hidden sm:inline-flex">
-          <Badge tone={state.connected ? "success" : "critical"} dot>
-            {state.connected ? "API connected" : "API unreachable"}
-          </Badge>
-        </span>
+      <TopBar breadcrumb={["common.platform", "common.projects"]}>
+        <ApiStatusBadge connected={state.connected} />
       </TopBar>
       <ProjectWorkspace
         initialProjects={state.projects}

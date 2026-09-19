@@ -1,0 +1,560 @@
+/**
+ * en-US message catalog — the source of truth for every key.
+ *
+ * Flat, dot-namespaced keys grouped by feature. `pt-BR.ts` is typed as
+ * `Record<MessageKey, string>`, so a translation missing there is a compile
+ * error: each locale ships a complete, isolated catalog.
+ */
+
+export const enUS = {
+  // --- common / shell -------------------------------------------------------
+  "common.projects": "Projects",
+  "common.insights": "Insights",
+  "common.data": "Data",
+  "common.appearance": "Appearance",
+  "common.engine": "Engine",
+  "common.settings": "Settings",
+  "common.menu": "Menu",
+  "common.platform": "Platform",
+  "common.loading": "Loading",
+  "common.cancel": "Cancel",
+  "common.breadcrumb": "Breadcrumb",
+  "common.primaryNavigation": "Primary navigation",
+  "common.dismissMessage": "Dismiss message",
+  "common.closeDialog": "Close dialog",
+  "common.apiConnected": "API connected",
+  "common.apiUnreachable": "API unreachable",
+  "common.couldNotReachApi": "Could not reach the API.",
+  "common.allProjects": "All projects",
+  "common.backToProjects": "Back to projects",
+  "common.unsavedOne": "1 unsaved change",
+  "common.unsavedOther": "{count} unsaved changes",
+
+  // --- relative time --------------------------------------------------------
+  "time.justNow": "just now",
+  "time.minutesAgo": "{count}m ago",
+  "time.hoursAgo": "{count}h ago",
+  "time.daysAgo": "{count}d ago",
+
+  // --- projects page --------------------------------------------------------
+  "projects.title": "Projects",
+  "projects.subtitle":
+    "Repository access stays local. Only filtered review context reaches the provider you configure.",
+  "projects.searchProjects": "Search projects",
+  "projects.addRepository": "Add a repository",
+  "projects.openLocalFolder": "Open local folder",
+  "projects.openLocalFolderDescription":
+    "Point RevAI at a Git repository already on this machine.",
+  "projects.openLocalFolderAction": "Browse or enter path",
+  "projects.cloneFromRemote": "Clone from remote",
+  "projects.cloneFromRemoteDescription":
+    "Clone an HTTPS, SSH, or local Git remote into a folder you choose.",
+  "projects.cloneFromRemoteAction": "Choose URL and folder",
+  "projects.yourProjects": "Your projects",
+  "projects.filterAll": "All",
+  "projects.filterActive": "Active",
+  "projects.filterArchived": "Archived",
+  "projects.repository": "Repository",
+  "projects.branch": "Branch",
+  "projects.languages": "Languages",
+  "projects.added": "Added",
+  "projects.notDetected": "Not detected",
+  "projects.noMatchView": "No projects match this view",
+  "projects.noRepositories": "No repositories yet",
+  "projects.tryDifferentSearch": "Try a different search or project filter.",
+  "projects.openLocalGitFolder":
+    "Open a local Git folder to start inspecting changes.",
+  "projects.openRepository": "Open repository",
+  "projects.gettingStarted": "Getting started",
+  "projects.gettingStartedTitle": "Get ready for your first review",
+  "projects.stepConfigureEngine": "Configure an engine",
+  "projects.stepVerifyProvider": "Verify provider access",
+  "projects.stepAddRepository": "Add a repository",
+  "projects.complete": "Complete",
+
+  // --- repository dialog ----------------------------------------------------
+  "projects.dialog.openTitle": "Open local folder",
+  "projects.dialog.openDescription":
+    "Browse for a Git repository or enter its absolute path.",
+  "projects.dialog.cloneTitle": "Clone from remote",
+  "projects.dialog.cloneDescription":
+    "Choose a remote repository and where to save its local checkout.",
+  "projects.dialog.folderPath": "Folder path",
+  "projects.dialog.repositoryUrl": "Repository URL",
+  "projects.dialog.saveIn": "Save in",
+  "projects.dialog.browse": "Browse",
+  "projects.dialog.selecting": "Selecting",
+  "projects.dialog.open": "Open",
+  "projects.dialog.opening": "Opening",
+  "projects.dialog.clone": "Clone",
+  "projects.dialog.cloning": "Cloning",
+
+  // --- review setup page ----------------------------------------------------
+  "review.eyebrow": "Review",
+  "review.setupTitle": "Configure a review",
+  "review.setupSubtitle":
+    "Choose the branch comparison, inspect the proposed context and run the review when the scope and estimated cost look right.",
+  "review.projectUnavailable": "Project unavailable",
+  "review.projectUnavailableFallback": "Could not load this project.",
+
+  // --- review inspector -----------------------------------------------------
+  "review.base": "Base",
+  "review.head": "Head",
+  "review.scope": "Scope",
+  "review.reviewMode": "Review mode",
+  "review.branchDiff": "Branch diff",
+  "review.selectedFiles": "Selected files",
+  "review.wholeProject": "Whole project",
+  "review.staticOnly": "Static only",
+  "review.aiAssisted": "AI-assisted",
+  "review.both": "Both",
+  "review.preview": "Preview",
+  "review.runStatic": "Run static review",
+  "review.runAi": "Run AI review",
+  "review.runCombined": "Run combined review",
+  "review.runAgain": "Run again",
+  "review.providerChecking": "Checking the configured AI provider…",
+  "review.providerUnavailable":
+    "The configured AI provider is unavailable. Update it before starting an AI review.",
+  "review.openSettings": "Open settings",
+  "review.degradedCoverage":
+    "Deterministic coverage will be degraded: {analyzers}.",
+  "review.reviewSetup": "Review setup",
+  "review.files": "Files",
+  "review.lines": "Lines",
+  "review.estTokens": "Est. tokens",
+  "review.estInput": "Est. input",
+  "review.noChanges": "No changes in this comparison",
+  "review.noChangesDetail":
+    "When base and head match, RevAI previews uncommitted working-tree changes.",
+  "review.diffTruncated":
+    "Preview capped at 1 MB. The full diff remains unchanged in Git.",
+  "review.configureAnother": "Configure another review",
+  "review.loadingRepository": "Loading repository data",
+
+  // --- quality commands -----------------------------------------------------
+  "review.qualityCommands": "Project quality commands",
+  "review.qualityCommandsOptional": "optional · shell disabled",
+  "review.jsonArgumentArrays":
+    "Use JSON argument arrays so paths with spaces remain safe, for example",
+  "review.defaultBaseBranch": "Default base branch",
+  "review.checkstyle": "Checkstyle",
+  "review.checkstyleDescription":
+    "Checks configured Java style and static-code rules.",
+  "review.tests": "Tests",
+  "review.testsDescription":
+    "Runs the project's test suite to detect failures and regressions.",
+  "review.build": "Build",
+  "review.buildDescription":
+    "Compiles or packages the project to validate dependencies, types, and generated artifacts.",
+  "review.moreInformationAbout": "More information about",
+  "review.saving": "Saving…",
+  "review.saveProjectCommands": "Save project commands",
+  "review.commandMustBeArray": "must be a JSON array of command arguments.",
+
+  // --- live review panel ----------------------------------------------------
+  "review.staticReview": "Static review",
+  "review.combinedReview": "Combined review",
+  "review.aiReview": "AI review",
+  "review.status.failed": "Failed",
+  "review.status.cancelled": "Cancelled",
+  "review.status.degraded": "Completed with degraded coverage",
+  "review.status.reviewing": "Reviewing",
+  "review.status.completed": "Completed",
+  "review.status.completedTokens": "Completed · {tokens} tokens",
+  "review.metric.findings": "Findings",
+  "review.metric.filesReviewed": "Files reviewed",
+  "review.metric.tokens": "Tokens",
+  "review.metric.estContext": "Est. context",
+  "review.metric.estCost": "Est. cost",
+  "review.metric.cost": "Cost",
+  "review.metric.duration": "Duration",
+  "review.metric.live": "Live",
+  "review.eventStream": "Event stream",
+  "review.analyzers": "Analyzers",
+  "review.analyzersPending": "Pending",
+  "review.event.queued": "Queued — waiting for a review slot",
+  "review.event.started": "Review started",
+  "review.event.completed": "Review completed",
+  "review.event.cancelled": "Review cancelled",
+  "review.event.findings": "{count} findings",
+  "review.event.model": "Model · {model}",
+  "review.event.delta": "Model output · {chars} chars",
+  "review.event.retry": "Retry {attempt} · {message}",
+  "review.event.usage": "Usage · {tokens} tokens",
+  "review.event.persisted": "{count} persisted events · {status}",
+  "review.startingAnalysis": "Starting local analysis…",
+  "review.inProgress": "Review in progress",
+  "review.validatingStreamed": "Validating streamed findings",
+  "review.runningLocalAnalyzers": "Running local analyzers",
+  "review.stopped": "Review stopped",
+  "review.noFindings": "No findings",
+  "review.jobCancelled": "The background job was cancelled.",
+  "review.noIssuesReported": "Available analyzers and AI reported no issues.",
+  "review.finding.whyThisMatters": "Why this matters",
+  "review.finding.hideEvidence": "Hide evidence",
+  "review.finding.confidence": "Confidence {percent}%",
+  "review.finding.copyPatch": "Copy suggested patch",
+  "review.finding.patchCopied": "Patch copied",
+  "review.finding.defaultRationale":
+    "This finding was reported by the selected analyzer.",
+  "review.finding.markFixed": "Mark fixed",
+  "review.finding.falsePositive": "False positive",
+  "review.finding.dismiss": "Dismiss",
+  "review.finding.status.open": "Open",
+  "review.finding.status.fixed": "Fixed",
+  "review.finding.status.false_positive": "False positive",
+  "review.finding.status.dismissed": "Dismissed",
+  "review.severity.critical": "Critical",
+  "review.severity.medium": "Medium",
+  "review.severity.low": "Low",
+  "review.history": "Review history",
+  "review.historyFindings": "{count} findings",
+  "review.localAnalysis": "Local analysis",
+
+  // --- cost confirmation ----------------------------------------------------
+  "review.cost.title": "Confirm estimated review cost",
+  "review.cost.exceedsThreshold": "This review exceeds your warning threshold.",
+  "review.cost.model": "Model:",
+  "review.cost.scope": "Scope:",
+  "review.cost.scopeDetail": "{count} files, {tokens} estimated tokens",
+  "review.cost.estimatedInput": "Estimated input:",
+  "review.cost.budgetSuffix": " of {cap} budget",
+  "review.cost.runReview": "Run review",
+
+  // --- file browser ---------------------------------------------------------
+  "files.trackedFiles": "Tracked files",
+  "files.selected": "selected",
+  "files.changed": "Changed",
+  "files.all": "All",
+  "files.searchFiles": "Search files",
+  "files.clearSearch": "Clear file search",
+  "files.showFlatList": "Show flat list",
+  "files.showFolderTree": "Show folder tree",
+  "files.expandAllFolders": "Expand all folders",
+  "files.collapseAllFolders": "Collapse all folders",
+  "files.flatList": "Flat list",
+  "files.noFilesMatch": "No files match your search.",
+  "files.noChangedFiles": "No changed files.",
+  "files.noTrackedFiles": "No tracked files.",
+  "files.notAtHead": "Not at Head",
+  "files.notAtHeadReason":
+    "This path is not tracked at Head. Use Branch diff to review it.",
+
+  // --- branch select --------------------------------------------------------
+  "branches.search": "Search branches",
+  "branches.noMatches": "No branches match your search.",
+
+  // --- settings shell -------------------------------------------------------
+  "settings.eyebrow": "Settings",
+  "settings.unsavedChanges": "unsaved changes",
+
+  // --- appearance -----------------------------------------------------------
+  "settings.appearance.title": "Appearance & language",
+  "settings.appearance.subtitle":
+    "Set a comfortable workspace and the language RevAI uses for its interface. These preferences stay on your machine in config.yaml.",
+  "settings.appearance.unavailable": "Preferences unavailable",
+  "settings.appearance.cardTitle": "Appearance",
+  "settings.appearance.themeAria": "Colour theme",
+  "settings.appearance.theme.light": "Light",
+  "settings.appearance.theme.lightDetail": "Paper Light",
+  "settings.appearance.theme.dark": "Dark",
+  "settings.appearance.theme.darkDetail": "Low-glare workspace",
+  "settings.appearance.theme.system": "System",
+  "settings.appearance.theme.systemDetail": "Follow your device",
+  "settings.appearance.themeHint":
+    "Theme changes apply immediately and are saved in your local config file.",
+  "settings.appearance.languageCard": "Language & review behaviour",
+  "settings.appearance.displayLanguage": "Display language",
+  "settings.appearance.supportedLocales": "English and Brazilian Portuguese",
+  "settings.appearance.locale.enUS": "English (United States)",
+  "settings.appearance.locale.ptBR": "Português (Brasil)",
+  "settings.appearance.localeHint":
+    "Switches the language of the entire interface, applied immediately to this draft.",
+  "settings.appearance.confirmExpensive": "Confirm expensive reviews",
+  "settings.appearance.confirmExpensiveHint":
+    "Show the estimate and ask before a review reaches your warning threshold.",
+
+  // --- save bar -------------------------------------------------------------
+  "save.discard": "Discard",
+  "save.saving": "Saving…",
+  "save.saveChanges": "Save changes",
+  "save.allChangesSaved": "All changes saved",
+  "save.changesSaveAutomatically": "Changes save automatically",
+  "save.couldNotSave": "Could not save",
+  "save.autoSaveOffer":
+    "Save changes automatically? You can turn this on or off anytime in Settings › Appearance.",
+  "save.autoSaveDecline": "No, don't ask again",
+  "save.autoSaveEnable": "Enable auto-save",
+  "save.autoSavePreference": "Auto-save changes",
+  "save.autoSaveHint":
+    "Save config changes a moment after you make them. Undecided users are offered this whenever changes are pending; turning it off here stops the offer for good.",
+
+  // --- engine page ----------------------------------------------------------
+  "settings.engine.title": "Engine & providers",
+  "settings.engine.subtitle.before":
+    "Choose how RevAI reaches a model. Everything is written to",
+  "settings.engine.subtitle.after":
+    "— plain text you can read, diff and version.",
+  "settings.engine.configurationUnavailable": "Configuration unavailable",
+  "settings.engine.noConfigReturned": "The API did not return a configuration",
+  "settings.engine.startBackendHint":
+    "If the backend is not running, start it in a second terminal:",
+  "settings.engine.backToDashboard": "← Back to the dashboard",
+
+  // --- engine form ----------------------------------------------------------
+  "engine.executionMode": "Execution mode",
+  "engine.modeAria": "Execution mode",
+  "engine.mode.api.title": "Model API",
+  "engine.mode.api.description":
+    "Bring your own key and call the provider directly. Full cost and token telemetry, guaranteed structured output.",
+  "engine.mode.badge": "Recommended",
+  "engine.mode.cli.title": "Local CLI agent",
+  "engine.mode.cli.description":
+    "Reuse an agent CLI already installed and signed in on this machine. Billed to your existing subscription.",
+  "engine.provider": "Provider",
+  "engine.adapterLater": " — adapter arrives later",
+  "engine.model": "Model",
+  "engine.offlineSuggestions": "{count} offline suggestions",
+  "engine.modelHint.kiro":
+    "RevAI passes this exact model to Kiro CLI 2.18+ and runs an isolated, read-only agent with MCP and tools disabled.",
+  "engine.modelHint.custom":
+    "Custom ids are passed through verbatim. Confirm the id in your provider dashboard before running a review.",
+  "engine.modelHint.catalogue":
+    "These are offline suggestions. Provider model catalogs change frequently; use Custom when your provider lists a newer id.",
+  "engine.customModel": "Custom…",
+  "engine.customModelAria": "Custom model id",
+  "engine.recommended": " — recommended",
+  "engine.baseUrl": "Base URL",
+  "engine.optional": "optional",
+  "engine.baseUrlHint":
+    "Override the selected provider endpoint for a proxy or self-hosted service.",
+  "engine.apiKey": "API key",
+  "engine.storedApiKeys": "Stored API keys",
+  "engine.keyFor": "Key for {provider}",
+  "engine.keyStoredNote": "stored with chmod 600",
+  "engine.keyHint.before": "Written to",
+  "engine.keyHint.after":
+    ", never inside a project folder and never in git. The key is never returned by the API once stored.",
+  "engine.storing": "Storing…",
+  "engine.store": "Store",
+  "engine.storedKeys": "Stored keys",
+  "engine.remove": "Remove",
+  "engine.couldNotSave": "Could not save",
+  "engine.couldNotStoreKey": "Could not store the key",
+  "engine.couldNotRemoveKey": "Could not remove the key",
+
+  // --- budget ---------------------------------------------------------------
+  "engine.budgetCard": "Budget & limits",
+  "engine.budgetHardStops": "hard stops",
+  "engine.maxSpend": "Max spend per review",
+  "engine.noLimit": "no limit",
+  "engine.abortsWhenExceeded": "aborts when exceeded",
+  "engine.warnAbove": "Warn above",
+  "engine.asksConfirmation": "asks for confirmation",
+  "engine.contextBudget": "Context budget",
+  "engine.tokensSent": "tokens sent to the model",
+  "engine.requestTimeout": "Request timeout",
+  "engine.seconds": "seconds",
+  "engine.timeoutHint":
+    "Kiro CLI has no timeout of its own, so RevAI enforces this one.",
+  "engine.concurrentReviews": "Concurrent reviews",
+  "engine.localQueue": "local queue",
+  "engine.queueHint":
+    "Additional reviews wait safely until a running review releases a slot.",
+  "engine.retryFailures": "Retry transient failures",
+  "engine.sameProvider": "same provider",
+  "engine.retryHint":
+    "Retries timeouts, rate limits, and transport failures only. It never silently switches models.",
+  "engine.unlimited": "Unlimited",
+  "engine.unlimitedPlaceholder": "Unlimited",
+  "engine.noCapEnforced": "— no cap will be enforced",
+  "engine.unit.tokens": "tokens",
+  "engine.unit.sec": "sec",
+  "engine.unit.runs": "runs",
+  "engine.unit.retries": "retries",
+  "engine.warn.both": "Spend and context are both unlimited",
+  "engine.warn.spend": "Spending is unlimited",
+  "engine.warn.context": "Context size is unlimited",
+  "engine.warn.spendBody":
+    "A review will run to completion no matter what it costs. On a large repository with an expensive model this can be tens of dollars in a single run.",
+  "engine.warn.contextBody":
+    "A single request may send the entire diff, which can exceed the model's context window and fail after you have already paid for the input.",
+  "engine.warn.keepThreshold":
+    "Keep the warning threshold set so you are still asked before an expensive run starts.",
+  "engine.warn.thresholdAboveCap":
+    "The warning threshold is above the hard cap, so it could never fire. The backend will reject this.",
+
+  // --- deterministic stage --------------------------------------------------
+  "engine.deterministicCard": "Deterministic stage",
+  "engine.deterministicIntro":
+    "These run before the model and cost no AI tokens. Results are merged by stable identity after analysis; unavailable tools are reported as degraded instead of silently appearing successful.",
+  "engine.analyser.builtinSecurity": "Built-in security",
+  "engine.analyser.builtinSecurityDetail": "dangerous execution APIs",
+  "engine.analyser.semgrep": "Semgrep",
+  "engine.analyser.semgrepDetail": "security patterns",
+  "engine.analyser.ruff": "Ruff",
+  "engine.analyser.ruffDetail": "python",
+  "engine.analyser.eslint": "ESLint",
+  "engine.analyser.eslintDetail": "javascript / typescript",
+  "engine.analyser.gitleaks": "Gitleaks",
+  "engine.analyser.gitleaksDetail": "leaked secrets",
+  "engine.analyser.treesitter": "tree-sitter",
+  "engine.analyser.treesitterDetail": "AST, built in",
+  "engine.analyser.checkstyle": "Checkstyle",
+  "engine.analyser.checkstyleDetail": "java",
+  "engine.analyser.projectTests": "Project tests",
+  "engine.analyser.projectTestsDetail": "configured per project",
+  "engine.analyser.projectBuild": "Project build",
+  "engine.analyser.projectBuildDetail": "configured per project",
+  "engine.sonar.title": "SonarQube Server / Community Build",
+  "engine.sonar.detail":
+    "Build-tool-aware scan, Compute Engine wait, new-code issues and quality gate.",
+  "engine.sonar.enable": "Enable SonarQube",
+  "engine.sonar.serverUrl": "Server URL",
+  "engine.sonar.projectKey": "Project key",
+  "engine.sonar.scanner": "Scanner",
+  "engine.sonar.scanner.auto": "Auto — prefer Maven/Gradle",
+  "engine.sonar.scanner.maven": "Maven",
+  "engine.sonar.scanner.gradle": "Gradle",
+  "engine.sonar.scanner.cli": "Generic CLI",
+  "engine.sonar.newCodeOnly": "New-code issues only",
+  "engine.sonar.qualityGate": "Require quality gate",
+  "engine.behaviour.skip_noise": "Skip noise automatically",
+  "engine.behaviour.skip_noise_hint":
+    "Drops lockfiles, generated code, minified bundles, snapshots and binaries before anything else runs.",
+  "engine.behaviour.changed_lines_only": "Only review changed lines",
+  "engine.behaviour.changed_lines_only_hint":
+    "Context lines are sent for understanding but never reported as findings.",
+  "engine.behaviour.dedupe_across_sources": "Merge duplicate findings",
+  "engine.behaviour.dedupe_across_sources_hint":
+    "When a linter and the model report the same problem, keep the higher-confidence one and merge the explanation.",
+
+  // --- provider panel -------------------------------------------------------
+  "engine.providerStatus": "Provider status",
+  "engine.usableCount": "{usable} of {total} usable",
+  "engine.state.ready": "Ready",
+  "engine.state.needs_auth": "Needs sign-in",
+  "engine.state.unknown": "Unknown",
+  "engine.state.not_found": "Not installed",
+  "engine.state.error": "Error",
+  "engine.providerSelected": "Selected",
+  "engine.probingNote":
+    "Probing never spends model tokens: hosted APIs validate through their model-list endpoint, while local agents report version and sign-in state.",
+  "engine.rescan": "Re-scan",
+  "engine.test": "Test",
+  "engine.testing": "Testing…",
+  "engine.fix": "Fix:",
+  "engine.adapterNotReady":
+    "RevAI cannot drive this provider yet, even when it is installed and signed in — the adapter arrives in a later phase.",
+  "engine.probingHealth":
+    "Probing provider health — local agents may take a few seconds to start.",
+  "engine.couldNotReachApi": "Could not reach the API",
+
+  // --- insights -------------------------------------------------------------
+  "insights.title": "Code health, measured.",
+  "insights.subtitle":
+    "Every review you run, aggregated from the YAML files on your disk. No cloud account, telemetry, or repository upload.",
+  "insights.periodAria": "Insight period",
+  "insights.loadError": "Could not load insights.",
+  "insights.kpi.reviewsRun": "Reviews run",
+  "insights.kpi.completed": "{count} completed",
+  "insights.kpi.issuesCaught": "Issues caught",
+  "insights.kpi.criticalOpen": "{count} critical open",
+  "insights.kpi.totalSpend": "Total spend",
+  "insights.kpi.acrossReviews": "Across selected reviews",
+  "insights.kpi.medianDuration": "Median duration",
+  "insights.kpi.perReview": "Per review",
+  "insights.findingsOverTime": "Findings over time",
+  "insights.latest12": "Latest 12 reviews",
+  "insights.byCategory": "By category",
+  "insights.total": "{count} total",
+  "insights.debtTitle": "Technical debt snapshot",
+  "insights.debtDescription":
+    "Current health uses each repository's latest review in the selected period. A score of 100 means that review has no unresolved findings.",
+  "insights.debt.openCritical": "Open critical",
+  "insights.debt.resolved": "Resolved",
+  "insights.debt.fixRate": "Fix rate",
+  "insights.repositoryBreakdown": "Repository breakdown",
+  "insights.tracked": "{count} tracked",
+  "insights.category.security": "Security",
+  "insights.category.bug": "Correctness",
+  "insights.category.performance": "Performance",
+  "insights.category.maintainability": "Maintainability",
+  "insights.category.style": "Style",
+  "insights.legend.critical": "Critical",
+  "insights.legend.medium": "Medium",
+  "insights.legend.low": "Low",
+  "insights.openFindingsTooltip": "{project}: {count} open findings",
+  "insights.trendEmpty": "Run a review to start measuring findings over time.",
+  "insights.repoEmpty": "Open a repository to add it to code-health insights.",
+  "insights.table.repository": "Repository",
+  "insights.table.reviews": "Reviews",
+  "insights.table.open": "Open",
+  "insights.table.critical": "Critical",
+  "insights.table.health": "Health",
+  "insights.table.change": "Change",
+  "insights.languageUnknown": "language unknown",
+  "insights.new": "new",
+
+  // --- data / export --------------------------------------------------------
+  "data.title": "Export & data",
+  "data.subtitle":
+    "Download individual reports or a complete portable archive. Exports are generated locally from YAML and never include API credentials.",
+  "data.unavailable": "Data unavailable",
+  "data.exportCard": "Export & data",
+  "data.reviewHistory": "Review history",
+  "data.reviewsCount": "{count} reviews",
+  "data.exportEverything": "Export everything",
+  "data.exportEverythingDetail":
+    "Config, rules, projects, and every review as portable JSON.",
+  "data.credentialSafety": "Credential safety",
+  "data.credentialSafetyDetail":
+    "API credentials, caches, and repository contents are never included in archives.",
+  "data.excluded": "Excluded",
+  "data.buildingArchive": "Building archive…",
+  "data.exported": "Exported",
+  "data.exportZip": "Export .zip",
+  "data.exportError": "Could not export data.",
+  "data.recentExports": "Recent review exports",
+  "data.recentExportsDetail":
+    "JSON and SARIF for automation, Markdown for pull requests, or a standalone offline HTML report.",
+  "data.runReviewFirst": "Run a review before exporting a report.",
+  "data.findingsCount": "{count} findings",
+  "data.workingTree": "working tree",
+  "data.unknownProject": "Unknown project",
+  "data.legacy": "Legacy",
+
+  // --- status values --------------------------------------------------------
+  "status.completed": "completed",
+  "status.failed": "failed",
+  "status.aborted": "cancelled",
+  "status.degraded": "degraded",
+  "status.running": "running",
+
+  // --- model catalogue ------------------------------------------------------
+  "models.note.longDiffs": "strong on long diffs",
+  "models.note.highestQuality": "highest quality",
+  "models.note.fastAndCheap": "fast and cheap",
+  "models.note.frontierCoding": "frontier coding",
+  "models.note.balanced": "balanced",
+  "models.note.largeContext": "large context",
+  "models.note.veryLargeContext": "very large context",
+  "models.note.fast": "fast",
+  "models.note.openWeights": "open weights",
+  "models.note.codeSpecialist": "code specialist",
+  "models.note.fastAndCapable": "fast and capable",
+  "models.note.lowestCost": "lowest cost",
+  "models.note.fastest": "fastest",
+  "models.note.cheapest": "cheapest",
+  "models.note.cliDefault": "the CLI default",
+  "models.note.letCopilotChoose": "let Copilot choose",
+  "models.note.fastAndCostEfficient": "fast and cost-efficient",
+  "models.note.strongerReasoning": "stronger reasoning",
+  "models.note.auto": "Auto",
+
+  // --- logo -----------------------------------------------------------------
+  "logo.aria": "RevAI — go to the dashboard",
+} as const;
+
+export type MessageKey = keyof typeof enUS;

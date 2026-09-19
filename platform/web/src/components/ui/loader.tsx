@@ -49,9 +49,11 @@ interface LoaderProps {
 }
 
 export function Loader({ variant = DEFAULT_LOADER_VARIANT, size = "md", className = "" }: LoaderProps) {
+  const { t } = useUiText();
+
   if (variant === "dots") {
     return (
-      <span role="status" className={`inline-flex items-center ${DOTS[size]} ${className}`} aria-label="Loading">
+      <span role="status" className={`inline-flex items-center ${DOTS[size]} ${className}`} aria-label={t("common.loading")}>
         {[0, 1, 2].map((index) => (
           <span
             key={index}
@@ -67,7 +69,7 @@ export function Loader({ variant = DEFAULT_LOADER_VARIANT, size = "md", classNam
     return (
       <span
         role="status"
-        aria-label="Loading"
+        aria-label={t("common.loading")}
         className={`inline-flex overflow-hidden rounded-full border border-line bg-sunken ${SNAKE[size]} ${className}`}
       >
         <span className="loader-snake h-full w-1/3 rounded-full bg-ink motion-reduce:opacity-60" />
@@ -77,7 +79,7 @@ export function Loader({ variant = DEFAULT_LOADER_VARIANT, size = "md", classNam
 
   if (variant === "skeleton") {
     return (
-      <div role="status" aria-label="Loading" className={`w-full max-w-[560px] space-y-3.5 ${className}`}>
+      <div role="status" aria-label={t("common.loading")} className={`w-full max-w-[560px] space-y-3.5 ${className}`}>
         <div className="h-2.5 w-24 animate-pulse rounded-xs bg-sunken" />
         <div className="h-7 w-72 max-w-full animate-pulse rounded-xs bg-sunken" />
         <div className="surface space-y-2.5 p-5">
@@ -92,7 +94,7 @@ export function Loader({ variant = DEFAULT_LOADER_VARIANT, size = "md", classNam
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label={t("common.loading")}
       className={`inline-block animate-spin rounded-full border-line border-t-ink motion-reduce:animate-none ${SPINNER[size]} ${className}`}
     />
   );
@@ -109,7 +111,7 @@ export function LoadingPanel({ variant }: { variant?: LoaderVariant }) {
     <div className="grid min-h-[65vh] w-full place-items-center px-5">
       <div className="flex flex-col items-center gap-3.5">
         <Loader variant={variant ?? DEFAULT_LOADER_VARIANT} />
-        <p className="eyebrow">{t("Loading")}</p>
+        <p className="eyebrow">{t("common.loading")}</p>
       </div>
     </div>
   );

@@ -163,14 +163,14 @@ export function BranchSelect({
               aria-activedescendant={
                 filteredBranches[activeIndex] ? `${listboxId}-option-${activeIndex}` : undefined
               }
-              aria-label={`${t("Search branches")} — ${t(label)}`}
+              aria-label={`${t("branches.search")} — ${t(label)}`}
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setActiveIndex(0);
               }}
               onKeyDown={handleSearchKeyDown}
-              placeholder={t("Search branches")}
+              placeholder={t("branches.search")}
               className="h-8 w-full rounded-chip border border-line bg-sunken pl-8 pr-2 font-mono text-[11px] text-ink outline-none placeholder:text-ink-subtle focus:border-ink"
             />
           </div>
@@ -200,7 +200,7 @@ export function BranchSelect({
               ))
             ) : (
               <p role="status" className="px-2 py-3 text-center text-[11px] text-ink-subtle">
-                {t("No branches match your search.")}
+                {t("branches.noMatches")}
               </p>
             )}
           </div>

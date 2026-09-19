@@ -98,6 +98,8 @@ export interface UiConfig {
   locale: "en-US" | "pt-BR";
   theme: "light" | "dark" | "system";
   confirm_expensive_reviews: boolean;
+  /** null = the user has not answered the auto-save offer yet. */
+  auto_save: boolean | null;
 }
 
 export interface RevaiConfig {

@@ -87,15 +87,15 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function relativeDate(value: string, renderedAt: string): string {
+function relativeDate(value: string, renderedAt: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const elapsed = new Date(renderedAt).getTime() - new Date(value).getTime();
   const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("time.justNow");
+  if (minutes < 60) return t("time.minutesAgo", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("time.hoursAgo", { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t("time.daysAgo", { count: days });
 }
 
 function formatTokens(tokens: number): string {
@@ -160,21 +160,20 @@ export function ProjectWorkspace({
       <section className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
         <div>
           <h1 className="mb-1.5 text-[29px] font-bold leading-tight">
-            {t("Projects")}
+            {t("projects.title")}
           </h1>
           <p className="max-w-[64ch] text-[14px] leading-relaxed text-ink-muted">
-            Repository access stays local. Only filtered review context reaches
-            the provider you configure.
+            {t("projects.subtitle")}
           </p>
         </div>
         <label className="flex h-10 w-full items-center gap-2.5 rounded-control border border-line-strong bg-paper px-3 text-ink-subtle lg:w-[310px]">
           <Search aria-hidden className="size-4 shrink-0" strokeWidth={1.8} />
-          <span className="sr-only">{t("Search projects")}</span>
+          <span className="sr-only">{t("projects.searchProjects")}</span>
           <input
             ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("Search projects")}
+            placeholder={t("projects.searchProjects")}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-subtle"
           />
           <kbd className="rounded-chip border border-line px-1.5 py-0.5 text-[10px]">
@@ -192,7 +191,7 @@ export function ProjectWorkspace({
           <button
             type="button"
             onClick={() => setNotice(null)}
-            aria-label="Dismiss message"
+            aria-label={t("common.dismissMessage")}
             className="rounded-chip p-0.5 hover:bg-paper"
           >
             <X className="size-3.5" />
@@ -202,19 +201,19 @@ export function ProjectWorkspace({
 
       <OnboardingChecklist hasProjects={projects.length > 0} />
 
-      <section aria-label={t("Add a repository")} className="mb-8 grid gap-3 md:grid-cols-2">
+      <section aria-label={t("projects.addRepository")} className="mb-8 grid gap-3 md:grid-cols-2">
         <EntryAction
           icon={<HardDrive className="size-5" strokeWidth={1.8} />}
-          title={t("Open local folder")}
-          description="Point RevAI at a Git repository already on this machine."
-          action="Browse or enter path"
+          title={t("projects.openLocalFolder")}
+          description={t("projects.openLocalFolderDescription")}
+          action={t("projects.openLocalFolderAction")}
           onClick={() => setDialog("open")}
         />
         <EntryAction
           icon={<Copy className="size-5" strokeWidth={1.8} />}
-          title={t("Clone from remote")}
-          description="Clone an HTTPS, SSH, or local Git remote into a folder you choose."
-          action="Choose URL and folder"
+          title={t("projects.cloneFromRemote")}
+          description={t("projects.cloneFromRemoteDescription")}
+          action={t("projects.cloneFromRemoteAction")}
           onClick={() => setDialog("clone")}
         />
       </section>
@@ -222,7 +221,7 @@ export function ProjectWorkspace({
       <section className="surface overflow-hidden">
         <div className="flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-[14px] font-semibold">
-            {t("Your projects")}
+            {t("projects.yourProjects")}
             <span className="numeric rounded-chip bg-canvas px-2 py-0.5 text-[10.5px] font-medium text-ink-muted">
               {projects.length}
             </span>
@@ -234,23 +233,23 @@ export function ProjectWorkspace({
                 type="button"
                 onClick={() => setFilter(value)}
                 aria-pressed={filter === value}
-                className={`rounded-chip px-3 py-1.5 text-[11.5px] font-medium capitalize transition-colors ${
+                className={`rounded-chip px-3 py-1.5 text-[11.5px] font-medium transition-colors ${
                   filter === value
                     ? "border border-line bg-paper text-ink"
                     : "border border-transparent text-ink-subtle hover:text-ink"
                 }`}
               >
-                {value}
+                {t(value === "all" ? "projects.filterAll" : value === "active" ? "projects.filterActive" : "projects.filterArchived")}
               </button>
             ))}
           </div>
         </div>
 
         <div className="hidden grid-cols-[minmax(260px,1fr)_180px_170px_90px] gap-4 border-b border-line bg-sunken px-5 py-2.5 text-[10px] font-semibold uppercase text-ink-subtle md:grid">
-          <span>{t("Repository")}</span>
-          <span>{t("Branch")}</span>
-          <span>{t("Languages")}</span>
-          <span className="text-right">{t("Added")}</span>
+          <span>{t("projects.repository")}</span>
+          <span>{t("projects.branch")}</span>
+          <span>{t("projects.languages")}</span>
+          <span className="text-right">{t("projects.added")}</span>
         </div>
 
         {visibleProjects.length ? (
@@ -282,10 +281,10 @@ export function ProjectWorkspace({
                 </span>
               </span>
               <span className="truncate text-[11.5px] text-ink-muted">
-                {project.languages.join(", ") || "Not detected"}
+                {project.languages.join(", ") || t("projects.notDetected")}
               </span>
               <span className="numeric text-[11px] text-ink-subtle md:text-right">
-                {relativeDate(project.created_at, renderedAt)}
+                {relativeDate(project.created_at, renderedAt, t)}
               </span>
             </Link>
           ))
@@ -362,17 +361,18 @@ function EmptyProjects({
   hasProjects: boolean;
   onOpen: () => void;
 }) {
+  const { t } = useUiText();
   return (
     <div className="grid min-h-48 place-items-center px-5 py-10 text-center">
       <div>
         <FolderGit2 className="mx-auto mb-3 size-7 text-ink-subtle" strokeWidth={1.5} />
         <p className="mb-1 text-[13px] font-semibold">
-          {hasProjects ? "No projects match this view" : "No repositories yet"}
+          {hasProjects ? t("projects.noMatchView") : t("projects.noRepositories")}
         </p>
         <p className="mb-4 text-[12px] text-ink-muted">
           {hasProjects
-            ? "Try a different search or project filter."
-            : "Open a local Git folder to start inspecting changes."}
+            ? t("projects.tryDifferentSearch")
+            : t("projects.openLocalGitFolder")}
         </p>
         {!hasProjects && (
           <button
@@ -380,7 +380,7 @@ function EmptyProjects({
             onClick={onOpen}
             className="rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover"
           >
-            Open repository
+            {t("projects.openRepository")}
           </button>
         )}
       </div>
@@ -389,6 +389,7 @@ function EmptyProjects({
 }
 
 function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
+  const { t } = useUiText();
   const [config, setConfig] = useState<RevaiConfig | null>(null);
   const [providerReady, setProviderReady] = useState<boolean | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -416,9 +417,9 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
   }, []);
 
   const steps = [
-    { label: "Configure an engine", done: Boolean(config?.engine.model), href: "/settings/engine" },
-    { label: "Verify provider access", done: providerReady === true, href: "/settings/engine" },
-    { label: "Add a repository", done: hasProjects, href: "#repositories" },
+    { label: t("projects.stepConfigureEngine"), done: Boolean(config?.engine.model), href: "/settings/engine" },
+    { label: t("projects.stepVerifyProvider"), done: providerReady === true, href: "/settings/engine" },
+    { label: t("projects.stepAddRepository"), done: hasProjects, href: "#repositories" },
   ];
   const allDone = steps.every((step) => step.done);
 
@@ -432,7 +433,7 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
   if (!loaded) return null;
 
   return (
-    <section className="mb-6 border border-line bg-paper px-5 py-4" aria-label="Getting started">
+    <section className="mb-6 border border-line bg-paper px-5 py-4" aria-label={t("projects.gettingStarted")}>
       <button
         type="button"
         onClick={() => setCollapsed((current) => !current)}
@@ -440,10 +441,10 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
         className={`flex w-full items-center gap-2 text-left ${collapsed ? "" : "mb-3"}`}
       >
         <ClipboardCheck className="size-4 text-low" />
-        <h2 className="flex-1 text-[13px] font-semibold">Get ready for your first review</h2>
+        <h2 className="flex-1 text-[13px] font-semibold">{t("projects.gettingStartedTitle")}</h2>
         {allDone && (
           <span className="rounded-chip bg-success-surface px-2 py-0.5 text-[10px] font-medium text-success">
-            Complete
+            {t("projects.complete")}
           </span>
         )}
         {collapsed ? (
@@ -477,6 +478,7 @@ function RepositoryDialog({
   onClose: () => void;
   onCreated: (project: Project) => void;
 }) {
+  const { t } = useUiText();
   const [value, setValue] = useState("");
   const [destination, setDestination] = useState("");
   const [pending, setPending] = useState(false);
@@ -547,19 +549,19 @@ function RepositoryDialog({
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
             <h2 id="repository-dialog-title" className="text-[15px] font-semibold">
-              {isOpen ? "Open local folder" : "Clone from remote"}
+              {isOpen ? t("projects.dialog.openTitle") : t("projects.dialog.cloneTitle")}
             </h2>
             <p className="mt-1 text-[12px] text-ink-muted">
               {isOpen
-                ? "Browse for a Git repository or enter its absolute path."
-                : "Choose a remote repository and where to save its local checkout."}
+                ? t("projects.dialog.openDescription")
+                : t("projects.dialog.cloneDescription")}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            aria-label="Close dialog"
+            aria-label={t("common.closeDialog")}
             className="rounded-control p-1.5 text-ink-subtle hover:bg-canvas hover:text-ink disabled:opacity-40"
           >
             <X className="size-4" />
@@ -567,7 +569,7 @@ function RepositoryDialog({
         </div>
         <form onSubmit={submit} className="p-5">
           <label className="mb-1.5 block text-[11.5px] font-semibold" htmlFor="repository-source">
-            {isOpen ? "Folder path" : "Repository URL"}
+            {isOpen ? t("projects.dialog.folderPath") : t("projects.dialog.repositoryUrl")}
           </label>
           <div className="flex gap-2">
             <input
@@ -596,7 +598,7 @@ function RepositoryDialog({
                 ) : (
                   <FolderOpen className="size-3.5" />
                 )}
-                {browsing ? "Selecting" : "Browse"}
+                {browsing ? t("projects.dialog.selecting") : t("projects.dialog.browse")}
               </button>
             )}
           </div>
@@ -606,7 +608,7 @@ function RepositoryDialog({
                 className="mb-1.5 mt-4 block text-[11.5px] font-semibold"
                 htmlFor="repository-destination"
               >
-                Save in
+                {t("projects.dialog.saveIn")}
               </label>
               <div className="flex gap-2">
                 <input
@@ -629,7 +631,7 @@ function RepositoryDialog({
                   ) : (
                     <FolderOpen className="size-3.5" />
                   )}
-                  {browsing ? "Selecting" : "Browse"}
+                  {browsing ? t("projects.dialog.selecting") : t("projects.dialog.browse")}
                 </button>
               </div>
             </>
@@ -646,7 +648,7 @@ function RepositoryDialog({
               disabled={busy}
               className="rounded-control border border-line-strong px-3.5 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas disabled:opacity-40"
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
@@ -654,7 +656,7 @@ function RepositoryDialog({
               className="flex min-w-[88px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending && <LoaderCircle className="size-3.5 animate-spin" />}
-              {pending ? (isOpen ? "Opening" : "Cloning") : isOpen ? "Open" : "Clone"}
+              {pending ? (isOpen ? t("projects.dialog.opening") : t("projects.dialog.cloning")) : isOpen ? t("projects.dialog.open") : t("projects.dialog.clone")}
             </button>
           </div>
         </form>
@@ -883,7 +885,7 @@ export function RepositoryInspector({
     if (reviewMode !== "static" && (!providerHealth || !isUsable(providerHealth))) {
       onError(
         providerHealth?.detail ??
-          "The configured AI provider is unavailable. Update it in Settings before running an AI review.",
+          t("review.providerUnavailable"),
       );
       return;
     }
@@ -969,9 +971,9 @@ export function RepositoryInspector({
   const aiProviderReady = Boolean(providerHealth && isUsable(providerHealth));
   const aiProviderBlocked = reviewMode !== "static" && !aiProviderReady;
   const providerMessage = providerChecking
-    ? "Checking the configured AI provider…"
+    ? t("review.providerChecking")
     : providerHealth?.detail ??
-      "The configured AI provider is unavailable. Update it before starting an AI review.";
+      t("review.providerUnavailable");
 
   const updateFinding = async (reviewId: string, findingId: string, status: Finding["status"]) => {
     try {
@@ -999,7 +1001,7 @@ export function RepositoryInspector({
           </div>
           <div className="flex flex-wrap items-end gap-2">
             <BranchSelect
-              label="Base"
+              label="review.base"
               value={base}
               branches={project.branches}
               onChange={(value) => {
@@ -1021,7 +1023,7 @@ export function RepositoryInspector({
             />
             <GitCompareArrows className="mb-2 size-4 text-ink-subtle" />
             <BranchSelect
-              label="Head"
+              label="review.head"
               value={head}
               branches={project.branches}
               onChange={(value) => {
@@ -1041,7 +1043,7 @@ export function RepositoryInspector({
               }}
             />
             <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
-              {t("Scope")}
+              {t("review.scope")}
               <select
                 value={reviewScope}
                 onChange={(event) => {
@@ -1067,22 +1069,22 @@ export function RepositoryInspector({
                 }}
                 className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none"
               >
-                <option value="branch_diff">{t("Branch diff")}</option>
-                <option value="selected_files">{t("Selected files")}</option>
-                <option value="whole_project">{t("Whole project")}</option>
+                <option value="branch_diff">{t("review.branchDiff")}</option>
+                <option value="selected_files">{t("review.selectedFiles")}</option>
+                <option value="whole_project">{t("review.wholeProject")}</option>
               </select>
             </label>
             <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-subtle">
-              {t("Review mode")}
+              {t("review.reviewMode")}
               <select
                 value={reviewMode}
                 onChange={(event) => setReviewMode(event.target.value as ReviewMode)}
                 disabled={reviewing}
                 className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none focus:border-ink disabled:opacity-50"
               >
-                <option value="static">{t("Static only")}</option>
-                <option value="ai_assisted">{t("AI-assisted")}</option>
-                <option value="both">{t("Both")}</option>
+                <option value="static">{t("review.staticOnly")}</option>
+                <option value="ai_assisted">{t("review.aiAssisted")}</option>
+                <option value="both">{t("review.both")}</option>
               </select>
             </label>
             <button
@@ -1096,7 +1098,7 @@ export function RepositoryInspector({
               ) : (
                 <GitCompareArrows className="size-3.5" />
               )}
-              {t("Preview")}
+              {t("review.preview")}
             </button>
             <button
               type="button"
@@ -1114,7 +1116,7 @@ export function RepositoryInspector({
               ) : (
                 <ScanSearch className="size-3.5" />
               )}
-              {t(reviewing ? "Cancel" : result ? "Run again" : reviewMode === "static" ? "Run static review" : reviewMode === "both" ? "Run combined review" : "Run AI review")}
+              {t(reviewing ? "common.cancel" : result ? "review.runAgain" : reviewMode === "static" ? "review.runStatic" : reviewMode === "both" ? "review.runCombined" : "review.runAi")}
             </button>
           </div>
         </div>
@@ -1128,7 +1130,7 @@ export function RepositoryInspector({
             <span className="min-w-0 flex-1">{providerMessage}</span>
             {!providerChecking && (
               <Link href="/settings/engine" className="font-semibold hover:underline">
-                Open settings
+                {t("review.openSettings")}
               </Link>
             )}
           </div>
@@ -1139,12 +1141,14 @@ export function RepositoryInspector({
             role="status"
             className="border-b border-medium-line bg-medium-surface px-5 py-2.5 text-[11.5px] text-medium"
           >
-            Deterministic coverage will be degraded: {analyzerPreflight.analyzers
-              .filter((item) => item.status !== "ready")
-              .map((item) => item.name)
-              .join(", ")}.
+            {t("review.degradedCoverage", {
+              analyzers: analyzerPreflight.analyzers
+                .filter((item) => item.status !== "ready")
+                .map((item) => item.name)
+                .join(", "),
+            })}
             <Link href="/settings/engine" className="ml-2 font-semibold hover:underline">
-              Review setup
+              {t("review.reviewSetup")}
             </Link>
           </div>
         )}
@@ -1179,12 +1183,12 @@ export function RepositoryInspector({
             <div className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-2 border-b border-line bg-sunken px-4 py-2">
               <Metric
                 icon={<Code2 className="size-3" />}
-                label="Files"
+                label={t("review.files")}
                 value={String(preview?.files.length ?? 0)}
               />
               <Metric
                 icon={<GitBranch className="size-3" />}
-                label="Lines"
+                label={t("review.lines")}
                 value={
                   preview
                     ? `+${preview.additions} / -${preview.deletions}`
@@ -1193,12 +1197,12 @@ export function RepositoryInspector({
               />
               <Metric
                 icon={<Boxes className="size-3" />}
-                label="Est. tokens"
+                label={t("review.estTokens")}
                 value={formatTokens(preview?.estimated_tokens ?? 0)}
               />
               <Metric
                 icon={<CircleDollarSign className="size-3" />}
-                label="Est. input"
+                label={t("review.estInput")}
                 value={`$${(preview?.estimated_cost_usd ?? 0).toFixed(4)}`}
               />
             </div>
@@ -1230,7 +1234,7 @@ export function RepositoryInspector({
             }}
             className="rounded-control border border-line-strong px-3 py-2 text-[12px] font-semibold text-ink-muted hover:bg-canvas hover:text-ink"
           >
-            {t("Configure another review")}
+            {t("review.configureAnother")}
           </button>
         </div>
       )}
@@ -1262,6 +1266,7 @@ export function RepositoryInspector({
 
 /** Dedicated review route wrapper. Keeps review errors close to the action that caused them. */
 export function ReviewSetupWorkspace({ project }: { project: Project }) {
+  const { t } = useUiText();
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
@@ -1275,7 +1280,7 @@ export function ReviewSetupWorkspace({ project }: { project: Project }) {
           <button
             type="button"
             onClick={() => setNotice(null)}
-            aria-label="Dismiss message"
+            aria-label={t("common.dismissMessage")}
             className="rounded-chip p-0.5 hover:bg-paper"
           >
             <X className="size-3.5" />
@@ -1326,18 +1331,18 @@ function ProjectQualityCommands({
   return (
     <details className="surface mb-4 px-4 py-3">
       <summary className="cursor-pointer text-[12px] font-semibold">
-        {t("Project quality commands")}
+        {t("review.qualityCommands")}
         <span className="ml-2 font-normal text-ink-subtle">
-          {t("optional · shell disabled")}
+          {t("review.qualityCommandsOptional")}
         </span>
       </summary>
       <p className="mt-2 text-[11px] text-ink-muted">
-        {t("Use JSON argument arrays so paths with spaces remain safe, for example")}
+        {t("review.jsonArgumentArrays")}
         <code className="ml-1">[&quot;./mvnw&quot;,&quot;verify&quot;]</code>.
       </p>
       <div className="mt-3 grid gap-3 lg:grid-cols-4">
         <BranchSelect
-          label="Default base branch"
+          label="review.defaultBaseBranch"
           value={baseBranch}
           branches={project.branches}
           onChange={setBaseBranch}
@@ -1347,25 +1352,25 @@ function ProjectQualityCommands({
           [
             [
               "checkstyle_command",
-              "Checkstyle",
-              "Checks configured Java style and static-code rules.",
+              "review.checkstyle",
+              "review.checkstyleDescription",
             ],
             [
               "test_command",
-              "Tests",
-              "Runs the project's test suite to detect failures and regressions.",
+              "review.tests",
+              "review.testsDescription",
             ],
             [
               "build_command",
-              "Build",
-              "Compiles or packages the project to validate dependencies, types, and generated artifacts.",
+              "review.build",
+              "review.buildDescription",
             ],
           ] as const
         ).map(([name, label, description]) => (
           <div key={name} className="text-[10.5px] font-semibold text-ink-muted">
             <div className="flex items-center gap-1">
               <label htmlFor={`project-command-${name}`}>{t(label)}</label>
-              <InfoTooltip label={`${t("More information about")} ${t(label)}`}>
+              <InfoTooltip label={`${t("review.moreInformationAbout")} ${t(label)}`}>
                 {t(description)}
               </InfoTooltip>
             </div>
@@ -1387,7 +1392,7 @@ function ProjectQualityCommands({
         onClick={() => void save()}
         className="mt-3 bg-ink px-3 py-2 text-[11px] font-semibold text-paper disabled:opacity-50"
       >
-        {saving ? t("Saving…") : t("Save project commands")}
+        {saving ? t("review.saving") : t("review.saveProjectCommands")}
       </button>
     </details>
   );
@@ -1424,12 +1429,13 @@ function LiveReviewPanel({
   branches: { base: string; head: string };
   onFindingStatus: (reviewId: string, findingId: string, status: Finding["status"]) => void;
 }) {
+  const { t } = useUiText();
   const review = result?.review;
   const reviewTitle = review?.mode === "static"
-    ? "Static review"
+    ? t("review.staticReview")
     : review?.mode === "both"
-      ? "Combined review"
-      : "AI review";
+      ? t("review.combinedReview")
+      : t("review.aiReview");
   const stageEvents = events.filter(
     (event): event is Extract<ReviewStreamEvent, { type: "stage" }> =>
       event.type === "stage",
@@ -1506,36 +1512,36 @@ function LiveReviewPanel({
             <CircleCheck className="size-3.5" />
           )}
           {failed
-            ? "Failed"
+            ? t("review.status.failed")
             : aborted
-              ? "Cancelled"
+              ? t("review.status.cancelled")
               : degraded
-                ? "Completed with degraded coverage"
+                ? t("review.status.degraded")
               : running
-                ? "Reviewing"
+                ? t("review.status.reviewing")
                 : tokens
-                  ? `Completed · ${formatTokens(tokens)} tokens`
-                  : "Completed"}
+                  ? t("review.status.completedTokens", { tokens: formatTokens(tokens) })
+                  : t("review.status.completed")}
         </span>
       </div>
 
       <div className="grid grid-cols-2 border-b border-line bg-sunken sm:grid-cols-5">
-        <ReviewMetric label="Findings" value={review ? String(review.findings.length) : "—"} />
+        <ReviewMetric label={t("review.metric.findings")} value={review ? String(review.findings.length) : "—"} />
         <ReviewMetric
-          label="Files reviewed"
+          label={t("review.metric.filesReviewed")}
           value={review ? String(review.stats.files_analysed) : "—"}
         />
         <ReviewMetric
-          label={tokens ? "Tokens" : "Est. context"}
+          label={tokens ? t("review.metric.tokens") : t("review.metric.estContext")}
           value={tokens ? formatTokens(tokens) : review ? `~${formatTokens(review.stats.estimated_context_tokens)}` : "—"}
         />
         <ReviewMetric
-          label={review?.stats.cost_is_estimated || usage?.is_estimated ? "Est. cost" : "Cost"}
+          label={review?.stats.cost_is_estimated || usage?.is_estimated ? t("review.metric.estCost") : t("review.metric.cost")}
           value={usage || review ? `$${cost.toFixed(4)}` : "—"}
         />
         <ReviewMetric
-          label="Duration"
-          value={review ? `${review.stats.duration_ms} ms` : "Live"}
+          label={t("review.metric.duration")}
+          value={review ? `${review.stats.duration_ms} ms` : t("review.metric.live")}
         />
       </div>
 
@@ -1584,7 +1590,7 @@ function LiveReviewPanel({
           <div className="border-b border-line p-4">
             <h4 className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase text-ink-subtle">
               <Activity className="size-3.5" />
-              Event stream
+              {t("review.eventStream")}
             </h4>
             <div className="max-h-48 space-y-0.5 overflow-auto">
               {events.length ? (
@@ -1594,15 +1600,15 @@ function LiveReviewPanel({
               ) : (
                 <p className="px-2 py-3 text-[10.5px] text-ink-subtle">
                   {review
-                    ? `${review.events.length} persisted events · ${review.status}`
-                    : "Starting local analysis…"}
+                    ? t("review.event.persisted", { count: review.events.length, status: t(`status.${review.status}`) })
+                    : t("review.startingAnalysis")}
                 </p>
               )}
             </div>
           </div>
           <div className="p-4">
             <h4 className="mb-2.5 text-[11px] font-semibold uppercase text-ink-subtle">
-              Analyzers
+              {t("review.analyzers")}
             </h4>
             <div className="space-y-1">
               {analyzers.length ? (
@@ -1610,7 +1616,7 @@ function LiveReviewPanel({
                   <AnalyzerRow key={analyzer.name} analyzer={analyzer} />
                 ))
               ) : (
-                <p className="px-2 py-2 text-[10.5px] text-ink-subtle">Pending</p>
+                <p className="px-2 py-2 text-[10.5px] text-ink-subtle">{t("review.analyzersPending")}</p>
               )}
             </div>
           </div>
@@ -1620,7 +1626,7 @@ function LiveReviewPanel({
           <div className="flex h-11 items-center justify-between border-b border-line bg-sunken px-4">
             <h4 className="flex items-center gap-2 text-[11.5px] font-semibold">
               <CircleAlert className="size-3.5 text-ink-subtle" />
-              Findings
+              {t("review.metric.findings")}
             </h4>
             <span className="font-mono text-[10.5px] text-ink-subtle">
               {review?.findings.length ?? 0}
@@ -1640,9 +1646,9 @@ function LiveReviewPanel({
             <div className="grid min-h-52 place-items-center px-5 py-8 text-center">
               <div>
                 <LoaderCircle className="mx-auto mb-2.5 size-6 animate-spin text-low" />
-                <p className="text-[12.5px] font-semibold">Review in progress</p>
+                <p className="text-[12.5px] font-semibold">{t("review.inProgress")}</p>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  {provider ? "Validating streamed findings" : "Running local analyzers"}
+                  {provider ? t("review.validatingStreamed") : t("review.runningLocalAnalyzers")}
                 </p>
               </div>
             </div>
@@ -1657,10 +1663,10 @@ function LiveReviewPanel({
                   <CircleCheck className="mx-auto mb-2.5 size-6 text-success" />
                 )}
                 <p className="text-[12.5px] font-semibold">
-                  {failed ? "Review stopped" : aborted ? "Review cancelled" : "No findings"}
+                  {failed ? t("review.stopped") : aborted ? t("review.status.cancelled") : t("review.noFindings")}
                 </p>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  {failure?.message ?? review?.error ?? (aborted ? "The background job was cancelled." : "Available analyzers and AI reported no issues.")}
+                  {failure?.message ?? review?.error ?? (aborted ? t("review.jobCancelled") : t("review.noIssuesReported"))}
                 </p>
               </div>
             </div>
@@ -1672,40 +1678,41 @@ function LiveReviewPanel({
 }
 
 function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
+  const { t } = useUiText();
   let label: string;
   switch (event.type) {
     case "review_queued":
-      label = "Queued — waiting for a review slot";
+      label = t("review.event.queued");
       break;
     case "review_started":
-      label = "Review started";
+      label = t("review.event.started");
       break;
     case "stage":
       label = `${event.name} · ${event.duration_ms} ms`;
       break;
     case "analyzer":
-      label = `${event.name} · ${event.findings} findings`;
+      label = `${event.name} · ${t("review.event.findings", { count: event.findings })}`;
       break;
     case "provider":
-      label = `Model · ${event.model}`;
+      label = t("review.event.model", { model: event.model });
       break;
     case "delta":
-      label = `Model output · ${event.characters} chars`;
+      label = t("review.event.delta", { chars: event.characters });
       break;
     case "retry":
-      label = `Retry ${event.attempt} · ${event.message}`;
+      label = t("review.event.retry", { attempt: event.attempt, message: event.message });
       break;
     case "usage":
-      label = `Usage · ${formatTokens(event.input_tokens + event.output_tokens)} tokens`;
+      label = t("review.event.usage", { tokens: formatTokens(event.input_tokens + event.output_tokens) });
       break;
     case "completed":
-      label = "Review completed";
+      label = t("review.event.completed");
       break;
     case "failed":
       label = event.message;
       break;
     case "aborted":
-      label = "Review cancelled";
+      label = t("review.event.cancelled");
       break;
   }
   return (
@@ -1767,6 +1774,7 @@ function FindingRow({
   finding: Finding;
   onStatus: (status: Finding["status"]) => void;
 }) {
+  const { t } = useUiText();
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyPatch = async () => {
@@ -1781,34 +1789,34 @@ function FindingRow({
         <span
           className={`rounded-chip border px-2 py-0.5 text-[9.5px] font-semibold capitalize ${SEVERITY_STYLES[finding.severity]}`}
         >
-          {finding.severity}
+          {t(`review.severity.${finding.severity}`)}
         </span>
         <span className="font-mono text-[10px] text-ink-subtle">
           {finding.file}:{finding.line_start}
         </span>
         <span className="text-[9.5px] font-semibold uppercase text-ink-subtle">{finding.source}</span>
-        <span className="ml-auto text-[9.5px] font-semibold capitalize text-ink-subtle">{finding.status.replace("_", " ")}</span>
+        <span className="ml-auto text-[9.5px] font-semibold capitalize text-ink-subtle">{t(`review.finding.status.${finding.status}`)}</span>
       </div>
       <h5 className="text-[12.5px] font-semibold leading-snug">{finding.title}</h5>
       <p className="mt-1 text-[11.5px] leading-relaxed text-ink-muted">{finding.description}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setExpanded((value) => !value)} className="text-[10.5px] font-semibold text-low hover:underline">
-          {expanded ? "Hide evidence" : "Why this matters"}
+          {expanded ? t("review.finding.hideEvidence") : t("review.finding.whyThisMatters")}
         </button>
-        <span className="text-[10.5px] text-ink-subtle">Confidence {Math.round(finding.confidence * 100)}%</span>
-        {finding.suggested_patch && <button type="button" onClick={() => void copyPatch()} className="text-[10.5px] font-semibold text-low hover:underline">{copied ? "Patch copied" : "Copy suggested patch"}</button>}
+        <span className="text-[10.5px] text-ink-subtle">{t("review.finding.confidence", { percent: Math.round(finding.confidence * 100) })}</span>
+        {finding.suggested_patch && <button type="button" onClick={() => void copyPatch()} className="text-[10.5px] font-semibold text-low hover:underline">{copied ? t("review.finding.patchCopied") : t("review.finding.copyPatch")}</button>}
       </div>
       {expanded && (
         <div className="mt-3 border-l-2 border-low-line bg-canvas px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
-          <p>{finding.rationale || "This finding was reported by the selected analyzer."}</p>
+          <p>{finding.rationale || t("review.finding.defaultRationale")}</p>
           {finding.suggested_patch && <pre className="mt-3 overflow-auto border border-line bg-paper p-2 font-mono text-[10px] text-ink">{finding.suggested_patch}</pre>}
         </div>
       )}
       {finding.status === "open" && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => onStatus("fixed")} className="border border-success-line px-2 py-1 text-[10.5px] font-semibold text-success hover:bg-success-surface">Mark fixed</button>
-          <button type="button" onClick={() => onStatus("false_positive")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">False positive</button>
-          <button type="button" onClick={() => onStatus("dismissed")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">Dismiss</button>
+          <button type="button" onClick={() => onStatus("fixed")} className="border border-success-line px-2 py-1 text-[10.5px] font-semibold text-success hover:bg-success-surface">{t("review.finding.markFixed")}</button>
+          <button type="button" onClick={() => onStatus("false_positive")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">{t("review.finding.falsePositive")}</button>
+          <button type="button" onClick={() => onStatus("dismissed")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">{t("review.finding.dismiss")}</button>
         </div>
       )}
     </article>
@@ -1816,18 +1824,19 @@ function FindingRow({
 }
 
 function ReviewHistory({ reviews, onSelect }: { reviews: Review[]; onSelect: (review: Review) => void }) {
+  const { t } = useUiText();
   if (!reviews.length) return null;
   return (
-    <section className="mt-4 overflow-hidden rounded-panel border border-line bg-paper" aria-label="Review history">
+    <section className="mt-4 overflow-hidden rounded-panel border border-line bg-paper" aria-label={t("review.history")}>
       <div className="flex items-center justify-between border-b border-line bg-sunken px-4 py-3">
-        <h3 className="text-[12px] font-semibold">Review history</h3>
+        <h3 className="text-[12px] font-semibold">{t("review.history")}</h3>
         <span className="font-mono text-[10.5px] text-ink-subtle">{reviews.length}</span>
       </div>
       <div className="divide-y divide-line">
         {reviews.slice(0, 8).map((review) => (
           <button key={review.id} type="button" onClick={() => onSelect(review)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left hover:bg-canvas">
-            <span className="min-w-0"><span className="block truncate text-[11.5px] font-semibold">{review.base_branch} → {review.head_branch}</span><span className="block text-[10.5px] text-ink-subtle">{relativeDate(review.created_at, new Date().toISOString())} · {review.model ?? "Local analysis"}</span></span>
-            <span className="text-[10.5px] text-ink-muted">{review.findings.length} findings · ${review.stats.cost_usd.toFixed(4)}</span>
+            <span className="min-w-0"><span className="block truncate text-[11.5px] font-semibold">{review.base_branch} → {review.head_branch}</span><span className="block text-[10.5px] text-ink-subtle">{relativeDate(review.created_at, new Date().toISOString(), t)} · {review.model ?? t("review.localAnalysis")}</span></span>
+            <span className="text-[10.5px] text-ink-muted">{t("review.historyFindings", { count: review.findings.length })} · ${review.stats.cost_usd.toFixed(4)}</span>
           </button>
         ))}
       </div>
@@ -1836,12 +1845,13 @@ function ReviewHistory({ reviews, onSelect }: { reviews: Review[]; onSelect: (re
 }
 
 function CostConfirmation({ preview, model, cap, onCancel, onConfirm }: { preview: DiffPreview; model: string; cap: number | null; onCancel: () => void; onConfirm: () => void }) {
+  const { t } = useUiText();
   return (
     <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-4">
       <section role="dialog" aria-modal="true" aria-labelledby="cost-confirmation-title" className="w-full max-w-[440px] border border-line bg-paper shadow-2xl">
-        <div className="border-b border-line px-5 py-4"><h2 id="cost-confirmation-title" className="text-[15px] font-semibold">Confirm estimated review cost</h2><p className="mt-1 text-[12px] text-ink-muted">This review exceeds your warning threshold.</p></div>
-        <div className="space-y-2 px-5 py-4 text-[12px] text-ink-muted"><p><strong className="text-ink">Model:</strong> {model}</p><p><strong className="text-ink">Scope:</strong> {preview.files.length} files, {formatTokens(preview.estimated_tokens)} estimated tokens</p><p><strong className="text-ink">Estimated input:</strong> ${preview.estimated_cost_usd.toFixed(4)}{cap !== null ? ` of $${cap.toFixed(2)} budget` : ""}</p></div>
-        <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">Cancel</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover">Run review</button></div>
+        <div className="border-b border-line px-5 py-4"><h2 id="cost-confirmation-title" className="text-[15px] font-semibold">{t("review.cost.title")}</h2><p className="mt-1 text-[12px] text-ink-muted">{t("review.cost.exceedsThreshold")}</p></div>
+        <div className="space-y-2 px-5 py-4 text-[12px] text-ink-muted"><p><strong className="text-ink">{t("review.cost.model")}</strong> {model}</p><p><strong className="text-ink">{t("review.cost.scope")}</strong> {t("review.cost.scopeDetail", { count: preview.files.length, tokens: formatTokens(preview.estimated_tokens) })}</p><p><strong className="text-ink">{t("review.cost.estimatedInput")}</strong> ${preview.estimated_cost_usd.toFixed(4)}{cap !== null ? t("review.cost.budgetSuffix", { cap: `$${cap.toFixed(2)}` }) : ""}</p></div>
+        <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">{t("common.cancel")}</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover">{t("review.cost.runReview")}</button></div>
       </section>
     </div>
   );
@@ -1872,6 +1882,7 @@ function DiffViewer({
   preview: DiffPreview | null;
   loading: boolean;
 }) {
+  const { t } = useUiText();
   if (loading && !preview) {
     return <div className="p-4"><LoadingRows /></div>;
   }
@@ -1881,9 +1892,9 @@ function DiffViewer({
       <div className="grid min-h-[360px] place-items-center p-8 text-center">
         <div>
           <Check className="mx-auto mb-3 size-7 text-success" strokeWidth={1.7} />
-          <p className="mb-1 text-[12.5px] font-semibold">No changes in this comparison</p>
+          <p className="mb-1 text-[12.5px] font-semibold">{t("review.noChanges")}</p>
           <p className="text-[11px] text-ink-muted">
-            When base and head match, RevAI previews uncommitted working-tree changes.
+            {t("review.noChangesDetail")}
           </p>
         </div>
       </div>
@@ -1915,7 +1926,7 @@ function DiffViewer({
       </pre>
       {preview.truncated && (
         <p className="sticky bottom-0 border-t border-medium-line bg-medium-surface px-4 py-2 text-[10.5px] text-medium">
-          Preview capped at 1 MB. The full diff remains unchanged in Git.
+          {t("review.diffTruncated")}
         </p>
       )}
     </div>
@@ -1923,8 +1934,9 @@ function DiffViewer({
 }
 
 function LoadingRows() {
+  const { t } = useUiText();
   return (
-    <div className="space-y-2" aria-label="Loading repository data">
+    <div className="space-y-2" aria-label={t("review.loadingRepository")}>
       {[70, 92, 58, 80].map((width) => (
         <div
           key={width}

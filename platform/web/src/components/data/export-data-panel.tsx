@@ -3,6 +3,7 @@
 import { Archive, Download, FileCode2, FileJson2, FileText, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
+import { useUiText } from "@/components/ui-preference-bootstrap";
 import { api, reviewExportUrl, type DataSummary, type Review } from "@/lib/api";
 
 export interface ReviewExportRow {
@@ -11,6 +12,7 @@ export interface ReviewExportRow {
 }
 
 export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; reviews: ReviewExportRow[] }) {
+  const { t } = useUiText();
   const [archiveState, setArchiveState] = useState<"idle" | "working" | "done">("idle");
   const [error, setError] = useState<string>();
 
@@ -28,7 +30,7 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
       setArchiveState("done");
     } catch (cause) {
       setArchiveState("idle");
-      setError(cause instanceof Error ? cause.message : "Could not export data.");
+      setError(cause instanceof Error ? cause.message : t("data.exportError"));
     }
   }
 
@@ -37,17 +39,17 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
       <section className="surface overflow-hidden">
         <header className="flex items-center gap-2 border-b border-line px-5 py-4">
           <Archive className="size-4 text-ink-muted" strokeWidth={1.8} />
-          <h2 className="text-[13px] font-semibold">Export &amp; data</h2>
+          <h2 className="text-[13px] font-semibold">{t("data.exportCard")}</h2>
         </header>
         <div className="divide-y divide-line">
-          <DataRow title="Review history" detail={`${summary.reviews} reviews · ${formatBytes(summary.storage_bytes)}`} aside={<code className="text-[10px] text-ink-subtle">{summary.reviews_dir}</code>} />
-          <DataRow title="Export everything" detail="Config, rules, projects, and every review as portable JSON.">
+          <DataRow title={t("data.reviewHistory")} detail={`${t("data.reviewsCount", { count: summary.reviews })} · ${formatBytes(summary.storage_bytes)}`} aside={<code className="text-[10px] text-ink-subtle">{summary.reviews_dir}</code>} />
+          <DataRow title={t("data.exportEverything")} detail={t("data.exportEverythingDetail")}>
             <button type="button" onClick={downloadArchive} disabled={archiveState === "working"} className="inline-flex items-center gap-2 rounded-control border border-line-strong px-3 py-2 text-[11px] font-medium hover:bg-canvas disabled:opacity-50">
               <Download className="size-3.5" />
-              {archiveState === "working" ? "Building archive…" : archiveState === "done" ? "Exported" : "Export .zip"}
+              {archiveState === "working" ? t("data.buildingArchive") : archiveState === "done" ? t("data.exported") : t("data.exportZip")}
             </button>
           </DataRow>
-          <DataRow title="Credential safety" detail="API credentials, caches, and repository contents are never included in archives." aside={<span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-success"><ShieldCheck className="size-3.5" />Excluded</span>} />
+          <DataRow title={t("data.credentialSafety")} detail={t("data.credentialSafetyDetail")} aside={<span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-success"><ShieldCheck className="size-3.5" />{t("data.excluded")}</span>} />
         </div>
       </section>
 
@@ -55,28 +57,28 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
 
       <section className="surface overflow-hidden">
         <header className="border-b border-line px-5 py-4">
-          <h2 className="text-[13px] font-semibold">Recent review exports</h2>
-          <p className="mt-1 text-[11px] text-ink-subtle">JSON and SARIF for automation, Markdown for pull requests, or a standalone offline HTML report.</p>
+          <h2 className="text-[13px] font-semibold">{t("data.recentExports")}</h2>
+          <p className="mt-1 text-[11px] text-ink-subtle">{t("data.recentExportsDetail")}</p>
         </header>
         {reviews.length === 0 ? (
-          <div className="px-5 py-10 text-center text-[12px] text-ink-muted">Run a review before exporting a report.</div>
+          <div className="px-5 py-10 text-center text-[12px] text-ink-muted">{t("data.runReviewFirst")}</div>
         ) : (
           <div className="divide-y divide-line">
             {reviews.map(({ projectName, review }) => (
               <article key={review.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-[12.5px] font-semibold">{projectName}</h3>
-                    <span className="rounded-chip border border-line px-2 py-0.5 text-[9px] uppercase text-ink-subtle">{review.status}</span>
+                    <h3 className="truncate text-[12.5px] font-semibold">{projectName === "Unknown project" ? t("data.unknownProject") : projectName}</h3>
+                    <span className="rounded-chip border border-line px-2 py-0.5 text-[9px] uppercase text-ink-subtle">{t(`status.${review.status}`)}</span>
                   </div>
-                  <p className="mt-1 truncate font-mono text-[10px] text-ink-subtle">{review.head_branch ?? "working tree"} · {new Date(review.created_at).toLocaleString()} · {review.findings.length} findings</p>
+                  <p className="mt-1 truncate font-mono text-[10px] text-ink-subtle">{review.head_branch ?? t("data.workingTree")} · {new Date(review.created_at).toLocaleString()} · {t("data.findingsCount", { count: review.findings.length })}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <ExportLink href={reviewExportUrl(review.id, "json")} icon={<FileJson2 />} label="JSON" />
                   <ExportLink href={reviewExportUrl(review.id, "md")} icon={<FileText />} label="Markdown" />
                   <ExportLink href={reviewExportUrl(review.id, "sarif")} icon={<FileCode2 />} label="SARIF" />
                   <ExportLink href={reviewExportUrl(review.id, "html")} icon={<FileCode2 />} label="HTML" primary />
-                  <ExportLink href={reviewExportUrl(review.id, "json", true)} icon={<FileJson2 />} label="Legacy" />
+                  <ExportLink href={reviewExportUrl(review.id, "json", true)} icon={<FileJson2 />} label={t("data.legacy")} />
                 </div>
               </article>
             ))}

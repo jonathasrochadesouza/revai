@@ -3,6 +3,7 @@
 import { AlertTriangle, Check, Clock3, DollarSign, SearchCode } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 
+import { useUiText } from "@/components/ui-preference-bootstrap";
 import {
   api,
   type FindingCategory,
@@ -12,12 +13,12 @@ import {
 } from "@/lib/api";
 
 const RANGES: InsightRange[] = ["7d", "30d", "90d", "all"];
-const CATEGORY_LABELS: Record<FindingCategory, string> = {
-  security: "Security",
-  bug: "Correctness",
-  performance: "Performance",
-  maintainability: "Maintainability",
-  style: "Style",
+const CATEGORY_KEYS: Record<FindingCategory, string> = {
+  security: "insights.category.security",
+  bug: "insights.category.bug",
+  performance: "insights.category.performance",
+  maintainability: "insights.category.maintainability",
+  style: "insights.category.style",
 };
 
 interface InsightsDashboardProps {
@@ -26,6 +27,7 @@ interface InsightsDashboardProps {
 }
 
 export function InsightsDashboard({ initial, initialError }: InsightsDashboardProps) {
+  const { t } = useUiText();
   const [insights, setInsights] = useState(initial);
   const [selectedRange, setSelectedRange] = useState<InsightRange>(initial.range);
   const [error, setError] = useState(initialError);
@@ -42,7 +44,7 @@ export function InsightsDashboard({ initial, initialError }: InsightsDashboardPr
         if (sequence === requestSequence.current) setInsights(next);
       } catch (cause) {
         if (sequence === requestSequence.current) {
-          setError(cause instanceof Error ? cause.message : "Could not load insights.");
+          setError(cause instanceof Error ? cause.message : t("insights.loadError"));
         }
       }
     });
@@ -59,14 +61,13 @@ export function InsightsDashboard({ initial, initialError }: InsightsDashboardPr
       <section className="mb-9 flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <h1 className="max-w-[540px] text-[36px] font-bold leading-[1.05] tracking-[-1.6px] sm:text-[44px]">
-            Code health, measured.
+            {t("insights.title")}
           </h1>
           <p className="mt-4 max-w-[620px] text-[14px] leading-relaxed text-ink-muted">
-            Every review you run, aggregated from the YAML files on your disk. No
-            cloud account, telemetry, or repository upload.
+            {t("insights.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-control border border-line bg-paper p-1" aria-label="Insight period">
+        <div className="flex items-center gap-1 rounded-control border border-line bg-paper p-1" aria-label={t("insights.periodAria")}>
           {RANGES.map((range) => (
             <button
               key={range}
@@ -93,41 +94,40 @@ export function InsightsDashboard({ initial, initialError }: InsightsDashboardPr
       )}
 
       <section className={`surface mb-5 grid overflow-hidden sm:grid-cols-2 xl:grid-cols-4 ${isPending ? "opacity-70" : ""}`} aria-busy={isPending}>
-        <Kpi icon={<SearchCode />} label="Reviews run" value={formatNumber(totals.reviews)} detail={`${totals.completed_reviews} completed`} />
-        <Kpi icon={<AlertTriangle />} label="Issues caught" value={formatNumber(totals.findings)} detail={`${totals.open_critical} critical open`} />
-        <Kpi icon={<DollarSign />} label="Total spend" value={formatCurrency(totals.total_cost_usd)} detail="Across selected reviews" />
-        <Kpi icon={<Clock3 />} label="Median duration" value={formatDuration(totals.median_duration_ms)} detail="Per review" />
+        <Kpi icon={<SearchCode />} label={t("insights.kpi.reviewsRun")} value={formatNumber(totals.reviews)} detail={t("insights.kpi.completed", { count: totals.completed_reviews })} />
+        <Kpi icon={<AlertTriangle />} label={t("insights.kpi.issuesCaught")} value={formatNumber(totals.findings)} detail={t("insights.kpi.criticalOpen", { count: totals.open_critical })} />
+        <Kpi icon={<DollarSign />} label={t("insights.kpi.totalSpend")} value={formatCurrency(totals.total_cost_usd)} detail={t("insights.kpi.acrossReviews")} />
+        <Kpi icon={<Clock3 />} label={t("insights.kpi.medianDuration")} value={formatDuration(totals.median_duration_ms)} detail={t("insights.kpi.perReview")} />
       </section>
 
       <div className="mb-5 grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.8fr)]">
         <section className="surface min-w-0 overflow-hidden">
-          <PanelHeader title="Findings over time" detail="Latest 12 reviews" />
+          <PanelHeader title={t("insights.findingsOverTime")} detail={t("insights.latest12")} />
           <TrendChart points={insights.trend} />
         </section>
 
         <section className="surface overflow-hidden">
-          <PanelHeader title="By category" detail={`${formatNumber(totals.findings)} total`} />
+          <PanelHeader title={t("insights.byCategory")} detail={t("insights.total", { count: formatNumber(totals.findings) })} />
           <CategoryBreakdown categories={insights.categories} total={totals.findings} />
         </section>
       </div>
 
       <section className="surface mb-5 grid gap-8 px-6 py-6 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
-          <h2 className="text-[18px] font-semibold tracking-[-0.3px]">Technical debt snapshot</h2>
+          <h2 className="text-[18px] font-semibold tracking-[-0.3px]">{t("insights.debtTitle")}</h2>
           <p className="mt-2 max-w-[680px] text-[13px] leading-relaxed text-ink-muted">
-            Current health uses each repository&apos;s latest review in the selected period.
-            A score of 100 means that review has no unresolved findings.
+            {t("insights.debtDescription")}
           </p>
         </div>
         <div className="grid grid-cols-3 gap-6 sm:gap-10">
-          <DebtMetric value={totals.open_critical} label="Open critical" tone="critical" />
-          <DebtMetric value={totals.resolved_findings} label="Resolved" tone="success" />
-          <DebtMetric value={`${fixRate}%`} label="Fix rate" tone="low" />
+          <DebtMetric value={totals.open_critical} label={t("insights.debt.openCritical")} tone="critical" />
+          <DebtMetric value={totals.resolved_findings} label={t("insights.debt.resolved")} tone="success" />
+          <DebtMetric value={`${fixRate}%`} label={t("insights.debt.fixRate")} tone="low" />
         </div>
       </section>
 
       <section className="surface overflow-hidden">
-        <PanelHeader title="Repository breakdown" detail={`${insights.projects.length} tracked`} />
+        <PanelHeader title={t("insights.repositoryBreakdown")} detail={t("insights.tracked", { count: insights.projects.length })} />
         <RepositoryTable projects={insights.projects} />
       </section>
     </main>
@@ -157,15 +157,16 @@ function PanelHeader({ title, detail }: { title: string; detail: string }) {
 }
 
 function TrendChart({ points }: { points: ReviewTrendPoint[] }) {
+  const { t } = useUiText();
   if (points.length === 0) {
-    return <EmptyState message="Run a review to start measuring findings over time." />;
+    return <EmptyState message={t("insights.trendEmpty")} />;
   }
   const maxTotal = Math.max(1, ...points.map((point) => point.critical + point.medium + point.low));
   return (
     <div className="px-5 pb-5 pt-7">
       <div className="flex h-[210px] items-end gap-2 border-b border-line sm:gap-3">
         {points.map((point, index) => (
-          <div key={point.review_id} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={`${point.project_name}: ${point.critical + point.medium + point.low} open findings`}>
+          <div key={point.review_id} className="flex h-full min-w-0 flex-1 flex-col justify-end" title={t("insights.openFindingsTooltip", { project: point.project_name, count: point.critical + point.medium + point.low })}>
             <div className="flex min-h-px w-full flex-col justify-end overflow-hidden rounded-t-xs">
               <ChartSegment value={point.low} max={maxTotal} tone="bg-low" />
               <ChartSegment value={point.medium} max={maxTotal} tone="bg-medium" />
@@ -176,9 +177,9 @@ function TrendChart({ points }: { points: ReviewTrendPoint[] }) {
         ))}
       </div>
       <div className="mt-4 flex flex-wrap gap-4 text-[10px] text-ink-muted">
-        <Legend tone="bg-critical" label="Critical" />
-        <Legend tone="bg-medium" label="Medium" />
-        <Legend tone="bg-low" label="Low" />
+        <Legend tone="bg-critical" label={t("insights.legend.critical")} />
+        <Legend tone="bg-medium" label={t("insights.legend.medium")} />
+        <Legend tone="bg-low" label={t("insights.legend.low")} />
       </div>
     </div>
   );
@@ -194,15 +195,16 @@ function Legend({ tone, label }: { tone: string; label: string }) {
 }
 
 function CategoryBreakdown({ categories, total }: { categories: InsightsResponse["categories"]; total: number }) {
+  const { t } = useUiText();
   return (
     <div className="space-y-4 px-5 py-5">
-      {(Object.entries(CATEGORY_LABELS) as [FindingCategory, string][]).map(([category, label]) => {
+      {(Object.entries(CATEGORY_KEYS) as [FindingCategory, string][]).map(([category, labelKey]) => {
         const value = categories[category];
         const percent = total > 0 ? Math.round((value / total) * 100) : 0;
         return (
           <div key={category}>
             <div className="mb-1.5 flex items-center justify-between text-[10.5px]">
-              <span className="text-ink-muted">{label}</span>
+              <span className="text-ink-muted">{t(labelKey)}</span>
               <span className="font-mono text-ink-subtle">{value} · {percent}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-xs bg-canvas">
@@ -221,17 +223,18 @@ function DebtMetric({ value, label, tone }: { value: string | number; label: str
 }
 
 function RepositoryTable({ projects }: { projects: InsightsResponse["projects"] }) {
-  if (projects.length === 0) return <EmptyState message="Open a repository to add it to code-health insights." />;
+  const { t } = useUiText();
+  if (projects.length === 0) return <EmptyState message={t("insights.repoEmpty")} />;
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead className="bg-sunken text-[9.5px] font-semibold uppercase tracking-[0.06em] text-ink-subtle">
-          <tr><th className="px-5 py-3">Repository</th><th className="px-4 py-3">Reviews</th><th className="px-4 py-3">Open</th><th className="px-4 py-3">Critical</th><th className="px-4 py-3">Health</th><th className="px-5 py-3">Change</th></tr>
+          <tr><th className="px-5 py-3">{t("insights.table.repository")}</th><th className="px-4 py-3">{t("insights.table.reviews")}</th><th className="px-4 py-3">{t("insights.table.open")}</th><th className="px-4 py-3">{t("insights.table.critical")}</th><th className="px-4 py-3">{t("insights.table.health")}</th><th className="px-5 py-3">{t("insights.table.change")}</th></tr>
         </thead>
         <tbody>
           {projects.map((project) => (
             <tr key={project.project_id} className="border-t border-line text-[11.5px]">
-              <td className="px-5 py-3.5"><div className="font-semibold">{project.name}</div><div className="mt-0.5 font-mono text-[9.5px] text-ink-subtle">{project.languages.join(" · ") || "language unknown"}</div></td>
+              <td className="px-5 py-3.5"><div className="font-semibold">{project.name}</div><div className="mt-0.5 font-mono text-[9.5px] text-ink-subtle">{project.languages.join(" · ") || t("insights.languageUnknown")}</div></td>
               <td className="px-4 py-3.5 font-mono">{project.reviews}</td>
               <td className="px-4 py-3.5 font-mono">{project.open_findings}</td>
               <td className={`px-4 py-3.5 font-mono ${project.open_critical > 0 ? "text-critical" : "text-ink"}`}>{project.open_critical}</td>
@@ -251,7 +254,8 @@ function HealthScore({ score }: { score: number }) {
 }
 
 function HealthChange({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-ink-subtle">new</span>;
+  const { t } = useUiText();
+  if (value === null) return <span className="text-ink-subtle">{t("insights.new")}</span>;
   if (value === 0) return <span className="text-ink-subtle">0</span>;
   return <span className={value > 0 ? "text-success" : "text-critical"}>{value > 0 ? "+" : ""}{value}</span>;
 }

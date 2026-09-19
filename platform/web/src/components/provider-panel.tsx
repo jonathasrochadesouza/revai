@@ -28,6 +28,7 @@ import { useEffect, useState } from "react";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { useUiText } from "@/components/ui-preference-bootstrap";
 import {
   ApiError,
   api,
@@ -40,12 +41,12 @@ import {
 import { labelForProvider } from "@/lib/models";
 
 /** Presentation for each health state, in one place so no card invents its own. */
-const STATES: Record<HealthState, { label: string; tone: BadgeTone }> = {
-  ready: { label: "Ready", tone: "success" },
-  needs_auth: { label: "Needs sign-in", tone: "medium" },
-  unknown: { label: "Unknown", tone: "medium" },
-  not_found: { label: "Not installed", tone: "neutral" },
-  error: { label: "Error", tone: "critical" },
+const STATES: Record<HealthState, { labelKey: string; tone: BadgeTone }> = {
+  ready: { labelKey: "engine.state.ready", tone: "success" },
+  needs_auth: { labelKey: "engine.state.needs_auth", tone: "medium" },
+  unknown: { labelKey: "engine.state.unknown", tone: "medium" },
+  not_found: { labelKey: "engine.state.not_found", tone: "neutral" },
+  error: { labelKey: "engine.state.error", tone: "critical" },
 };
 
 interface ProviderPanelProps {
@@ -56,9 +57,10 @@ interface ProviderPanelProps {
 type Load =
   | { phase: "loading" }
   | { phase: "ready"; data: ProvidersResponse }
-  | { phase: "error"; reason: string };
+  | { phase: "error"; reason: string | null };
 
 export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
+  const { t } = useUiText();
   const [load, setLoad] = useState<Load>({ phase: "loading" });
   const [verifying, setVerifying] = useState<ProviderId | null>(null);
   const [scan, setScan] = useState(0);
@@ -85,7 +87,7 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
         if (!cancelled) {
           setLoad({
             phase: "error",
-            reason: cause instanceof ApiError ? cause.message : "Could not reach the API",
+            reason: cause instanceof ApiError ? cause.message : null,
           });
         }
       },
@@ -139,11 +141,14 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
   return (
     <Card className="mb-3.5">
       <CardHeader
-        title="Provider status"
+        title={t("engine.providerStatus")}
         icon={PLUG}
         aside={
           load.phase === "ready"
-            ? `${load.data.providers.filter(isUsable).length} of ${load.data.providers.length} usable`
+            ? t("engine.usableCount", {
+                usable: load.data.providers.filter(isUsable).length,
+                total: load.data.providers.length,
+              })
             : undefined
         }
       />
@@ -152,7 +157,7 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
 
         {load.phase === "error" && (
           <p className="rounded-control border border-critical-line bg-critical-surface px-3 py-2.5 text-[12.5px] text-critical">
-            {load.reason}
+            {load.reason ?? t("engine.couldNotReachApi")}
           </p>
         )}
 
@@ -170,15 +175,14 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
 
             <div className="mt-4 flex items-center gap-3 border-t border-line pt-3.5">
               <p className="text-[11.5px] leading-relaxed text-ink-subtle">
-                Probing never spends model tokens: hosted APIs validate through their
-                model-list endpoint, while local agents report version and sign-in state.
+                {t("engine.probingNote")}
               </p>
               <Button
                 variant="ghost"
                 className="ml-auto shrink-0 px-3 py-1.5 text-[12px]"
                 onClick={rescan}
               >
-                Re-scan
+                {t("engine.rescan")}
               </Button>
             </div>
           </>
@@ -199,6 +203,7 @@ function ProviderRow({
   busy: boolean;
   onVerify: () => void;
 }) {
+  const { t } = useUiText();
   const pill = STATES[health.state];
 
   return (
@@ -213,7 +218,7 @@ function ProviderRow({
               {health.version}
             </code>
           )}
-          {active && <Badge tone="info">Selected</Badge>}
+          {active && <Badge tone="info">{t("engine.providerSelected")}</Badge>}
         </div>
 
         {health.detail && (
@@ -233,7 +238,7 @@ function ProviderRow({
 
         {health.remediation && (
           <p className="mt-1.5 text-[11.5px] text-ink-muted">
-            Fix:{" "}
+            {t("engine.fix")}{" "}
             <code className="rounded-xs bg-canvas px-1.5 py-0.5 text-[11px] text-low">
               {health.remediation}
             </code>
@@ -242,15 +247,14 @@ function ProviderRow({
 
         {!health.adapter_ready && (
           <p className="mt-1.5 text-[11.5px] text-ink-subtle">
-            RevAI cannot drive this provider yet, even when it is installed and signed
-            in — the adapter arrives in a later phase.
+            {t("engine.adapterNotReady")}
           </p>
         )}
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-2">
         <Badge tone={pill.tone} dot={health.state === "ready"}>
-          {pill.label}
+          {t(pill.labelKey)}
         </Badge>
         <Button
           variant="ghost"
@@ -258,7 +262,7 @@ function ProviderRow({
           disabled={busy}
           onClick={onVerify}
         >
-          {busy ? "Testing…" : "Test"}
+          {busy ? t("engine.testing") : t("engine.test")}
         </Button>
       </div>
     </div>
@@ -275,6 +279,7 @@ function ProviderRow({
  * actually takes, with no implied duration to be wrong about.
  */
 function Spinner() {
+  const { t } = useUiText();
   return (
     <div aria-busy className="flex flex-col items-center gap-3 py-9">
       <span
@@ -282,7 +287,7 @@ function Spinner() {
         className="size-7 animate-spin rounded-full border-2 border-line border-t-ink"
       />
       <p className="text-[12px] text-ink-subtle">
-        Probing provider health — local agents may take a few seconds to start.
+        {t("engine.probingHealth")}
       </p>
     </div>
   );

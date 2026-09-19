@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { DataLink } from "@/components/links";
 import { InsightsDashboard } from "@/components/insights/insights-dashboard";
 import { TopBar } from "@/components/top-bar";
 import { api, type InsightsResponse } from "@/lib/api";
@@ -43,10 +42,8 @@ export default async function InsightsPage() {
   const result = await loadInsights();
   return (
     <>
-      <TopBar breadcrumb={[{ label: "Platform", href: "/" }, "Insights"]}>
-        <Link href="/settings/data" className="rounded-control border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">
-          Export &amp; data
-        </Link>
+      <TopBar breadcrumb={[{ label: "common.platform", href: "/" }, "common.insights"]}>
+        <DataLink />
       </TopBar>
       <InsightsDashboard initial={result.data} initialError={result.error} />
     </>
