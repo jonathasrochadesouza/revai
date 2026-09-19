@@ -268,7 +268,7 @@ def render_html(review: Review, project: Project | None) -> bytes:
 </section>
 <section class="findings"><h2>Findings</h2>{finding_cards}</section>
 </main>
-<footer>Generated locally by RevAI · review context policy is recorded in the review metadata</footer>
+<footer>Generated locally by RevAI · context policy recorded in review metadata</footer>
 </body>
 </html>"""
     return document.encode()
