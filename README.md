@@ -55,3 +55,32 @@ Kiro reviews require Kiro CLI 2.18 or newer. RevAI passes the configured model
 explicitly and creates a temporary read-only agent with tools and MCP inheritance
 disabled. SonarQube scans prefer Maven or Gradle, wait for server-side processing,
 paginate issues and persist the actual quality-gate result.
+
+## Review agent (AGENTS.md)
+
+RevAI can install its reviewer into any coding agent that reads `AGENTS.md`
+(Codex, Cursor, Gemini CLI, opencode, and others). The install writes exactly two
+files in your project, after your confirmation:
+
+- `AGENTS.md` — a managed block between `revai:begin`/`revai:end` markers with
+  the RevAI reviewer persona, your project rules from `~/.revai/rules/`, the
+  findings JSON contract, and a strict read-only permission section. Your own
+  content in the file is preserved; the first install leaves a backup.
+- `.revai/agent-report.html` — the standalone report template.
+
+After reviewing, the agent writes only `revai-findings.json` (compact findings
+JSON — that is the entire token cost) and renders the report by copying the
+template to `<branch-slug>-revai.html` (e.g. `feat-user-revai.html`) and replacing
+its single `__REVAI_DATA__` placeholder with the JSON. Open the file in a browser:
+a RevAI-quality report, offline, with metrics, filters and suggested patches.
+
+```bash
+revai agent install . --dry-run     # print the merged AGENTS.md
+revai agent install . --yes         # write AGENTS.md + template
+revai agent render revai-findings.json --name feat-user   # validated render
+```
+
+The agent is instructed never to modify tracked files, commit, or push, and to
+treat patches as suggestions. API keys never leave `~/.revai/credentials.yaml`.
+You can also install and preview the report from **Settings → Engine → Review
+agent**.

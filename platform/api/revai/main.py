@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from revai.api.routes import agent as agent_routes
 from revai.api.routes import config as config_routes
 from revai.api.routes import exports as export_routes
 from revai.api.routes import health
@@ -110,6 +111,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health.router, prefix="/api")
+    app.include_router(agent_routes.router, prefix="/api")
     app.include_router(config_routes.router, prefix="/api")
     app.include_router(prompt_routes.router, prefix="/api")
     app.include_router(provider_routes.router, prefix="/api")

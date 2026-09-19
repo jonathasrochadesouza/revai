@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RevAI agent review</title>
+<!--
+  RevAI agent report template.
+
+  A self-contained offline page: one fixed renderer, no network dependency,
+  no external asset. The review JSON is injected at the single data
+  placeholder below (inside the application/json script tag), and the
+  renderer reads that node to build the page. The template is fixed for
+  every report; only the injected data changes, so agents spend tokens on
+  the JSON alone — never on markup.
+-->
+<style>
+:root {
+  color-scheme: light;
+  --canvas: #fafafa; --paper: #fff; --ink: #09090b; --muted: #52525b;
+  --subtle: #a1a1aa; --line: #e4e4e7; --critical: #dc2626;
+  --medium: #d97706; --low: #2563eb;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--canvas); color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px; line-height: 1.55;
+}
+header, main, footer { width: min(1040px, calc(100% - 40px)); margin: auto; }
+header {
+  height: 64px; display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+header p { color: var(--subtle); }
+.wordmark { font-size: 18px; font-weight: 750; letter-spacing: -.04em; }
+.wordmark span { color: #2563eb; }
+.hero { display: flex; justify-content: space-between; gap: 24px; padding: 56px 0 36px; }
+.label {
+  text-transform: uppercase; letter-spacing: .1em; color: var(--subtle);
+  font-size: 11px; font-weight: 700; margin: 0 0 8px;
+}
+.hero h1 { font-size: 36px; line-height: 1.1; letter-spacing: -.04em; margin: 0; }
+.branch { font-family: ui-monospace, monospace; color: var(--muted); }
+.status {
+  align-self: flex-start; border: 1px solid #a7f3d0; background: #ecfdf5;
+  color: #047857; border-radius: 6px; padding: 5px 10px; font-size: 11px;
+  font-weight: 700; text-transform: uppercase; white-space: nowrap;
+}
+.status.degraded { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+.status.failed, .status.aborted {
+  border-color: #fecaca; background: #fef2f2; color: #b91c1c;
+}
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 11px;
+}
+.metrics div { padding: 22px; border-right: 1px solid var(--line); }
+.metrics div:last-child { border: 0; }
+.metrics b { display: block; font: 700 24px ui-monospace, monospace; }
+.metrics span { color: var(--subtle); font-size: 11px; text-transform: uppercase; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 0;
+  color: var(--muted); font-size: 12px;
+}
+.filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 16px; }
+.filters button {
+  border: 1px solid var(--line); background: var(--paper); color: var(--muted);
+  border-radius: 999px; padding: 6px 14px; font: 600 12px inherit; cursor: pointer;
+}
+.filters button:hover { color: var(--ink); }
+.filters button.active {
+  border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8;
+}
+.filters button b { font-family: ui-monospace, monospace; font-weight: 700; margin-left: 6px; }
+.findings { padding: 4px 0 60px; }
+.finding {
+  background: var(--paper); border: 1px solid var(--line); border-left: 3px solid var(--low);
+  border-radius: 10px; padding: 22px; margin-bottom: 14px;
+}
+.finding.critical { border-left-color: var(--critical); }
+.finding.medium { border-left-color: var(--medium); }
+.finding-head { display: flex; gap: 14px; }
+.number { font: 600 11px ui-monospace, monospace; color: var(--subtle); padding-top: 3px; }
+h3 { font-size: 16px; margin: 0; }
+.location { font: 12px ui-monospace, monospace; color: var(--muted); margin: 4px 0 0; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.tags span {
+  border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px;
+  font-size: 10px; text-transform: uppercase;
+}
+.tags .severity.critical { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+.tags .severity.medium { border-color: #fde68a; background: #fffbeb; color: #b45309; }
+.tags .severity.low { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.rationale {
+  background: #fcfcfc; border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px; margin-top: 14px;
+}
+.rationale p { margin: 5px 0 0; }
+details { margin-top: 14px; }
+summary { cursor: pointer; font-weight: 600; }
+pre {
+  overflow: auto; background: #18181b; color: #f4f4f5; border-radius: 8px;
+  padding: 16px; font-size: 12px;
+}
+.empty, .error {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 28px; color: var(--muted);
+}
+.error { border-color: #fecaca; color: #b91c1c; }
+.error code { display: block; margin-top: 10px; font-size: 12px; color: var(--muted); }
+footer {
+  padding: 20px 0 40px; border-top: 1px solid var(--line);
+  color: var(--subtle); font-size: 12px;
+}
+@media (max-width: 640px) {
+  header, main, footer { width: min(100% - 24px, 1040px); }
+  .hero { padding-top: 36px; }
+  .hero h1 { font-size: 28px; }
+  .metrics { grid-template-columns: 1fr 1fr; }
+  .metrics div:nth-child(2) { border-right: 0; }
+  .metrics div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wordmark">rev<span>AI</span></div>
+  <p>Agent review report · generated locally</p>
+</header>
+<main>
+<section class="hero">
+  <div>
+    <p class="label">Review report</p>
+    <h1 id="project-name">Agent review</h1>
+    <p class="branch" id="branch-name"></p>
+  </div>
+  <div class="status" id="review-status">completed</div>
+</section>
+<section class="metrics" aria-label="Review metrics">
+  <div><b id="metric-critical">0</b><span>Critical</span></div>
+  <div><b id="metric-medium">0</b><span>Medium</span></div>
+  <div><b id="metric-low">0</b><span>Low</span></div>
+  <div><b id="metric-cost">—</b><span id="metric-cost-label">Cost</span></div>
+</section>
+<section class="meta" id="review-meta"></section>
+<section class="filters" id="filters" hidden></section>
+<section class="findings">
+  <h2>Findings</h2>
+  <div id="findings"></div>
+</section>
+</main>
+<footer>Generated by the RevAI review agent · read-only review, patches are suggestions only</footer>
+<script type="application/json" id="revai-data">__REVAI_DATA__</script>
+<script>
+(function () {
+  "use strict";
+
+  var SEVERITIES = ["critical", "medium", "low"];
+  var SEVERITY_RANK = { critical: 0, medium: 1, low: 2 };
+  var SOURCE_BADGES = { ai: true, semgrep: true, ruff: true, eslint: true, gitleaks: true };
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function paragraphs(value) {
+    return escapeHtml(String(value || "").trim()).replace(/\n/g, "<br>");
+  }
+
+  function asLines(finding) {
+    var start = Number(finding.line_start) || 0;
+    var end = Number(finding.line_end) || start;
+    return end > start ? start + "-" + end : String(start || "?");
+  }
+
+  function normaliseSeverity(value) {
+    var name = String(value || "").toLowerCase();
+    return SEVERITIES.indexOf(name) >= 0 ? name : "low";
+  }
+
+  // Accepts the canonical export envelope ({format_version, project, review})
+  // or the compact agent envelope ({findings, meta}) — the agent only owes
+  // the compact one, the full export is a superset.
+  function normalise(raw) {
+    if (!raw || typeof raw !== "object") {
+      throw new Error("payload is not a JSON object");
+    }
+    var review = raw.review && typeof raw.review === "object" ? raw.review : raw;
+    if (!Array.isArray(review.findings)) {
+      throw new Error("no findings array in the payload");
+    }
+    var meta = (raw.review ? raw.review : raw).meta || {};
+    var project = raw.project || {};
+    return {
+      projectName: project.name || meta.project || "Agent review",
+      branch: review.head_branch || meta.branch || "",
+      status: String(review.status || meta.status || "completed").toLowerCase(),
+      model: review.effective_model || review.model || meta.model || "",
+      createdAt: review.created_at || meta.created_at || "",
+      reviewId: review.id || meta.review_id || "",
+      cost: typeof review.stats === "object" && review.stats && review.stats.cost_usd != null
+        ? Number(review.stats.cost_usd)
+        : null,
+      costEstimated: !!(review.stats && review.stats.cost_is_estimated),
+      findings: review.findings.map(function (item, index) {
+        return {
+          id: item.id || String(index + 1),
+          severity: normaliseSeverity(item.severity),
+          category: item.category || "maintainability",
+          source: SOURCE_BADGES[item.source] ? item.source : item.source || "ai",
+          ruleId: item.rule_id || "",
+          confidence: typeof item.confidence === "number" ? item.confidence : null,
+          title: item.title || "Untitled finding",
+          description: item.description || "",
+          rationale: item.rationale || "",
+          file: item.file || "",
+          lines: asLines(item),
+          patch: item.suggested_patch || "",
+          status: item.status || "open",
+        };
+      }).sort(function (a, b) {
+        return (SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+          || (b.confidence - a.confidence);
+      }),
+    };
+  }
+
+  function counts(findings) {
+    var totals = { critical: 0, medium: 0, low: 0 };
+    findings.forEach(function (finding) {
+      totals[finding.severity] += 1;
+    });
+    return totals;
+  }
+
+  function findingCard(index, finding) {
+    var rule = finding.ruleId ? "<span>" + escapeHtml(finding.ruleId) + "</span>" : "";
+    var confidence = finding.confidence == null
+      ? ""
+      : "<span>confidence " + Math.round(finding.confidence * 100) + "%</span>";
+    var status = finding.status && finding.status !== "open"
+      ? "<span>" + escapeHtml(finding.status) + "</span>"
+      : "";
+    var rationale = finding.rationale
+      ? '<div class="rationale"><b>Why this matters</b><p>' + escapeHtml(finding.rationale) + "</p></div>"
+      : "";
+    var patch = finding.patch
+      ? "<details><summary>Suggested patch</summary><pre>" + escapeHtml(finding.patch) + "</pre></details>"
+      : "";
+    return '<article class="finding ' + finding.severity + '" data-severity="' + finding.severity + '">' +
+      '<div class="finding-head"><span class="number">' + String(index + 1).padStart(2, "0") + "</span><div>" +
+      "<h3>" + escapeHtml(finding.title) + "</h3>" +
+      '<p class="location">' + escapeHtml(finding.file) + ":" + escapeHtml(finding.lines) + "</p></div></div>" +
+      '<div class="tags">' +
+      '<span class="severity ' + finding.severity + '">' + finding.severity + "</span>" +
+      "<span>" + escapeHtml(String(finding.category)) + "</span>" +
+      "<span>" + escapeHtml(String(finding.source)) + "</span>" + rule + confidence + status +
+      "</div><p>" + paragraphs(finding.description) + "</p>" + rationale + patch +
+      "</article>";
+  }
+
+  function setMetrics(data) {
+    var totals = counts(data.findings);
+    document.getElementById("metric-critical").textContent = String(totals.critical);
+    document.getElementById("metric-medium").textContent = String(totals.medium);
+    document.getElementById("metric-low").textContent = String(totals.low);
+    document.getElementById("metric-cost").textContent =
+      data.cost == null ? "—" : "$" + data.cost.toFixed(4);
+    document.getElementById("metric-cost-label").textContent =
+      data.cost == null ? "Cost" : "Cost" + (data.costEstimated ? " · estimated" : "");
+  }
+
+  function setHeader(data) {
+    document.title = "RevAI review — " + data.projectName;
+    document.getElementById("project-name").textContent = data.projectName;
+    document.getElementById("branch-name").textContent = data.branch;
+    var status = document.getElementById("review-status");
+    status.textContent = data.status;
+    status.className = "status " + data.status;
+    var parts = [];
+    if (data.reviewId) parts.push("<span>Review <code>" + escapeHtml(data.reviewId) + "</code></span>");
+    if (data.createdAt) parts.push("<span>" + escapeHtml(String(data.createdAt).replace("T", " ").slice(0, 19)) + "</span>");
+    if (data.model) parts.push("<span>" + escapeHtml(data.model) + "</span>");
+    document.getElementById("review-meta").innerHTML = parts.join("");
+  }
+
+  function setFilters(data) {
+    var filters = document.getElementById("filters");
+    var totals = counts(data.findings);
+    var buttons = [["all", data.findings.length]]
+      .concat(SEVERITIES.map(function (severity) { return [severity, totals[severity]]; }));
+    filters.innerHTML = buttons.map(function (button) {
+      return '<button type="button" data-severity="' + button[0] + '">' +
+        button[0] + "<b>" + button[1] + "</b></button>";
+    }).join("");
+    filters.hidden = false;
+    var active = "all";
+    filters.addEventListener("click", function (event) {
+      var target = event.target.closest("button");
+      if (!target) return;
+      active = target.getAttribute("data-severity");
+      Array.prototype.forEach.call(filters.children, function (child) {
+        child.className = child === target ? "active" : "";
+      });
+      Array.prototype.forEach.call(document.querySelectorAll("#findings .finding"), function (card) {
+        var severity = card.getAttribute("data-severity");
+        card.style.display = active === "all" || severity === active ? "" : "none";
+      });
+    });
+    filters.children[0].className = "active";
+  }
+
+  function showError(message, detail) {
+    document.getElementById("findings").innerHTML =
+      '<div class="error"><b>This review report could not be rendered.</b>' +
+      "<code>" + escapeHtml(message + (detail ? " — " + detail : "")) + "</code></div>";
+  }
+
+  function render() {
+    var node = document.getElementById("revai-data");
+    var raw;
+    try {
+      raw = JSON.parse(node.textContent);
+    } catch (error) {
+      showError("The injected JSON is not valid.", String(error && error.message));
+      return;
+    }
+    var data;
+    try {
+      data = normalise(raw);
+    } catch (error) {
+      showError("The review data does not match the RevAI finding contract.", String(error && error.message));
+      return;
+    }
+    setHeader(data);
+    setMetrics(data);
+    var container = document.getElementById("findings");
+    if (!data.findings.length) {
+      container.innerHTML = '<p class="empty">No findings were reported.</p>';
+      return;
+    }
+    setFilters(data);
+    container.innerHTML = data.findings.map(findingCard).join("");
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

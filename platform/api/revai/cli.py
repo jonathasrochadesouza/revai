@@ -18,6 +18,9 @@ from pathlib import Path
 import uvicorn
 
 from revai import __version__
+from revai.agents import collect_rules, compose_block, install, preview_document, render_report
+from revai.agents.generator import provider_line
+from revai.agents.renderer import inject_data, load_template, validate_payload
 from revai.config import Settings, get_settings
 from revai.domain.enums import ProviderId, ReviewMode, ReviewScope, ReviewStatus, Severity
 from revai.domain.models import PipelineStageRecord, PromptOverride, Review, ReviewStats
@@ -71,6 +74,56 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate the local runtime and YAML data store without contacting a provider",
     )
     doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+
+    agent = commands.add_parser(
+        "agent",
+        help="install the RevAI review agent into a project or render an agent report",
+    )
+    agent_commands = agent.add_subparsers(dest="agent_command")
+    agent_install = agent_commands.add_parser(
+        "install",
+        help="write the RevAI review block into AGENTS.md and ship the report template",
+    )
+    agent_install.add_argument("path", type=Path, help="path to the target project directory")
+    agent_install.add_argument(
+        "--provider",
+        choices=[provider.value for provider in ProviderId],
+        help="override the configured provider in the generated block",
+    )
+    agent_install.add_argument("--model", help="override the configured model")
+    agent_install.add_argument(
+        "--locale",
+        choices=("en-US", "pt-BR"),
+        help="persona language; defaults to the configured UI locale",
+    )
+    agent_install.add_argument(
+        "--dry-run", action="store_true", help="print the merged AGENTS.md without writing"
+    )
+    agent_install.add_argument(
+        "--yes", action="store_true", help="write without the interactive confirmation"
+    )
+    agent_render = agent_commands.add_parser(
+        "render",
+        help="render an agent report: inject review JSON into the report template",
+    )
+    agent_render.add_argument("json_file", type=Path, help="findings JSON (compact or full export)")
+    agent_render.add_argument(
+        "--name",
+        required=True,
+        help="report name, usually the branch (becomes <name>-revai.html)",
+    )
+    agent_render.add_argument(
+        "--out",
+        type=Path,
+        help="destination directory; defaults to the JSON file's directory",
+    )
+    agent_render.add_argument(
+        "--template", type=Path, help="override the template path (defaults to the packaged one)"
+    )
+    agent_render.add_argument(
+        "--dry-run", action="store_true", help="print the report to stdout without writing"
+    )
+
     review = commands.add_parser("review", help="run a headless review for CI or automation")
     review.add_argument("path", type=Path, help="path to a local Git repository")
     review.add_argument("--base", help="base branch; defaults to the detected base")
@@ -120,6 +173,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "doctor":
         return doctor(json_output=args.json)
+    if args.command == "agent":
+        if args.agent_command == "install":
+            return agent_install_command(args)
+        if args.agent_command == "render":
+            return agent_render_command(args)
+        return agent_help()
     if args.command == "review":
         return review_command(args)
     parser.error(f"unknown command: {args.command}")
@@ -195,6 +254,91 @@ def doctor(*, json_output: bool = False) -> int:
         for check in checks:
             print(f"[{check.status}] {check.name}: {check.detail}")
     return 0 if ok else 1
+
+
+def agent_help() -> int:
+    print("usage: revai agent {install,render} ...\n")
+    print("  install  write the RevAI review block into a project's AGENTS.md")
+    print("  render   inject review JSON into the agent report template")
+    return 0
+
+
+def agent_install_command(args: argparse.Namespace) -> int:
+    """Write the managed RevAI block into the project's AGENTS.md."""
+    settings = get_settings()
+    settings.ensure_dirs()
+    project_path = args.path.expanduser().resolve()
+    if not project_path.is_dir():
+        print(f"revai agent install failed: not a directory: {project_path}", file=sys.stderr)
+        return 2
+
+    config = ConfigRepository(settings).load().model_copy(deep=True)
+    if args.provider:
+        config.engine.provider_id = ProviderId(args.provider)
+        config.engine.mode = config.engine.provider_id.kind.value
+    if args.model:
+        config.engine.model = args.model
+    if args.locale:
+        config.ui.locale = args.locale
+
+    block = compose_block(config, rules=collect_rules(settings.rules_dir))
+    if args.dry_run:
+        document, _exists = preview_document(project_path, block)
+        print(document)
+        return 0
+    if not args.yes and sys.stdin.isatty():
+        answer = input(f"Write the RevAI block into {project_path / 'AGENTS.md'}? [y/N] ")
+        if answer.strip().lower() not in {"y", "yes"}:
+            print("Cancelled.")
+            return 0
+    if not args.yes and not sys.stdin.isatty():
+        print(
+            "revai agent install: refusing to write without confirmation;"
+            " pass --yes for non-interactive use",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        result = install(project_path, block)
+    except OSError as exc:
+        print(f"revai agent install failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"AGENTS.md:  {result.agents_md}" + (" (created)" if result.agents_md_created else ""))
+    print(f"Template:   {result.template}")
+    if result.backup_created:
+        print(f"Backup:     {result.agents_md.with_name('AGENTS.md.revai-bak')}")
+    print(f"Engine:     {provider_line(config)}")
+    return 0
+
+
+def agent_render_command(args: argparse.Namespace) -> int:
+    """Inject review JSON into the report template."""
+    try:
+        payload = args.json_file.expanduser().read_bytes()
+    except OSError as exc:
+        print(f"revai agent render failed: {exc}", file=sys.stderr)
+        return 2
+    template = args.template.read_text(encoding="utf-8") if args.template else load_template()
+    try:
+        data = validate_payload(payload)
+    except ValueError as exc:
+        print(f"revai agent render failed: {exc}", file=sys.stderr)
+        return 2
+    if args.dry_run:
+        sys.stdout.buffer.write(inject_data(template, data).encode())
+        return 0
+    try:
+        destination = render_report(
+            payload,
+            name=args.name,
+            out_dir=args.out or args.json_file.expanduser().resolve().parent,
+            template=template,
+        )
+    except (ValueError, OSError) as exc:
+        print(f"revai agent render failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"Report: {destination}")
+    return 0
 
 
 def review_command(args: argparse.Namespace) -> int:
