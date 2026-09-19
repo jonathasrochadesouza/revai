@@ -26,21 +26,6 @@ export const SETTINGS_MENU: { label: string; href: string }[] = [
   { label: "Data", href: "/settings/data" },
 ];
 
-function ChevronDown() {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      className="size-3 shrink-0"
-    >
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
 /**
  * A navigation link that shows a small spinner while the target route is
  * pending. Without it a slow server render looks frozen and users keep
@@ -113,10 +98,13 @@ function NavDropdown({ label, items, current, variant, align }: NavDropdownProps
     };
   }, [open]);
 
+  // The breadcrumb trigger mirrors the plain crumb link (semibold ink with a
+  // hover underline) so the affordance comes from the shared styling, not from
+  // an added caret.
   const trigger =
     variant === "breadcrumb"
-      ? "flex shrink-0 items-center gap-1 rounded-xs font-semibold text-ink transition-colors hover:text-low"
-      : "flex items-center gap-1 rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink";
+      ? "flex shrink-0 items-center rounded-xs font-semibold text-ink transition-colors hover:text-low hover:underline"
+      : "flex items-center rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink";
 
   return (
     <span ref={rootRef} className="relative shrink-0">
@@ -129,7 +117,6 @@ function NavDropdown({ label, items, current, variant, align }: NavDropdownProps
         className={trigger}
       >
         {t(label)}
-        <ChevronDown />
       </button>
       {open && (
         <div
@@ -176,7 +163,7 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
             <span aria-hidden className="hidden h-[18px] w-px bg-line-strong sm:block" />
             <nav
               aria-label={t("Breadcrumb")}
-              className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden text-[13.5px] text-ink-muted"
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-[13.5px] text-ink-muted"
             >
               {breadcrumb.map((crumb, index) => {
                 const isLast = index === breadcrumb.length - 1;
