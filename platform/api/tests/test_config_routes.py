@@ -178,7 +178,7 @@ def test_auto_save_accepts_all_three_states(client: TestClient) -> None:
 
 
 def test_auto_save_decision_survives_a_reload(client: TestClient) -> None:
-    """"Don't ask again" must hold across sessions, not just the current page."""
+    """ "Don't ask again" must hold across sessions, not just the current page."""
     payload = client.get("/api/config").json()["config"]
     payload["ui"]["auto_save"] = False
     client.put("/api/config", json=payload)

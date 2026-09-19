@@ -85,8 +85,7 @@ def build_insights(
     totals = InsightTotals(
         reviews=len(scoped),
         completed_reviews=sum(
-            review.status in {ReviewStatus.COMPLETED, ReviewStatus.DEGRADED}
-            for review in scoped
+            review.status in {ReviewStatus.COMPLETED, ReviewStatus.DEGRADED} for review in scoped
         ),
         findings=len(findings),
         open_findings=len(open_findings),

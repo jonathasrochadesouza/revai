@@ -435,9 +435,9 @@ def _sonar_command(
         (repository / name).is_file()
         for name in ("build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts")
     ):
-        executable = _project_executable(
-            repository, ("gradlew", "gradlew.bat")
-        ) or resolve_command("gradle")
+        executable = _project_executable(repository, ("gradlew", "gradlew.bat")) or resolve_command(
+            "gradle"
+        )
         if executable:
             return "gradle", [executable, "sonar", *common]
         if scanner == "gradle":
@@ -606,9 +606,7 @@ async def _execute(
         return AnalyzerRun(name, "failed", [], _duration_ms(started), str(exc))
 
 
-def _process_blocking(
-    command: list[str], cwd: Path, timeout_s: int = 120
-) -> tuple[int, str, str]:
+def _process_blocking(command: list[str], cwd: Path, timeout_s: int = 120) -> tuple[int, str, str]:
     try:
         execution, environment = command_for_execution(command)
         completed = subprocess.run(
@@ -630,9 +628,7 @@ def _process_blocking(
     )
 
 
-async def _process(
-    command: list[str], cwd: Path, *, timeout_s: int = 120
-) -> tuple[int, str, str]:
+async def _process(command: list[str], cwd: Path, *, timeout_s: int = 120) -> tuple[int, str, str]:
     """Run analyzers on a thread so Windows selector loops can launch them."""
     return await asyncio.to_thread(
         _process_blocking,

@@ -226,9 +226,7 @@ def _symbol_boundary(
     return name, start, end
 
 
-def _fallback_boundary(
-    lines: list[str], changed_line: int
-) -> tuple[str | None, int, int]:
+def _fallback_boundary(lines: list[str], changed_line: int) -> tuple[str | None, int, int]:
     """Coalesce package/import blocks instead of creating one chunk per line."""
     line = min(len(lines), max(1, changed_line)) if lines else 1
     if not lines:
@@ -237,13 +235,9 @@ def _fallback_boundary(
     if lines[line - 1].strip().startswith(import_prefixes):
         start = line
         end = line
-        while start > 1 and (
-            lines[start - 2].strip().startswith(import_prefixes)
-        ):
+        while start > 1 and (lines[start - 2].strip().startswith(import_prefixes)):
             start -= 1
-        while end < len(lines) and (
-            lines[end].strip().startswith(import_prefixes)
-        ):
+        while end < len(lines) and (lines[end].strip().startswith(import_prefixes)):
             end += 1
         return None, start, end
     return None, line, line

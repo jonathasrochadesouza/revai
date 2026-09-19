@@ -68,7 +68,7 @@ def test_security_analyzer_finds_javascript_function_constructor(tmp_path: Path)
 def test_security_analyzer_finds_seeded_java_regressions(tmp_path: Path) -> None:
     source = tmp_path / "UnsafeCustomerSearch.java"
     source.write_text(
-        '''
+        """
 final class UnsafeCustomerSearch {
     private static final String PARTNER_API_TOKEN = "sk_live_seeded_secret_123456";
 
@@ -81,7 +81,7 @@ final class UnsafeCustomerSearch {
         return Files.readString(exportDirectory.resolve(userSuppliedFileName));
     }
 }
-''',
+""",
         encoding="utf-8",
     )
 

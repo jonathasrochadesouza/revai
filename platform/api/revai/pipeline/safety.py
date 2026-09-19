@@ -54,6 +54,7 @@ def redact_secrets(value: str) -> tuple[str, int]:
     count = 0
     for pattern in _SECRET_PATTERNS:
         if pattern.groups >= 2:
+
             def replace(match: re.Match[str]) -> str:
                 nonlocal count
                 count += 1

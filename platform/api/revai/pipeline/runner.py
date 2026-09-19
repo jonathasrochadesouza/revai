@@ -191,9 +191,7 @@ async def run_deterministic_pipeline(
     )
     review.scope = scope
     review.selected_files = paths
-    analyzed_paths = {
-        path for analyzer in analyzers for path in analyzer.files_analyzed
-    }
+    analyzed_paths = {path for analyzer in analyzers for path in analyzer.files_analyzed}
     review.stats = ReviewStats(
         files_analysed=len(analyzed_paths),
         files_skipped=len(skipped_files),

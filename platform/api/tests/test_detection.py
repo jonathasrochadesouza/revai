@@ -232,6 +232,7 @@ def test_resolve_executable_returns_none_when_absent() -> None:
 
     assert resolve_executable(spec) is None
 
+
 def test_resolve_executable_prefers_an_explicit_path(monkeypatch) -> None:
     from revai.providers.detection import CliSpec
 
@@ -244,9 +245,9 @@ def test_resolve_executable_prefers_an_explicit_path(monkeypatch) -> None:
     monkeypatch.setenv("REVAI_KIRO_CLI_PATH", r"C:\Tools\kiro-cli.exe")
     monkeypatch.setattr(
         "revai.providers.detection.shutil.which",
-        lambda candidate: r"C:\Tools\kiro-cli.exe"
-        if candidate == r"C:\Tools\kiro-cli.exe"
-        else None,
+        lambda candidate: (
+            r"C:\Tools\kiro-cli.exe" if candidate == r"C:\Tools\kiro-cli.exe" else None
+        ),
     )
 
     assert resolve_executable(spec) == ("kiro-cli", r"C:\Tools\kiro-cli.exe")
@@ -259,7 +260,6 @@ def test_windows_path_is_converted_for_wsl_execution() -> None:
         "/mnt/c/Program Files/Kiro/kiro-cli.exe"
     )
     assert _windows_path_to_wsl("kiro-cli") is None
-
 
 
 # ---------------------------------------------------------------------------
