@@ -1,9 +1,11 @@
 "use client";
 
 import { AlertTriangle, Check, Clock3, DollarSign, SearchCode } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
+import { useToast } from "@/components/toast-provider";
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import {
   api,
   type FindingCategory,
@@ -28,15 +30,24 @@ interface InsightsDashboardProps {
 
 export function InsightsDashboard({ initial, initialError }: InsightsDashboardProps) {
   const { t } = useUiText();
+  const toast = useToast();
+  const errorText = useApiErrorText();
   const [insights, setInsights] = useState(initial);
   const [selectedRange, setSelectedRange] = useState<InsightRange>(initial.range);
-  const [error, setError] = useState(initialError);
   const [isPending, startTransition] = useTransition();
   const requestSequence = useRef(0);
 
+  // The page-level initial error (server component) replays once as a toast.
+  const replayedInitialError = useRef(false);
+  useEffect(() => {
+    if (initialError && !replayedInitialError.current) {
+      replayedInitialError.current = true;
+      toast.push(initialError);
+    }
+  }, [initialError, toast]);
+
   function selectRange(nextRange: InsightRange) {
     setSelectedRange(nextRange);
-    setError(undefined);
     const sequence = ++requestSequence.current;
     startTransition(async () => {
       try {
@@ -44,7 +55,7 @@ export function InsightsDashboard({ initial, initialError }: InsightsDashboardPr
         if (sequence === requestSequence.current) setInsights(next);
       } catch (cause) {
         if (sequence === requestSequence.current) {
-          setError(cause instanceof Error ? cause.message : t("insights.loadError"));
+          toast.push(errorText(cause));
         }
       }
     });
@@ -86,12 +97,6 @@ export function InsightsDashboard({ initial, initialError }: InsightsDashboardPr
           ))}
         </div>
       </section>
-
-      {error && (
-        <div className="mb-5 rounded-control border border-critical-line bg-critical-surface px-4 py-3 text-[12px] text-critical" role="alert">
-          {error}
-        </div>
-      )}
 
       <section className={`surface mb-5 grid overflow-hidden sm:grid-cols-2 xl:grid-cols-4 ${isPending ? "opacity-70" : ""}`} aria-busy={isPending}>
         <Kpi icon={<SearchCode />} label={t("insights.kpi.reviewsRun")} value={formatNumber(totals.reviews)} detail={t("insights.kpi.completed", { count: totals.completed_reviews })} />

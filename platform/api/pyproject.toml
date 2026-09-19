@@ -1,7 +1,9 @@
 [project]
 name = "revai-api"
-version = "3.0.0a0"
-description = "RevAI Platform — AI code review backend"
+# Single source of truth is `revai.__version__`; hatchling reads it at build
+# time so config.py, pip metadata and the CLI banner can never drift apart.
+dynamic = ["version"]
+description = "RevAI Platform — local-first AI code review backend with the `revai` CLI"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -37,6 +39,7 @@ dev = [
     "httpx2",
     "hypothesis>=6.115.0",
     "ruff>=0.7.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [project.scripts]
@@ -49,6 +52,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["revai"]
+
+[tool.hatch.version]
+path = "revai/__init__.py"
 
 # ----------------------------------------------------------------------------
 # Ruff — lint + format. Deliberately strict: this codebase is a code review
@@ -87,4 +93,20 @@ addopts = "-m 'not cli'"
 
 markers = [
     "cli: spawns a real CLI subprocess; slow and dependent on what is installed",
+]
+
+# ----------------------------------------------------------------------------
+# Coverage — `pytest --cov` or the CI workflow. The deterministic pipeline and
+# storage layer carry the product guarantees; third-party site-packages and the
+# reload entrypoint are excluded. `fail_under` is enforced in CI only.
+# ----------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["revai"]
+omit = ["revai/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
 ]

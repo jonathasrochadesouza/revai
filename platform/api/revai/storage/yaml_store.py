@@ -35,6 +35,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from revai.storage.base import StorageError
+from revai.storage.migrations import migrate_document
 
 logger = logging.getLogger(__name__)
 
@@ -192,8 +193,12 @@ class YamlStore[T: BaseModel]:
                 {"filename": path.name, "found_type": type(data).__name__},
             )
 
+        # A document from an older build is upgraded in memory here; the next
+        # write re-stamps it with the current schema version.
+        data = migrate_document(dict(data), filename=path.name)
+
         try:
-            return self._model.model_validate(dict(data))
+            return self._model.model_validate(data)
         except ValidationError as exc:
             raise StorageError(
                 "storage.schema_mismatch",

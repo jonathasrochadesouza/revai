@@ -33,6 +33,21 @@ export const ptBR: Record<MessageKey, string> = {
   "common.unsavedOne": "1 alteração não salva",
   "common.unsavedOther": "{count} alterações não salvas",
 
+  // --- toasts ----------------------------------------------------------------
+  "toast.dismiss": "Descartar notificação",
+
+  // --- backend-unreachable screen --------------------------------------------
+  "unreachable.eyebrow": "Configurações",
+  "unreachable.title": "Backend inacessível",
+  "unreachable.cardTitle": "Não foi possível conectar ao backend do RevAI",
+  "unreachable.heading": "Nenhum backend respondeu.",
+  "unreachable.body.before": "O web app conversa com a API local em",
+  "unreachable.body.after":
+    "— inacessível geralmente significa que o serviço do Docker Compose não está em execução.",
+  "unreachable.copyPrompt": "Copiar prompt de diagnóstico para IA",
+  "unreachable.copied": "Copiado",
+  "unreachable.tryAgain": "Tentar novamente",
+
   // --- relative time --------------------------------------------------------
   "time.justNow": "agora mesmo",
   "time.minutesAgo": "{count}min atrás",
@@ -132,6 +147,8 @@ export const ptBR: Record<MessageKey, string> = {
   "review.noChanges": "Nenhuma alteração nesta comparação",
   "review.noChangesDetail":
     "Quando base e head coincidem, o RevAI pré-visualiza as alterações não commitadas da árvore de trabalho.",
+  "review.diffView.unified": "Unificado",
+  "review.diffView.split": "Lado a lado",
   "review.diffTruncated":
     "Prévia limitada a 1 MB. O diff completo permanece inalterado no Git.",
   "review.configureAnother": "Configurar outra revisão",
@@ -641,6 +658,21 @@ export const ptBR: Record<MessageKey, string> = {
   "models.note.fastAndCostEfficient": "rápido e econômico",
   "models.note.strongerReasoning": "raciocínio mais forte",
   "models.note.auto": "Automático",
+
+  // --- review agent -----------------------------------------------------------
+  "agent.cardTitle": "Agente de review (AGENTS.md)",
+  "agent.intro":
+    "Instale o revisor RevAI em um dos seus projetos. Isto escreve um bloco gerenciado no AGENTS.md do projeto e envia um template de relatório HTML standalone (.revai/agent-report.html). O agente permanece somente leitura: só pode escrever revai-findings.json e o relatório.",
+  "agent.project": "Projeto",
+  "agent.engine": "Engine",
+  "agent.preview": "Pré-visualizar",
+  "agent.previewTitle": "Pré-visualização do AGENTS.md",
+  "agent.reportDemo": "Relatório de exemplo",
+  "agent.apply": "Instalar no projeto",
+  "agent.applying": "Instalando…",
+  "agent.applied": "Agente de review instalado.",
+  "agent.existingFile": "O AGENTS.md já existe — o seu conteúdo acima do bloco gerenciado é preservado.",
+  "agent.newFile": "O AGENTS.md ainda não existe — ele será criado.",
 
   // --- logo -----------------------------------------------------------------
   "logo.aria": "RevAI — ir para o painel",

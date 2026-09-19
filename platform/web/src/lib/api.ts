@@ -6,6 +6,8 @@
  * frontend can never drift from the backend contract.
  */
 
+import type { ApiErrorDetail } from "@/lib/errors";
+
 const DEFAULT_BASE_URL = "http://127.0.0.1:8799";
 
 const PUBLIC_BASE_URL =
@@ -232,6 +234,25 @@ export interface ProjectsResponse {
   projects: Project[];
 }
 
+export interface AgentPreview {
+  project_id: string;
+  project_name: string;
+  project_path: string;
+  agents_md_path: string;
+  agents_md_exists: boolean;
+  agents_md: string;
+  engine: string;
+}
+
+export interface AgentApplyResult {
+  project_id: string;
+  agents_md: string;
+  template: string;
+  agents_md_created: boolean;
+  backup_created: boolean;
+  block_replaced: boolean;
+}
+
 export interface FolderPickerResponse {
   path: string | null;
 }
@@ -394,7 +415,7 @@ export type ReviewStreamEvent =
       is_estimated: boolean;
     }
   | { type: "completed"; result: DeterministicReview }
-  | { type: "failed"; message: string }
+  | { type: "failed"; error_key: string; params?: Record<string, string> }
   | { type: "aborted"; review_id: string };
 
 export interface StreamReviewOptions {
@@ -428,7 +449,7 @@ async function streamReview(
     signal: options.signal,
   });
   if (!response.ok) {
-    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+    throw await toApiError(response, path, { method: "POST" });
   }
   if (!response.body) {
     throw new ApiError("The review stream returned no response body.", response.status);
@@ -449,7 +470,8 @@ async function streamReview(
     const event = JSON.parse(payload) as ReviewStreamEvent;
     options.onEvent?.(event);
     if (event.type === "completed") completed = event.result;
-    if (event.type === "failed") throw new ApiError(event.message, response.status);
+    if (event.type === "failed")
+      throw new ApiError(event.error_key, response.status, event.error_key, event.params);
   };
 
   while (true) {
@@ -514,7 +536,7 @@ async function startSonar(options: StreamSonarOptions = {}): Promise<void> {
     signal: options.signal,
   });
   if (!response.ok) {
-    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+    throw await toApiError(response, path, { method: "POST" });
   }
   if (!response.body) {
     throw new ApiError("The SonarQube start stream returned no response body.", response.status);
@@ -535,7 +557,8 @@ async function startSonar(options: StreamSonarOptions = {}): Promise<void> {
     const event = JSON.parse(payload) as SonarStreamEvent;
     options.onEvent?.(event);
     if (event.type === "ready") settled = true;
-    if (event.type === "failed") throw new ApiError(event.error_key, response.status);
+    if (event.type === "failed")
+      throw new ApiError(event.error_key, response.status, event.error_key, event.params);
   };
 
   while (true) {
@@ -627,7 +650,7 @@ async function exportAllData(): Promise<Blob> {
     headers: { Accept: "application/zip" },
   });
   if (!response.ok) {
-    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+    throw await toApiError(response, path, { method: "POST" });
   }
   return response.blob();
 }
@@ -637,11 +660,22 @@ export function isUsable(health: ProviderHealth): boolean {
   return health.adapter_ready && (health.state === "ready" || health.state === "unknown");
 }
 
-/** Raised for any non-2xx response, carrying the status for the caller. */
+/**
+ * Raised for any non-2xx response, carrying the status for the caller.
+ *
+ * When the backend answered with the structured error contract, `errorKey`
+ * and `params` hold the *raw, unresolved* contract — resolve them into a
+ * human sentence with `resolveApiError` (in `lib/errors.ts`) at the call
+ * site, where the locale is known. `message` stays a locale-agnostic
+ * developer-facing fallback: the raw `error_key`, or the pre-contract
+ * string detail for the few places that still send one.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly errorKey?: string,
+    readonly params?: Record<string, string | number | boolean | null>,
   ) {
     super(message);
     this.name = "ApiError";
@@ -662,10 +696,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    // The backend returns FastAPI's `detail` for every error it raises. Surfacing
-    // it verbatim matters because a malformed config.yaml produces a message that
-    // names the offending field, and the user needs to see it.
-    throw new ApiError(await describeFailure(response, path, init), response.status);
+    // Every application error is resolved at the call site through the error
+    // catalog; here we only lift the structured contract onto the exception.
+    throw await toApiError(response, path, init);
   }
 
   // 204 has no body; parsing it would throw.
@@ -676,39 +709,41 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function describeFailure(
+async function toApiError(
   response: Response,
   path: string,
   init?: RequestInit,
-): Promise<string> {
+): Promise<ApiError> {
+  let detail: unknown;
   try {
-    const body = (await response.json()) as { detail?: unknown };
-    if (typeof body.detail === "string") {
-      return body.detail;
-    }
-    if (
-      body.detail &&
-      typeof body.detail === "object" &&
-      "error_key" in (body.detail as Record<string, unknown>)
-    ) {
-      // The structured error contract: { error_key, params }. Surfacing the key
-      // lets screens map it through the translation catalog.
-      return String((body.detail as { error_key: unknown }).error_key);
-    }
-    if (Array.isArray(body.detail)) {
-      // Pydantic validation errors: [{ loc: [...], msg: "..." }, ...]
-      return body.detail
-        .map((item) => {
-          const entry = item as { loc?: unknown[]; msg?: string };
-          const where = (entry.loc ?? []).filter((p) => p !== "body").join(".");
-          return where ? `${where}: ${entry.msg}` : (entry.msg ?? "invalid");
-        })
-        .join("; ");
-    }
+    detail = (await response.json()).detail;
   } catch {
-    // Fall through to the generic message below.
+    // A body we cannot parse at all: fall through to the generic message.
   }
-  return `${init?.method ?? "GET"} ${path} failed with ${response.status}`;
+  const generic = `${init?.method ?? "GET"} ${path} failed with ${response.status}`;
+
+  if (typeof detail === "string") {
+    return new ApiError(detail, response.status);
+  }
+  if (isErrorDetail(detail)) {
+    // `message` is the developer-facing raw key; `errorKey`/`params` carry the
+    // contract for `resolveApiError`.
+    return new ApiError(detail.error_key, response.status, detail.error_key, detail.params);
+  }
+  if (Array.isArray(detail) && detail.every(isErrorDetail)) {
+    const first = detail[0];
+    return new ApiError(first.error_key, response.status, first.error_key, first.params);
+  }
+  return new ApiError(generic, response.status);
+}
+
+function isErrorDetail(value: unknown): value is ApiErrorDetail {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "error_key" in value &&
+    typeof (value as { error_key: unknown }).error_key === "string"
+  );
 }
 
 const json = (method: string, body: unknown): RequestInit => ({
@@ -837,6 +872,16 @@ export const api = {
   getInsights: (range: InsightRange = "30d") =>
     request<InsightsResponse>(`/api/insights?range=${range}`),
   getDataSummary: () => request<DataSummary>("/api/data"),
+
+  getAgentPreview: (projectId: string) =>
+    request<AgentPreview>(
+      `/api/agent/preview?project_id=${encodeURIComponent(projectId)}`,
+    ),
+  applyAgent: (projectId: string) =>
+    request<AgentApplyResult>("/api/agent/apply", json("POST", { project_id: projectId })),
+  /** URL of the rendered sample report, for embedding in an <iframe>. */
+  agentReportDemoUrl: () => `${API_BASE_URL}/api/agent/report-demo`,
+
   exportAllData,
 };
 

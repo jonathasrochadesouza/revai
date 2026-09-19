@@ -35,8 +35,8 @@ jobs:
         run: |
           uv run ruff check revai tests
           uv run ruff format --check revai tests
-      - name: Test
-        run: uv run pytest
+      - name: Test with coverage
+        run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=75
       - name: Build wheel and source distribution
         run: uv build
       - name: Smoke-test the installed wheel
@@ -66,6 +66,8 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Unit tests with coverage
+        run: npm run test:coverage
       - name: Build production bundle
         run: npm run build
       - name: Audit production dependencies

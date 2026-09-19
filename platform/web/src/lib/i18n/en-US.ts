@@ -31,6 +31,21 @@ export const enUS = {
   "common.unsavedOne": "1 unsaved change",
   "common.unsavedOther": "{count} unsaved changes",
 
+  // --- toasts ----------------------------------------------------------------
+  "toast.dismiss": "Dismiss notification",
+
+  // --- backend-unreachable screen --------------------------------------------
+  "unreachable.eyebrow": "Settings",
+  "unreachable.title": "Backend unreachable",
+  "unreachable.cardTitle": "Cannot reach the RevAI backend",
+  "unreachable.heading": "No backend answered.",
+  "unreachable.body.before": "The web app talks to the local API at",
+  "unreachable.body.after":
+    "— unreachable usually means the Docker Compose service is not running.",
+  "unreachable.copyPrompt": "Copy AI troubleshooting prompt",
+  "unreachable.copied": "Copied",
+  "unreachable.tryAgain": "Try again",
+
   // --- relative time --------------------------------------------------------
   "time.justNow": "just now",
   "time.minutesAgo": "{count}m ago",
@@ -130,6 +145,8 @@ export const enUS = {
   "review.noChanges": "No changes in this comparison",
   "review.noChangesDetail":
     "When base and head match, RevAI previews uncommitted working-tree changes.",
+  "review.diffView.unified": "Unified",
+  "review.diffView.split": "Split",
   "review.diffTruncated":
     "Preview capped at 1 MB. The full diff remains unchanged in Git.",
   "review.configureAnother": "Configure another review",
@@ -633,6 +650,21 @@ export const enUS = {
   "models.note.fastAndCostEfficient": "fast and cost-efficient",
   "models.note.strongerReasoning": "stronger reasoning",
   "models.note.auto": "Auto",
+
+  // --- review agent -----------------------------------------------------------
+  "agent.cardTitle": "Review agent (AGENTS.md)",
+  "agent.intro":
+    "Install the RevAI reviewer into one of your projects. This writes a managed block into the project's AGENTS.md and ships a standalone HTML report template (.revai/agent-report.html). The agent stays read-only: it may only write revai-findings.json and the report file.",
+  "agent.project": "Project",
+  "agent.engine": "Engine",
+  "agent.preview": "Preview",
+  "agent.previewTitle": "AGENTS.md preview",
+  "agent.reportDemo": "Sample report",
+  "agent.apply": "Install into project",
+  "agent.applying": "Installing…",
+  "agent.applied": "Review agent installed.",
+  "agent.existingFile": "AGENTS.md already exists — your content above the managed block is preserved.",
+  "agent.newFile": "AGENTS.md does not exist yet — it will be created.",
 
   // --- logo -----------------------------------------------------------------
   "logo.aria": "RevAI — go to the dashboard",

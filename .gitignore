@@ -1,0 +1,26 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+out/
+coverage/
+
+# AI-assistant worktrees and local agent state
+.kilo/
+opencode.json

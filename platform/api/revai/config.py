@@ -7,10 +7,22 @@ which is what makes the app testable without touching the real home directory.
 from __future__ import annotations
 
 from functools import lru_cache
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _dist_version
 from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from revai import __version__
+
+
+def _installed_version() -> str:
+    """Prefer installed distribution metadata; fall back to the checkout constant."""
+    try:
+        return _dist_version("revai-api")
+    except PackageNotFoundError:
+        return __version__
 
 
 class Settings(BaseSettings):
@@ -25,7 +37,10 @@ class Settings(BaseSettings):
 
     # --- identity -----------------------------------------------------------
     app_name: str = "RevAI Platform"
-    version: str = "3.0.0a0"
+    # Source of truth is `revai.__version__` (read by hatchling at build time).
+    # When running from an installed distribution, prefer its metadata so the
+    # reported version matches the wheel, not the checkout.
+    version: str = Field(default_factory=lambda: _installed_version())
     environment: str = Field(default="development")
 
     # --- network ------------------------------------------------------------

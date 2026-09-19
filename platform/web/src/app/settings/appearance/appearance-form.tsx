@@ -4,11 +4,12 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import { SaveBar } from "@/components/save-bar";
 import { Card, CardBody, CardHeader, CardRow } from "@/components/ui/card";
 import { Select } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
-import { ApiError, api, type ConfigResponse, type RevaiConfig } from "@/lib/api";
+import { api, type ConfigResponse, type RevaiConfig } from "@/lib/api";
 import { useAutoSave } from "@/lib/use-auto-save";
 
 type Theme = "light" | "dark" | "system";
@@ -21,6 +22,7 @@ const THEMES: { id: Theme; labelKey: string; detailKey: string; icon: typeof Sun
 
 export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const [saved, setSaved] = useState(initial.config);
   const [draft, setDraft] = useState(initial.config);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -55,7 +57,7 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
       setDraft(response.config);
       setStatus("saved");
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : t("save.couldNotSave"));
+      setError(errorText(cause));
       setStatus("error");
     }
   }

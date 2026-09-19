@@ -25,13 +25,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, TextInput } from "@/components/ui/field";
 import {
-  ApiError,
   api,
   type ConfigResponse,
   type PromptDefaults,
   type PromptScenario,
   type PromptsResponse,
 } from "@/lib/api";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import { useAutoSave } from "@/lib/use-auto-save";
 
 type Status = "idle" | "saving" | "saved" | "error";
@@ -43,6 +43,7 @@ interface PromptsFormProps {
 
 export function PromptsForm({ initial, config }: PromptsFormProps) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const locale = initial.locale;
   const [saved, setSaved] = useState<PromptDefaults>(initial.defaults);
   const [draft, setDraft] = useState<PromptDefaults>(initial.defaults);
@@ -68,10 +69,10 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
       setDraft(response);
       setStatus("saved");
     } catch (cause) {
-      setError(promptsError(cause, t));
+      setError(errorText(cause));
       setStatus("error");
     }
-  }, [draft, locale, t]);
+  }, [draft, errorText, locale]);
 
   useAutoSave(configState, dirty, status === "saving", () => void save());
 
@@ -83,7 +84,7 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
       });
       setConfigState(response.config);
     } catch (cause) {
-      setError(promptsError(cause, t));
+      setError(errorText(cause));
       setStatus("error");
     }
   }
@@ -108,7 +109,7 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
       setScenarios((current) => [...current, scenario]);
       setStatus("idle");
     } catch (cause) {
-      setError(promptsError(cause, t));
+      setError(errorText(cause));
       setStatus("error");
     }
   }
@@ -227,7 +228,7 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
               setDraft(response);
               setStatus("saved");
             } catch (cause) {
-              setError(promptsError(cause, t));
+              setError(errorText(cause));
               setStatus("error");
             }
           }}
@@ -251,6 +252,7 @@ function ScenarioCard({
   onDeleted: (scenarioId: string) => void;
 }) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const [draft, setDraft] = useState<PromptScenario>(scenario);
   const [state, setState] = useState<"idle" | "saving" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -277,7 +279,7 @@ function ScenarioCard({
       setDraft(updated);
       setState("idle");
     } catch (cause) {
-      setError(promptsError(cause, t));
+      setError(errorText(cause));
       setState("error");
     }
   }
@@ -289,7 +291,7 @@ function ScenarioCard({
       await api.deletePromptScenario(scenario.id);
       onDeleted(scenario.id);
     } catch (cause) {
-      setError(promptsError(cause, t));
+      setError(errorText(cause));
       setState("idle");
     }
   }
@@ -506,19 +508,6 @@ function ConfirmDialog({
   );
 }
 
-/** Map the backend's structured error keys onto translated messages. */
-function promptsError(cause: unknown, t: (key: string, params?: Record<string, string | number>) => string): string {
-  if (cause instanceof ApiError) {
-    const key = ERROR_MESSAGE_KEYS[cause.message];
-    if (key) return t(key);
-  }
-  return t("prompts.error.generic");
-}
-
-const ERROR_MESSAGE_KEYS: Record<string, string> = {
-  "prompt_scenario.not_found": "prompts.error.notFound",
-  "prompt_scenario.duplicate_name": "prompts.error.duplicateName",
-};
 
 // --- icons -----------------------------------------------------------------
 

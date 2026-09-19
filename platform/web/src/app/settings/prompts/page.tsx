@@ -5,6 +5,7 @@
  * The interactive part lives in `prompts-form.tsx`.
  */
 
+import { BackendUnreachable } from "@/components/backend-unreachable";
 import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
 import {
   api,
@@ -15,7 +16,7 @@ import {
 } from "@/lib/api";
 
 import { PromptsForm } from "./prompts-form";
-import { PromptsPageHeader, PromptsUnavailable } from "./prompts-shell";
+import { PromptsPageHeader } from "./prompts-shell";
 
 export const metadata = {
   title: "Prompts · Settings — RevAI",
@@ -53,7 +54,7 @@ export default async function PromptsSettingsPage() {
             <PromptsForm initial={result.prompts} config={result.config.config} />
           </>
         ) : (
-          <PromptsUnavailable reason={result.reason} apiBaseUrl={API_BASE_URL} />
+          <BackendUnreachable reason={result.reason} apiBaseUrl={API_BASE_URL} />
         )}
       </main>
     </>

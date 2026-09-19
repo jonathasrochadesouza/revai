@@ -6,6 +6,7 @@
  * lives in `settings-form.tsx`.
  */
 
+import { BackendUnreachable } from "@/components/backend-unreachable";
 import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
 import {
   api,
@@ -15,7 +16,8 @@ import {
   type CredentialsResponse,
 } from "@/lib/api";
 
-import { EnginePageHeader, EngineUnavailable } from "./engine-unavailable";
+import { EnginePageHeader } from "./engine-unavailable";
+import { AgentPanel } from "./agent-panel";
 import { SettingsForm } from "./settings-form";
 
 export const metadata = {
@@ -64,9 +66,10 @@ export default async function EngineSettingsPage() {
               initialCredentials={result.credentials.credentials}
               credentialsPath={result.credentials.path}
             />
+            <AgentPanel />
           </>
         ) : (
-          <EngineUnavailable reason={result.reason} apiBaseUrl={API_BASE_URL} />
+          <BackendUnreachable reason={result.reason} apiBaseUrl={API_BASE_URL} />
         )}
       </main>
     </>

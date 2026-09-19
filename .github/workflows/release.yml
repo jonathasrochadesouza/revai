@@ -1,0 +1,62 @@
+name: Release
+
+# Tag-driven release. Publishing happens on GitHub Releases created from a
+# `v*` tag: artifacts are attached to the Release and the wheel goes to PyPI
+# through trusted publishing (no API token in secrets). First-time setup:
+# register this repository + workflow name as a trusted publisher on PyPI.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: platform/api
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: 0.12.1
+          enable-cache: true
+          cache-dependency-glob: platform/api/uv.lock
+      - name: Install locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Lint and test
+        run: |
+          uv run ruff check revai tests
+          uv run ruff format --check revai tests
+          uv run pytest --cov --cov-report=term --cov-fail-under=75
+      - name: Build wheel and source distribution
+        run: uv build
+      - name: Smoke-test the installed wheel
+        run: |
+          uv venv "$RUNNER_TEMP/revai-wheel" --python 3.12
+          uv pip install --python "$RUNNER_TEMP/revai-wheel/bin/python" dist/*.whl
+          REVAI_DATA_DIR="$RUNNER_TEMP/revai-data" "$RUNNER_TEMP/revai-wheel/bin/revai" doctor --json
+      - name: Create GitHub Release with artifacts
+        uses: softprops/action-gh-release@6da8fa9354dd317348d10ba4b69d75c96a4c6600 # v2.4.2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@76e52bc4940c43b8a2c19bd765cd6408fe2d9e4d # v1.13.0
+        with:
+          packages-dir: platform/api/dist
+          skip-existing: true

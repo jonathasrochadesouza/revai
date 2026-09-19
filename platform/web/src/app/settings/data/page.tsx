@@ -1,8 +1,9 @@
+import { BackendUnreachable } from "@/components/backend-unreachable";
 import { ExportDataPanel, type ReviewExportRow } from "@/components/data/export-data-panel";
 import { EngineLink } from "@/components/links";
-import { SettingsPageHeader, UnavailableNotice } from "@/components/page-header";
+import { SettingsPageHeader } from "@/components/page-header";
 import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
-import { api, type DataSummary } from "@/lib/api";
+import { api, API_BASE_URL, type DataSummary } from "@/lib/api";
 
 export const metadata = {
   title: "Export & data · Settings — RevAI",
@@ -40,7 +41,11 @@ export default async function DataSettingsPage() {
       </TopBar>
       <main className="mx-auto w-full max-w-[900px] px-5 pb-20 pt-9 sm:px-7">
         <SettingsPageHeader page="data" />
-        {result.ok ? <ExportDataPanel summary={result.summary} reviews={result.reviews} /> : <UnavailableNotice variant="data" reason={result.reason} />}
+        {result.ok ? (
+          <ExportDataPanel summary={result.summary} reviews={result.reviews} />
+        ) : (
+          <BackendUnreachable reason={result.reason} apiBaseUrl={API_BASE_URL} />
+        )}
       </main>
     </>
   );

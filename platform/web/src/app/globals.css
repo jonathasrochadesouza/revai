@@ -188,6 +188,27 @@ html[data-theme="dark"] {
   }
 }
 
+/* Toast colours are theme-INDEPENDENT on purpose: a toast must always invert
+   against the page so it reads as floating above it. Defined here, outside the
+   @theme/[data-theme] remapping blocks above, so the dark-mode remap never
+   touches them. Severity still comes from the semantic accent colours. */
+:root {
+  --color-toast-bg: #0a0a0b; /* zinc-950 against a light page */
+  --color-toast-ink: #fafafa; /* zinc-50 */
+}
+
+html[data-theme="dark"] {
+  --color-toast-bg: #e4e4e7; /* zinc-200 against a dark page */
+  --color-toast-ink: #18181b; /* zinc-900 */
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"] {
+    --color-toast-bg: #e4e4e7;
+    --color-toast-ink: #18181b;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Utilities used across screens. Kept small on purpose — anything reused more
    than twice becomes a real component instead.

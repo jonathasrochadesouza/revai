@@ -29,8 +29,8 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import {
-  ApiError,
   api,
   isUsable,
   type HealthState,
@@ -61,6 +61,7 @@ type Load =
 
 export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const [load, setLoad] = useState<Load>({ phase: "loading" });
   const [verifying, setVerifying] = useState<ProviderId | null>(null);
   const [scan, setScan] = useState(0);
@@ -85,10 +86,7 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
       },
       (cause: unknown) => {
         if (!cancelled) {
-          setLoad({
-            phase: "error",
-            reason: cause instanceof ApiError ? cause.message : null,
-          });
+          setLoad({ phase: "error", reason: errorText(cause) });
         }
       },
     );
@@ -96,7 +94,7 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [scan]);
+  }, [errorText, scan]);
 
   function rescan() {
     setLoad({ phase: "loading" });

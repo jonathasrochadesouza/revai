@@ -3,7 +3,9 @@
 import { Archive, Download, FileCode2, FileJson2, FileText, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
+import { useToast } from "@/components/toast-provider";
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import { api, reviewExportUrl, type DataSummary, type Review } from "@/lib/api";
 
 export interface ReviewExportRow {
@@ -13,12 +15,12 @@ export interface ReviewExportRow {
 
 export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; reviews: ReviewExportRow[] }) {
   const { t } = useUiText();
+  const toast = useToast();
+  const errorText = useApiErrorText();
   const [archiveState, setArchiveState] = useState<"idle" | "working" | "done">("idle");
-  const [error, setError] = useState<string>();
 
   async function downloadArchive() {
     setArchiveState("working");
-    setError(undefined);
     try {
       const blob = await api.exportAllData();
       const url = URL.createObjectURL(blob);
@@ -30,7 +32,7 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
       setArchiveState("done");
     } catch (cause) {
       setArchiveState("idle");
-      setError(cause instanceof Error ? cause.message : t("data.exportError"));
+      toast.push(errorText(cause));
     }
   }
 
@@ -53,7 +55,6 @@ export function ExportDataPanel({ summary, reviews }: { summary: DataSummary; re
         </div>
       </section>
 
-      {error && <p role="alert" className="rounded-control border border-critical-line bg-critical-surface px-4 py-3 text-[12px] text-critical">{error}</p>}
 
       <section className="surface overflow-hidden">
         <header className="border-b border-line px-5 py-4">

@@ -22,7 +22,6 @@ import { NumberControl } from "@/components/ui/number-control";
 import { Switch } from "@/components/ui/switch";
 import { SonarLocalPanel } from "./sonar-local-panel";
 import {
-  ApiError,
   api,
   type AnalyzerConfig,
   type ConfigResponse,
@@ -39,6 +38,7 @@ import {
   labelForProvider,
   providersForMode,
 } from "@/lib/models";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import { useAutoSave } from "@/lib/use-auto-save";
 
 /** Restored when a limit is switched from unlimited back to bounded. */
@@ -111,6 +111,7 @@ export function SettingsForm({
   credentialsPath,
 }: SettingsFormProps) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const [saved, setSaved] = useState<RevaiConfig>(initial.config);
   const [draft, setDraft] = useState<RevaiConfig>(initial.config);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -151,7 +152,7 @@ export function SettingsForm({
       );
       setStatus("saved");
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : t("save.couldNotSave"));
+      setError(errorText(cause));
       setStatus("error");
     }
   }
@@ -196,7 +197,7 @@ export function SettingsForm({
       setApiKey(""); // never keep a secret in component state longer than needed
       setKeyStatus("idle");
     } catch (cause) {
-      setKeyError(cause instanceof ApiError ? cause.message : t("engine.couldNotStoreKey"));
+      setKeyError(errorText(cause));
       setKeyStatus("error");
     }
   }
@@ -206,7 +207,7 @@ export function SettingsForm({
       await api.deleteCredential(providerId);
       setCredentials((current) => current.filter((c) => c.provider_id !== providerId));
     } catch (cause) {
-      setKeyError(cause instanceof ApiError ? cause.message : t("engine.couldNotRemoveKey"));
+      setKeyError(errorText(cause));
     }
   }
 

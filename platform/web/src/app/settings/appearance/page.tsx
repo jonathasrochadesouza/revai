@@ -1,7 +1,8 @@
+import { BackendUnreachable } from "@/components/backend-unreachable";
 import { EngineLink } from "@/components/links";
-import { SettingsPageHeader, UnavailableNotice } from "@/components/page-header";
+import { SettingsPageHeader } from "@/components/page-header";
 import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
-import { api, ApiError, type ConfigResponse } from "@/lib/api";
+import { api, API_BASE_URL, ApiError, type ConfigResponse } from "@/lib/api";
 
 import { AppearanceForm } from "./appearance-form";
 
@@ -23,7 +24,11 @@ export default async function AppearanceSettingsPage() {
       </TopBar>
       <main className="mx-auto w-full max-w-[820px] px-5 pb-20 pt-9 sm:px-7">
         <SettingsPageHeader page="appearance" />
-        {config ? <AppearanceForm initial={config} /> : <UnavailableNotice variant="appearance" reason={reason ?? ""} />}
+        {config ? (
+          <AppearanceForm initial={config} />
+        ) : (
+          <BackendUnreachable reason={reason ?? ""} apiBaseUrl={API_BASE_URL} />
+        )}
       </main>
     </>
   );

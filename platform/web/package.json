@@ -13,6 +13,7 @@
     "lint": "eslint src next.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "audit:prod": "npm audit --omit=dev"
   },
   "dependencies": {
@@ -22,18 +23,19 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.0",
     "eslint-config-next": "16.2.12",
+    "jsdom": "^28.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.0.18",
-    "jsdom": "^28.1.0"
+    "vitest": "^4.0.18"
   },
   "//overrides": "Hand-pinned patched transitives. `npm audit fix --force` would 'fix' these by downgrading Next.js to 9.3.3 — far worse than the advisories it resolves. See SECURITY-NOTES.md for the brace-expansion situation.",
   "overrides": {

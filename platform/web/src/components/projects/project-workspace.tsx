@@ -39,6 +39,7 @@ import {
   useState,
 } from "react";
 
+import { useToast } from "@/components/toast-provider";
 import { useUiText } from "@/components/ui-preference-bootstrap";
 import {
   type FileLayout,
@@ -46,10 +47,12 @@ import {
   ReviewFileBrowser,
 } from "@/components/projects/review-file-browser";
 import { BranchSelect } from "@/components/ui/branch-select";
+import { DiffViewer } from "@/components/diff/diff-viewer";
+import { FindingCard } from "@/components/findings/finding-card";
+import { useApiErrorText } from "@/lib/use-api-error-text";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 import {
-  ApiError,
   api,
   type AnalyzerRun,
   type DeterministicReview,
@@ -64,7 +67,6 @@ import {
   type ReviewScope,
   type ReviewStreamEvent,
   type RevaiConfig,
-  type Severity,
   isUsable,
 } from "@/lib/api";
 
@@ -104,11 +106,6 @@ function formatTokens(tokens: number): string {
   return `${(tokens / 1_000).toFixed(tokens < 10_000 ? 1 : 0)}k`;
 }
 
-function displayError(error: unknown): string {
-  if (error instanceof ApiError || error instanceof Error) return error.message;
-  return "Something went wrong while talking to the local API.";
-}
-
 export function ProjectWorkspace({
   initialProjects,
   initialError,
@@ -119,12 +116,19 @@ export function ProjectWorkspace({
   renderedAt: string;
 }) {
   const { t } = useUiText();
+  const toast = useToast();
+  const errorText = useApiErrorText();
   const [projects, setProjects] = useState(initialProjects);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ProjectFilter>("all");
   const [dialog, setDialog] = useState<DialogMode>(null);
-  const [notice, setNotice] = useState<string | null>(initialError ?? null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // A failure the projects page itself fetched with (server component) is
+  // replayed once as a toast, instead of a permanently resident banner.
+  useEffect(() => {
+    if (initialError) toast.push(initialError);
+  }, [initialError, toast]);
 
   const visibleProjects = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -182,23 +186,6 @@ export function ProjectWorkspace({
           </kbd>
         </label>
       </section>
-
-      {notice && (
-        <div
-          role="status"
-          className="mb-5 flex items-start gap-3 rounded-control border border-critical-line bg-critical-surface px-4 py-3 text-[12.5px] text-critical"
-        >
-          <span className="flex-1">{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            aria-label={t("common.dismissMessage")}
-            className="rounded-chip p-0.5 hover:bg-paper"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
 
       <OnboardingChecklist hasProjects={projects.length > 0} />
 
@@ -303,11 +290,10 @@ export function ProjectWorkspace({
           onClose={() => setDialog(null)}
           onCreated={async () => {
             setDialog(null);
-            setNotice(null);
             try {
               await refresh();
             } catch (error) {
-              setNotice(displayError(error));
+              toast.push(errorText(error));
             }
           }}
         />
@@ -480,11 +466,12 @@ function RepositoryDialog({
   onCreated: (project: Project) => void;
 }) {
   const { t } = useUiText();
+  const toast = useToast();
+  const errorText = useApiErrorText();
   const [value, setValue] = useState("");
   const [destination, setDestination] = useState("");
   const [pending, setPending] = useState(false);
   const [browsing, setBrowsing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => inputRef.current?.focus(), []);
@@ -493,7 +480,6 @@ function RepositoryDialog({
     event.preventDefault();
     if (!value.trim() || (mode === "clone" && !destination.trim())) return;
     setPending(true);
-    setError(null);
     try {
       const project =
         mode === "open"
@@ -501,7 +487,7 @@ function RepositoryDialog({
           : await api.cloneProject(value.trim(), destination.trim());
       onCreated(project);
     } catch (cause) {
-      setError(displayError(cause));
+      toast.push(errorText(cause));
       setPending(false);
     }
   };
@@ -518,7 +504,6 @@ function RepositoryDialog({
 
   const browse = async () => {
     setBrowsing(true);
-    setError(null);
     try {
       const result = await api.pickProjectFolder();
       if (result.path) {
@@ -526,7 +511,7 @@ function RepositoryDialog({
         else setDestination(result.path);
       }
     } catch (cause) {
-      setError(displayError(cause));
+      toast.push(errorText(cause));
     } finally {
       setBrowsing(false);
     }
@@ -637,11 +622,6 @@ function RepositoryDialog({
               </div>
             </>
           )}
-          {error && (
-            <p role="alert" className="mt-2 text-[11.5px] text-critical">
-              {error}
-            </p>
-          )}
           <div className="mt-5 flex justify-end gap-2">
             <button
               type="button"
@@ -674,6 +654,7 @@ export function RepositoryInspector({
   onError: (message: string) => void;
 }) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const defaultHead = project.current_branch ?? project.base_branch;
   const [base, setBase] = useState(project.base_branch);
   const [head, setHead] = useState(defaultHead);
@@ -754,11 +735,11 @@ export function RepositoryInspector({
       const nextTree = await fetchTree();
       if (requestId === treeRequestId.current) setTree(nextTree);
     } catch (error) {
-      if (requestId === treeRequestId.current) onError(displayError(error));
+      if (requestId === treeRequestId.current) onError(errorText(error));
     } finally {
       if (requestId === treeRequestId.current) setTreeLoading(false);
     }
-  }, [fetchTree, onError]);
+  }, [errorText, fetchTree, onError]);
 
   const loadBranchPreview = useCallback(async () => {
     const requestId = ++branchRequestId.current;
@@ -766,11 +747,11 @@ export function RepositoryInspector({
       const nextPreview = await fetchBranchPreview();
       if (requestId === branchRequestId.current) setBranchPreview(nextPreview);
     } catch (error) {
-      if (requestId === branchRequestId.current) onError(displayError(error));
+      if (requestId === branchRequestId.current) onError(errorText(error));
     } finally {
       if (requestId === branchRequestId.current) setBranchLoading(false);
     }
-  }, [fetchBranchPreview, onError]);
+  }, [errorText, fetchBranchPreview, onError]);
 
   const loadScopedPreview = useCallback(async () => {
     if (reviewScope === "branch_diff") return;
@@ -780,11 +761,11 @@ export function RepositoryInspector({
       const nextPreview = await fetchScopedPreview();
       if (requestId === scopedRequestId.current) setScopedPreview(nextPreview);
     } catch (error) {
-      if (requestId === scopedRequestId.current) onError(displayError(error));
+      if (requestId === scopedRequestId.current) onError(errorText(error));
     } finally {
       if (requestId === scopedRequestId.current) setScopedLoading(false);
     }
-  }, [fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
+  }, [errorText, fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
 
   const load = useCallback(async () => {
     setTreeLoading(true);
@@ -804,9 +785,9 @@ export function RepositoryInspector({
       const response = await api.getProjectReviews(project.id);
       setHistory(response.reviews);
     } catch (error) {
-      onError(displayError(error));
+      onError(errorText(error));
     }
-  }, [onError, project.id]);
+  }, [errorText, onError, project.id]);
 
   useEffect(() => {
     let active = true;
@@ -816,7 +797,7 @@ export function RepositoryInspector({
         if (active) setHistory(response.reviews);
       })
       .catch((error: unknown) => {
-        if (active) onError(displayError(error));
+        if (active) onError(errorText(error));
       });
     void api
       .getConfig()
@@ -843,7 +824,7 @@ export function RepositoryInspector({
     return () => {
       active = false;
     };
-  }, [onError, project.id]);
+  }, [errorText, onError, project.id]);
 
   useEffect(() => {
     const requestId = ++treeRequestId.current;
@@ -852,7 +833,7 @@ export function RepositoryInspector({
         if (requestId === treeRequestId.current) setTree(nextTree);
       })
       .catch((error: unknown) => {
-        if (requestId === treeRequestId.current) onError(displayError(error));
+        if (requestId === treeRequestId.current) onError(errorText(error));
       })
       .finally(() => {
         if (requestId === treeRequestId.current) setTreeLoading(false);
@@ -860,7 +841,7 @@ export function RepositoryInspector({
     return () => {
       treeRequestId.current += 1;
     };
-  }, [fetchTree, onError]);
+  }, [errorText, fetchTree, onError]);
 
   useEffect(() => {
     const requestId = ++branchRequestId.current;
@@ -869,7 +850,7 @@ export function RepositoryInspector({
         if (requestId === branchRequestId.current) setBranchPreview(nextPreview);
       })
       .catch((error: unknown) => {
-        if (requestId === branchRequestId.current) onError(displayError(error));
+        if (requestId === branchRequestId.current) onError(errorText(error));
       })
       .finally(() => {
         if (requestId === branchRequestId.current) setBranchLoading(false);
@@ -877,7 +858,7 @@ export function RepositoryInspector({
     return () => {
       branchRequestId.current += 1;
     };
-  }, [fetchBranchPreview, onError]);
+  }, [errorText, fetchBranchPreview, onError]);
 
   useEffect(() => {
     if (
@@ -890,7 +871,7 @@ export function RepositoryInspector({
           if (requestId === scopedRequestId.current) setScopedPreview(nextPreview);
         })
         .catch((error: unknown) => {
-          if (requestId === scopedRequestId.current) onError(displayError(error));
+          if (requestId === scopedRequestId.current) onError(errorText(error));
         })
         .finally(() => {
           if (requestId === scopedRequestId.current) setScopedLoading(false);
@@ -899,7 +880,7 @@ export function RepositoryInspector({
     return () => {
       scopedRequestId.current += 1;
     };
-  }, [fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
+  }, [errorText, fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
 
   const runReview = async () => {
     if (reviewMode !== "static" && (!providerHealth || !isUsable(providerHealth))) {
@@ -954,7 +935,7 @@ export function RepositoryInspector({
       activeReviewId.current = null;
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        onError(displayError(error));
+        onError(errorText(error));
       }
     } finally {
       void loadHistory();
@@ -969,7 +950,7 @@ export function RepositoryInspector({
     const reviewId = activeReviewId.current;
     if (reviewId) {
       void api.cancelReview(project.id, reviewId).catch((error: unknown) => {
-        onError(displayError(error));
+        onError(errorText(error));
       });
     }
     reviewAbort.current?.abort();
@@ -1002,7 +983,7 @@ export function RepositoryInspector({
       setResult((current) => current ? { ...current, review: updated } : current);
       setHistory((current) => current.map((review) => review.id === updated.id ? updated : review));
     } catch (error) {
-      onError(displayError(error));
+      onError(errorText(error));
     }
   };
 
@@ -1305,29 +1286,12 @@ export function RepositoryInspector({
 
 /** Dedicated review route wrapper. Keeps review errors close to the action that caused them. */
 export function ReviewSetupWorkspace({ project }: { project: Project }) {
-  const { t } = useUiText();
-  const [notice, setNotice] = useState<string | null>(null);
+  const toast = useToast();
 
   return (
     <>
-      {notice && (
-        <div
-          role="status"
-          className="mb-5 flex items-start gap-3 rounded-control border border-critical-line bg-critical-surface px-4 py-3 text-[12.5px] text-critical"
-        >
-          <span className="flex-1">{notice}</span>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            aria-label={t("common.dismissMessage")}
-            className="rounded-chip p-0.5 hover:bg-paper"
-          >
-            <X className="size-3.5" />
-          </button>
-        </div>
-      )}
-      <ProjectQualityCommands project={project} onError={setNotice} />
-      <RepositoryInspector project={project} onError={setNotice} />
+      <ProjectQualityCommands project={project} onError={(message) => toast.push(message)} />
+      <RepositoryInspector project={project} onError={(message) => toast.push(message)} />
     </>
   );
 }
@@ -1341,6 +1305,7 @@ function ProjectQualityCommands({
   onError: (message: string) => void;
 }) {
   const { t } = useUiText();
+  const errorText = useApiErrorText();
   const [commands, setCommands] = useState({
     checkstyle_command: JSON.stringify(project.checkstyle_command),
     test_command: JSON.stringify(project.test_command),
@@ -1362,7 +1327,7 @@ function ProjectQualityCommands({
       setSaving(true);
       await api.updateProject(project.id, { ...parsed, base_branch: baseBranch });
     } catch (error) {
-      onError(displayError(error));
+      onError(errorText(error));
     } finally {
       setSaving(false);
     }
@@ -1437,12 +1402,6 @@ function ProjectQualityCommands({
   );
 }
 
-const SEVERITY_STYLES: Record<Severity, string> = {
-  critical: "border-critical-line bg-critical-surface text-critical",
-  medium: "border-medium-line bg-medium-surface text-medium",
-  low: "border-low-line bg-low-surface text-low",
-};
-
 const PIPELINE_STAGES = [
   "collect",
   "filter",
@@ -1508,6 +1467,7 @@ function LiveReviewPanel({
       event.type === "failed",
   );
   const failed = Boolean(failure || review?.status === "failed");
+  const errorText = useApiErrorText();
   const aborted = cancelled || review?.status === "aborted";
   const degraded = review?.status === "degraded";
   const tokens =
@@ -1674,7 +1634,7 @@ function LiveReviewPanel({
           {review?.findings.length ? (
             <div className="divide-y divide-line">
               {review.findings.map((finding) => (
-                <FindingRow
+                <FindingCard
                   key={finding.id}
                   finding={finding}
                   onStatus={(status) => onFindingStatus(review.id, finding.id, status)}
@@ -1705,7 +1665,11 @@ function LiveReviewPanel({
                   {failed ? t("review.stopped") : aborted ? t("review.status.cancelled") : t("review.noFindings")}
                 </p>
                 <p className="mt-1 text-[11px] text-ink-muted">
-                  {failure?.message ?? review?.error ?? (aborted ? t("review.jobCancelled") : t("review.noIssuesReported"))}
+                  {(failure
+                    ? errorText({ message: failure.error_key, errorKey: failure.error_key, params: failure.params })
+                    : null) ??
+                    review?.error ??
+                    (aborted ? t("review.jobCancelled") : t("review.noIssuesReported"))}
                 </p>
               </div>
             </div>
@@ -1748,7 +1712,7 @@ function ReviewEventRow({ event }: { event: ReviewStreamEvent }) {
       label = t("review.event.completed");
       break;
     case "failed":
-      label = event.message;
+      label = event.error_key;
       break;
     case "aborted":
       label = t("review.event.cancelled");
@@ -1806,62 +1770,6 @@ function AnalyzerRow({ analyzer }: { analyzer: AnalyzerRun }) {
   );
 }
 
-function FindingRow({
-  finding,
-  onStatus,
-}: {
-  finding: Finding;
-  onStatus: (status: Finding["status"]) => void;
-}) {
-  const { t } = useUiText();
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const copyPatch = async () => {
-    if (!finding.suggested_patch) return;
-    await navigator.clipboard.writeText(finding.suggested_patch);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  };
-  return (
-    <article className="px-4 py-4">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded-chip border px-2 py-0.5 text-[9.5px] font-semibold capitalize ${SEVERITY_STYLES[finding.severity]}`}
-        >
-          {t(`review.severity.${finding.severity}`)}
-        </span>
-        <span className="font-mono text-[10px] text-ink-subtle">
-          {finding.file}:{finding.line_start}
-        </span>
-        <span className="text-[9.5px] font-semibold uppercase text-ink-subtle">{finding.source}</span>
-        <span className="ml-auto text-[9.5px] font-semibold capitalize text-ink-subtle">{t(`review.finding.status.${finding.status}`)}</span>
-      </div>
-      <h5 className="text-[12.5px] font-semibold leading-snug">{finding.title}</h5>
-      <p className="mt-1 text-[11.5px] leading-relaxed text-ink-muted">{finding.description}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setExpanded((value) => !value)} className="text-[10.5px] font-semibold text-low hover:underline">
-          {expanded ? t("review.finding.hideEvidence") : t("review.finding.whyThisMatters")}
-        </button>
-        <span className="text-[10.5px] text-ink-subtle">{t("review.finding.confidence", { percent: Math.round(finding.confidence * 100) })}</span>
-        {finding.suggested_patch && <button type="button" onClick={() => void copyPatch()} className="text-[10.5px] font-semibold text-low hover:underline">{copied ? t("review.finding.patchCopied") : t("review.finding.copyPatch")}</button>}
-      </div>
-      {expanded && (
-        <div className="mt-3 border-l-2 border-low-line bg-canvas px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
-          <p>{finding.rationale || t("review.finding.defaultRationale")}</p>
-          {finding.suggested_patch && <pre className="mt-3 overflow-auto border border-line bg-paper p-2 font-mono text-[10px] text-ink">{finding.suggested_patch}</pre>}
-        </div>
-      )}
-      {finding.status === "open" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={() => onStatus("fixed")} className="border border-success-line px-2 py-1 text-[10.5px] font-semibold text-success hover:bg-success-surface">{t("review.finding.markFixed")}</button>
-          <button type="button" onClick={() => onStatus("false_positive")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">{t("review.finding.falsePositive")}</button>
-          <button type="button" onClick={() => onStatus("dismissed")} className="border border-line px-2 py-1 text-[10.5px] font-semibold text-ink-muted hover:bg-canvas">{t("review.finding.dismiss")}</button>
-        </div>
-      )}
-    </article>
-  );
-}
-
 function ReviewHistory({ reviews, onSelect }: { reviews: Review[]; onSelect: (review: Review) => void }) {
   const { t } = useUiText();
   if (!reviews.length) return null;
@@ -1914,75 +1822,3 @@ function Metric({
   );
 }
 
-function DiffViewer({
-  preview,
-  loading,
-}: {
-  preview: DiffPreview | null;
-  loading: boolean;
-}) {
-  const { t } = useUiText();
-  if (loading && !preview) {
-    return <div className="p-4"><LoadingRows /></div>;
-  }
-
-  if (!preview?.patch) {
-    return (
-      <div className="grid min-h-[360px] place-items-center p-8 text-center">
-        <div>
-          <Check className="mx-auto mb-3 size-7 text-success" strokeWidth={1.7} />
-          <p className="mb-1 text-[12.5px] font-semibold">{t("review.noChanges")}</p>
-          <p className="text-[11px] text-ink-muted">
-            {t("review.noChangesDetail")}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-h-[360px] overflow-auto bg-sunken">
-      <pre className="min-w-max py-2 text-[11px] leading-[1.65]">
-        {preview.patch.split("\n").map((line, index) => {
-          const tone = line.startsWith("+")
-            ? "bg-success-surface text-success"
-            : line.startsWith("-")
-              ? "bg-critical-surface text-critical"
-              : line.startsWith("@@")
-                ? "bg-low-surface text-low"
-                : line.startsWith("diff ") || line.startsWith("index ")
-                  ? "font-semibold text-ink"
-                  : "text-ink-muted";
-          return (
-            <code
-              key={`${index}-${line}`}
-              className={`block min-h-[18px] px-4 ${tone}`}
-            >
-              {line || " "}
-            </code>
-          );
-        })}
-      </pre>
-      {preview.truncated && (
-        <p className="sticky bottom-0 border-t border-medium-line bg-medium-surface px-4 py-2 text-[10.5px] text-medium">
-          {t("review.diffTruncated")}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function LoadingRows() {
-  const { t } = useUiText();
-  return (
-    <div className="space-y-2" aria-label={t("review.loadingRepository")}>
-      {[70, 92, 58, 80].map((width) => (
-        <div
-          key={width}
-          className="h-5 animate-pulse rounded-chip bg-canvas"
-          style={{ width: `${width}%` }}
-        />
-      ))}
-    </div>
-  );
-}
