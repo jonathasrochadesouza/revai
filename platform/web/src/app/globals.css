@@ -247,4 +247,48 @@ html[data-theme="dark"] {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+
+  /* --- loading indicators -------------------------------------------------
+     Indeterminate loaders that respect the Paper Light rules: hairline
+     strokes, semantic tokens, no gradients, no blur. Keyframes live at the
+     top level so they survive layer pruning. */
+
+  /* Dots: rise and brighten in turn. */
+  .loader-dot {
+    animation: revai-dot 1.2s ease-in-out infinite;
+  }
+
+  /* Snake: a short bar sweeping across its hairline track. */
+  .loader-snake {
+    animation: revai-snake 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loader-dot,
+    .loader-snake {
+      animation: none;
+    }
+  }
+}
+
+@keyframes revai-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes revai-snake {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(360%);
+  }
 }

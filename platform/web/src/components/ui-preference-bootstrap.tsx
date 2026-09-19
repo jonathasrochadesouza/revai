@@ -92,6 +92,7 @@ const PT_BR: Record<string, string> = {
   Failed: "Falhou",
   Cancelled: "Cancelada",
   Reviewing: "Revisando",
+  Loading: "Carregando",
 };
 
 const UiLocaleContext = createContext<{ locale: Locale; t: Translator }>({

@@ -5,12 +5,13 @@
 
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Wordmark } from "@/components/logo";
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import { Loader } from "@/components/ui/loader";
 
 /** A breadcrumb entry. A bare string renders as plain text; add `href` to link it, or `menu` to turn it into a dropdown. */
 export type Crumb =
@@ -37,6 +38,42 @@ function ChevronDown() {
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
+  );
+}
+
+/**
+ * A navigation link that shows a small spinner while the target route is
+ * pending. Without it a slow server render looks frozen and users keep
+ * clicking the same tab.
+ */
+function NavLink({
+  href,
+  className,
+  role,
+  ariaCurrent,
+  onClick,
+  children,
+}: {
+  href: string;
+  className: string;
+  role?: string;
+  ariaCurrent?: "page";
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  const { pending } = useLinkStatus();
+  return (
+    <Link
+      href={href}
+      role={role}
+      aria-current={ariaCurrent}
+      aria-busy={pending}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 ${className}`}
+    >
+      {pending ? <Loader variant="spinner" size="sm" className="shrink-0" /> : null}
+      {children}
+    </Link>
   );
 }
 
@@ -102,16 +139,16 @@ function NavDropdown({ label, items, current, variant, align }: NavDropdownProps
           {items.map((item) => {
             const active = item.href === current;
             return (
-              <Link
+              <NavLink
                 key={item.href}
-                role="menuitem"
                 href={item.href}
-                aria-current={active ? "page" : undefined}
+                role="menuitem"
+                ariaCurrent={active ? "page" : undefined}
                 onClick={() => setOpen(false)}
-                className={`rounded-chip px-3 py-2 text-[12px] font-medium transition-colors ${active ? "bg-canvas text-ink" : "text-ink-muted hover:bg-canvas hover:text-ink"}`}
+                className={`w-full rounded-chip px-3 py-2 text-[12px] font-medium transition-colors ${active ? "bg-canvas text-ink" : "text-ink-muted hover:bg-canvas hover:text-ink"}`}
               >
                 {t(item.label)}
-              </Link>
+              </NavLink>
             );
           })}
         </div>
@@ -206,18 +243,18 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           aria-label={t("Primary navigation")}
           className="ml-auto hidden items-center gap-1 md:flex"
         >
-          <Link href="/" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+          <NavLink href="/" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
             {t("Projects")}
-          </Link>
-          <Link href="/insights" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+          </NavLink>
+          <NavLink href="/insights" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
             {t("Insights")}
-          </Link>
-          <Link href="/settings/data" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+          </NavLink>
+          <NavLink href="/settings/data" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
             {t("Data")}
-          </Link>
-          <Link href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
+          </NavLink>
+          <NavLink href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
             {t("Appearance")}
-          </Link>
+          </NavLink>
           <NavDropdown
             label="Settings"
             items={SETTINGS_MENU}
