@@ -14,8 +14,6 @@ import {
   ClipboardCheck,
   Code2,
   Copy,
-  File,
-  Files,
   FolderOpen,
   FolderGit2,
   GitBranch,
@@ -42,6 +40,13 @@ import {
 } from "react";
 
 import { useUiText } from "@/components/ui-preference-bootstrap";
+import {
+  type FileLayout,
+  type FileUniverse,
+  ReviewFileBrowser,
+} from "@/components/projects/review-file-browser";
+import { BranchSelect } from "@/components/ui/branch-select";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 import {
   ApiError,
@@ -670,8 +675,11 @@ export function RepositoryInspector({
   const [base, setBase] = useState(project.base_branch);
   const [head, setHead] = useState(defaultHead);
   const [tree, setTree] = useState<ProjectTree | null>(null);
-  const [preview, setPreview] = useState<DiffPreview | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [branchPreview, setBranchPreview] = useState<DiffPreview | null>(null);
+  const [scopedPreview, setScopedPreview] = useState<DiffPreview | null>(null);
+  const [treeLoading, setTreeLoading] = useState(true);
+  const [branchLoading, setBranchLoading] = useState(true);
+  const [scopedLoading, setScopedLoading] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [result, setResult] = useState<DeterministicReview | null>(null);
   const [cancelled, setCancelled] = useState(false);
@@ -685,33 +693,89 @@ export function RepositoryInspector({
   const [reviewMode, setReviewMode] = useState<ReviewMode>("both");
   const [reviewScope, setReviewScope] = useState<ReviewScope>("branch_diff");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [fileUniverse, setFileUniverse] = useState<FileUniverse>("changed");
+  const [fileLayout, setFileLayout] = useState<FileLayout>("flat");
+  const [fileQuery, setFileQuery] = useState("");
   const reviewAbort = useRef<AbortController | null>(null);
   const activeReviewId = useRef<string | null>(null);
+  const treeRequestId = useRef(0);
+  const branchRequestId = useRef(0);
+  const scopedRequestId = useRef(0);
+
+  const preview = reviewScope === "branch_diff" ? branchPreview : scopedPreview;
+  const loading = reviewScope === "branch_diff" ? branchLoading : scopedLoading;
+  const changedFiles = useMemo(
+    () => branchPreview?.files.map((file) => file.path) ?? [],
+    [branchPreview],
+  );
 
   useEffect(() => {
     return () => reviewAbort.current?.abort();
   }, []);
 
-  const fetchData = useCallback(
-    () =>
-      Promise.all([
-        api.getProjectTree(project.id, head),
-        api.getProjectDiff(project.id, base, head, reviewScope, selectedFiles),
-      ]),
+  const fetchTree = useCallback(
+    () => api.getProjectTree(project.id, head),
+    [head, project.id],
+  );
+  const fetchBranchPreview = useCallback(
+    () => api.getProjectDiff(project.id, base, head, "branch_diff"),
+    [base, head, project.id],
+  );
+  const fetchScopedPreview = useCallback(
+    () => api.getProjectDiff(project.id, base, head, reviewScope, selectedFiles),
     [base, head, project.id, reviewScope, selectedFiles],
   );
 
-  const load = useCallback(async () => {
+  const loadTree = useCallback(async () => {
+    const requestId = ++treeRequestId.current;
     try {
-      const [nextTree, nextPreview] = await fetchData();
-      setTree(nextTree);
-      setPreview(nextPreview);
+      const nextTree = await fetchTree();
+      if (requestId === treeRequestId.current) setTree(nextTree);
     } catch (error) {
-      onError(displayError(error));
+      if (requestId === treeRequestId.current) onError(displayError(error));
     } finally {
-      setLoading(false);
+      if (requestId === treeRequestId.current) setTreeLoading(false);
     }
-  }, [fetchData, onError]);
+  }, [fetchTree, onError]);
+
+  const loadBranchPreview = useCallback(async () => {
+    const requestId = ++branchRequestId.current;
+    try {
+      const nextPreview = await fetchBranchPreview();
+      if (requestId === branchRequestId.current) setBranchPreview(nextPreview);
+    } catch (error) {
+      if (requestId === branchRequestId.current) onError(displayError(error));
+    } finally {
+      if (requestId === branchRequestId.current) setBranchLoading(false);
+    }
+  }, [fetchBranchPreview, onError]);
+
+  const loadScopedPreview = useCallback(async () => {
+    if (reviewScope === "branch_diff") return;
+    const requestId = ++scopedRequestId.current;
+    if (reviewScope === "selected_files" && selectedFiles.length === 0) return;
+    try {
+      const nextPreview = await fetchScopedPreview();
+      if (requestId === scopedRequestId.current) setScopedPreview(nextPreview);
+    } catch (error) {
+      if (requestId === scopedRequestId.current) onError(displayError(error));
+    } finally {
+      if (requestId === scopedRequestId.current) setScopedLoading(false);
+    }
+  }, [fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
+
+  const load = useCallback(async () => {
+    setTreeLoading(true);
+    setBranchLoading(true);
+    const shouldLoadScoped =
+      reviewScope !== "branch_diff" &&
+      (reviewScope !== "selected_files" || selectedFiles.length > 0);
+    setScopedLoading(shouldLoadScoped);
+    if (!shouldLoadScoped && reviewScope === "selected_files") setScopedPreview(null);
+    const requests = [loadTree(), loadBranchPreview()];
+    if (shouldLoadScoped) requests.push(loadScopedPreview());
+    await Promise.all(requests);
+  }, [loadBranchPreview, loadScopedPreview, loadTree, reviewScope, selectedFiles.length]);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -760,24 +824,60 @@ export function RepositoryInspector({
   }, [onError, project.id]);
 
   useEffect(() => {
-    let active = true;
-    void fetchData()
-      .then(([nextTree, nextPreview]) => {
-        if (!active) return;
-        setTree(nextTree);
-        setPreview(nextPreview);
+    const requestId = ++treeRequestId.current;
+    void fetchTree()
+      .then((nextTree) => {
+        if (requestId === treeRequestId.current) setTree(nextTree);
       })
       .catch((error: unknown) => {
-        if (active) onError(displayError(error));
+        if (requestId === treeRequestId.current) onError(displayError(error));
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (requestId === treeRequestId.current) setTreeLoading(false);
       });
-
     return () => {
-      active = false;
+      treeRequestId.current += 1;
     };
-  }, [fetchData, onError]);
+  }, [fetchTree, onError]);
+
+  useEffect(() => {
+    const requestId = ++branchRequestId.current;
+    void fetchBranchPreview()
+      .then((nextPreview) => {
+        if (requestId === branchRequestId.current) setBranchPreview(nextPreview);
+      })
+      .catch((error: unknown) => {
+        if (requestId === branchRequestId.current) onError(displayError(error));
+      })
+      .finally(() => {
+        if (requestId === branchRequestId.current) setBranchLoading(false);
+      });
+    return () => {
+      branchRequestId.current += 1;
+    };
+  }, [fetchBranchPreview, onError]);
+
+  useEffect(() => {
+    if (
+      reviewScope !== "branch_diff" &&
+      (reviewScope !== "selected_files" || selectedFiles.length > 0)
+    ) {
+      const requestId = ++scopedRequestId.current;
+      void fetchScopedPreview()
+        .then((nextPreview) => {
+          if (requestId === scopedRequestId.current) setScopedPreview(nextPreview);
+        })
+        .catch((error: unknown) => {
+          if (requestId === scopedRequestId.current) onError(displayError(error));
+        })
+        .finally(() => {
+          if (requestId === scopedRequestId.current) setScopedLoading(false);
+        });
+    }
+    return () => {
+      scopedRequestId.current += 1;
+    };
+  }, [fetchScopedPreview, onError, reviewScope, selectedFiles.length]);
 
   const runReview = async () => {
     if (reviewMode !== "static" && (!providerHealth || !isUsable(providerHealth))) {
@@ -905,7 +1005,15 @@ export function RepositoryInspector({
               onChange={(value) => {
                 if (reviewing) cancelReview();
                 setResult(null);
-                setLoading(true);
+                setBranchPreview(null);
+                setBranchLoading(true);
+                if (
+                  reviewScope !== "branch_diff" &&
+                  (reviewScope !== "selected_files" || selectedFiles.length > 0)
+                ) {
+                  setScopedLoading(true);
+                }
+                setFileQuery("");
                 setEvents([]);
                 setCancelled(false);
                 setBase(value);
@@ -919,7 +1027,14 @@ export function RepositoryInspector({
               onChange={(value) => {
                 if (reviewing) cancelReview();
                 setResult(null);
-                setLoading(true);
+                setTree(null);
+                setBranchPreview(null);
+                setSelectedFiles([]);
+                setTreeLoading(true);
+                setBranchLoading(true);
+                setScopedLoading(reviewScope === "whole_project");
+                if (reviewScope === "selected_files") setScopedPreview(null);
+                setFileQuery("");
                 setHead(value);
                 setEvents([]);
                 setCancelled(false);
@@ -931,11 +1046,23 @@ export function RepositoryInspector({
                 value={reviewScope}
                 onChange={(event) => {
                   const scope = event.target.value as ReviewScope;
+                  const nextSelectedFiles =
+                    scope === "selected_files" && selectedFiles.length === 0
+                      ? (tree?.files ?? [])
+                      : selectedFiles;
                   setReviewScope(scope);
-                  if (scope === "selected_files" && selectedFiles.length === 0) {
-                    setSelectedFiles(tree?.files ?? []);
+                  if (nextSelectedFiles !== selectedFiles) {
+                    setSelectedFiles(nextSelectedFiles);
                   }
-                  setLoading(true);
+                  setFileUniverse(scope === "branch_diff" ? "changed" : "all");
+                  setFileQuery("");
+                  setScopedLoading(
+                    scope === "whole_project" ||
+                      (scope === "selected_files" && nextSelectedFiles.length > 0),
+                  );
+                  if (scope === "selected_files" && nextSelectedFiles.length === 0) {
+                    setScopedPreview(null);
+                  }
                   setResult(null);
                 }}
                 className="h-9 rounded-control border border-line-strong bg-paper px-2 text-[11.5px] font-medium normal-case tracking-normal text-ink outline-none"
@@ -960,10 +1087,7 @@ export function RepositoryInspector({
             </label>
             <button
               type="button"
-              onClick={() => {
-                setLoading(true);
-                void load();
-              }}
+              onClick={() => void load()}
               disabled={loading || reviewing}
               className="ml-1 flex h-9 items-center gap-2 rounded-control border border-line-strong px-3 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
             >
@@ -1025,48 +1149,31 @@ export function RepositoryInspector({
           </div>
         )}
 
-        <div className="grid min-h-[410px] lg:grid-cols-[270px_minmax(0,1fr)]">
-          <aside className="border-b border-line lg:border-b-0 lg:border-r">
-            <div className="flex h-11 items-center justify-between border-b border-line bg-sunken px-4">
-              <h3 className="flex items-center gap-2 text-[11.5px] font-semibold">
-                <Files className="size-3.5 text-ink-subtle" />
-                {t("Tracked files")}
-              </h3>
-              <span className="numeric text-[10.5px] text-ink-subtle">
-                {tree?.files.length ?? 0}
-              </span>
-            </div>
-            <div className="max-h-[360px] overflow-auto p-2">
-              {loading && !tree ? (
-                <LoadingRows />
-              ) : tree?.files.length ? (
-                tree.files.map((path) => (
-                  <label
-                    key={path}
-                    className="flex min-w-0 items-center gap-2 rounded-chip px-2 py-1.5 text-[11px] text-ink-muted hover:bg-canvas"
-                    title={path}
-                  >
-                    {reviewScope === "selected_files" && (
-                      <input
-                        type="checkbox"
-                        checked={selectedFiles.includes(path)}
-                        onChange={(event) => {
-                          setSelectedFiles((current) => event.target.checked
-                            ? [...current, path]
-                            : current.filter((item) => item !== path));
-                          setLoading(true);
-                        }}
-                      />
-                    )}
-                    <File className="size-3.5 shrink-0 text-ink-subtle" strokeWidth={1.7} />
-                    <span className="truncate font-mono">{path}</span>
-                  </label>
-                ))
-              ) : (
-                <p className="px-2 py-3 text-[11px] text-ink-subtle">No tracked files.</p>
-              )}
-            </div>
-          </aside>
+        <div className="grid min-h-[410px] lg:grid-cols-[330px_minmax(0,1fr)]">
+          <ReviewFileBrowser
+            trackedFiles={tree?.files ?? []}
+            changedFiles={changedFiles}
+            selectedFiles={selectedFiles}
+            selectableMode={reviewScope === "selected_files"}
+            universe={fileUniverse}
+            layout={fileLayout}
+            query={fileQuery}
+            loadingTracked={treeLoading}
+            loadingChanged={branchLoading}
+            onUniverseChange={setFileUniverse}
+            onLayoutChange={setFileLayout}
+            onQueryChange={setFileQuery}
+            onSelectionChange={(path, checked) => {
+              const nextSelectedFiles = checked
+                ? selectedFiles.includes(path)
+                  ? selectedFiles
+                  : [...selectedFiles, path]
+                : selectedFiles.filter((item) => item !== path);
+              setSelectedFiles(nextSelectedFiles);
+              setScopedLoading(nextSelectedFiles.length > 0);
+              if (nextSelectedFiles.length === 0) setScopedPreview(null);
+            }}
+          />
 
           <div className="min-w-0">
             <div className="flex min-h-11 flex-wrap items-center gap-x-5 gap-y-2 border-b border-line bg-sunken px-4 py-2">
@@ -1119,7 +1226,6 @@ export function RepositoryInspector({
               setResult(null);
               setEvents([]);
               setCancelled(false);
-              setLoading(true);
               void load();
             }}
             className="rounded-control border border-line-strong px-3 py-2 text-[12px] font-semibold text-ink-muted hover:bg-canvas hover:text-ink"
@@ -1190,6 +1296,7 @@ function ProjectQualityCommands({
   project: Project;
   onError: (message: string) => void;
 }) {
+  const { t } = useUiText();
   const [commands, setCommands] = useState({
     checkstyle_command: JSON.stringify(project.checkstyle_command),
     test_command: JSON.stringify(project.test_command),
@@ -1219,34 +1326,51 @@ function ProjectQualityCommands({
   return (
     <details className="surface mb-4 px-4 py-3">
       <summary className="cursor-pointer text-[12px] font-semibold">
-        Project quality commands
-        <span className="ml-2 font-normal text-ink-subtle">optional · shell disabled</span>
+        {t("Project quality commands")}
+        <span className="ml-2 font-normal text-ink-subtle">
+          {t("optional · shell disabled")}
+        </span>
       </summary>
       <p className="mt-2 text-[11px] text-ink-muted">
-        Use JSON argument arrays so paths with spaces remain safe, for example
+        {t("Use JSON argument arrays so paths with spaces remain safe, for example")}
         <code className="ml-1">[&quot;./mvnw&quot;,&quot;verify&quot;]</code>.
       </p>
       <div className="mt-3 grid gap-3 lg:grid-cols-4">
-        <label className="text-[10.5px] font-semibold text-ink-muted">
-          Default base branch
-          <select
-            value={baseBranch}
-            onChange={(event) => setBaseBranch(event.target.value)}
-            className="mt-1 h-9 w-full border border-line-strong bg-paper px-2 font-mono text-[10.5px] outline-none focus:border-ink"
-          >
-            {project.branches.map((branch) => <option key={branch}>{branch}</option>)}
-          </select>
-        </label>
+        <BranchSelect
+          label="Default base branch"
+          value={baseBranch}
+          branches={project.branches}
+          onChange={setBaseBranch}
+          className="w-full"
+        />
         {(
           [
-            ["checkstyle_command", "Checkstyle"],
-            ["test_command", "Tests"],
-            ["build_command", "Build"],
+            [
+              "checkstyle_command",
+              "Checkstyle",
+              "Checks configured Java style and static-code rules.",
+            ],
+            [
+              "test_command",
+              "Tests",
+              "Runs the project's test suite to detect failures and regressions.",
+            ],
+            [
+              "build_command",
+              "Build",
+              "Compiles or packages the project to validate dependencies, types, and generated artifacts.",
+            ],
           ] as const
-        ).map(([name, label]) => (
-          <label key={name} className="text-[10.5px] font-semibold text-ink-muted">
-            {label}
+        ).map(([name, label, description]) => (
+          <div key={name} className="text-[10.5px] font-semibold text-ink-muted">
+            <div className="flex items-center gap-1">
+              <label htmlFor={`project-command-${name}`}>{t(label)}</label>
+              <InfoTooltip label={`${t("More information about")} ${t(label)}`}>
+                {t(description)}
+              </InfoTooltip>
+            </div>
             <input
+              id={`project-command-${name}`}
               value={commands[name]}
               onChange={(event) => setCommands((current) => ({
                 ...current,
@@ -1254,7 +1378,7 @@ function ProjectQualityCommands({
               }))}
               className="mt-1 h-9 w-full border border-line-strong bg-paper px-2 font-mono text-[10.5px] outline-none focus:border-ink"
             />
-          </label>
+          </div>
         ))}
       </div>
       <button
@@ -1263,7 +1387,7 @@ function ProjectQualityCommands({
         onClick={() => void save()}
         className="mt-3 bg-ink px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-50"
       >
-        {saving ? "Saving…" : "Save project commands"}
+        {saving ? t("Saving…") : t("Save project commands")}
       </button>
     </details>
   );
@@ -1720,35 +1844,6 @@ function CostConfirmation({ preview, model, cap, onCancel, onConfirm }: { previe
         <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">Cancel</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-white hover:bg-zinc-800">Run review</button></div>
       </section>
     </div>
-  );
-}
-
-function BranchSelect({
-  label,
-  value,
-  branches,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  branches: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label>
-      <span className="mb-1 block text-[9.5px] font-semibold uppercase text-ink-subtle">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-9 min-w-[150px] rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11px] outline-none focus:border-ink"
-      >
-        {branches.map((branch) => (
-          <option key={branch}>{branch}</option>
-        ))}
-      </select>
-    </label>
   );
 }
 

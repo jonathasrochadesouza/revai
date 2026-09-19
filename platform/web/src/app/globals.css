@@ -209,6 +209,11 @@ html[data-theme="dark"] {
     border-radius: var(--radius-control);
   }
 
+  .file-browser-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 30px;
+  }
+
   /* A header or footer that sits flush against the top or bottom of a panel.
      Without this the panel's own radius clips the child's square corners and
      leaves a visible sliver of background in each corner. */
