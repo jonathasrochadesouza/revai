@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import os
+import socket
 import stat
 import sys
 import time
@@ -119,6 +120,23 @@ def main(argv: list[str] | None = None) -> int:
     return 2
 
 
+def _port_is_free(host: str, port: int) -> bool:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind((host, port))
+    except OSError:
+        return False
+    return True
+
+
+def _first_free_port(host: str, requested: int, *, span: int = 50) -> int:
+    """Return ``requested`` when bindable, otherwise the next free port."""
+    for candidate in range(requested, requested + span):
+        if _port_is_free(host, candidate):
+            return candidate
+    return requested
+
+
 def serve_api(*, port: int | None = None, no_reload: bool = False) -> None:
     """Start uvicorn using the same settings contract as ``revai-api``."""
     settings = get_settings()
@@ -127,6 +145,18 @@ def serve_api(*, port: int | None = None, no_reload: bool = False) -> None:
         # port as uvicorn. Passing only ``uvicorn.run(port=...)`` made the startup
         # log incorrectly announce the configured default.
         os.environ["REVAI_PORT"] = str(port)
+        get_settings.cache_clear()
+        settings = get_settings()
+    resolved_port = _first_free_port(settings.host, settings.port)
+    if resolved_port != settings.port:
+        # Another process owns the requested port, so fall forward to the first
+        # free one and keep the application settings (lifespan, log lines) in
+        # sync through the same REVAI_PORT override used above.
+        print(
+            f"Port {settings.port} is in use; starting the RevAI API on {resolved_port} instead",
+            file=sys.stderr,
+        )
+        os.environ["REVAI_PORT"] = str(resolved_port)
         get_settings.cache_clear()
         settings = get_settings()
     reload_enabled = settings.environment == "development" and not no_reload

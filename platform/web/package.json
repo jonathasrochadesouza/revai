@@ -7,9 +7,9 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "node scripts/next-port.mjs dev",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": "node scripts/next-port.mjs start",
     "lint": "eslint src next.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
