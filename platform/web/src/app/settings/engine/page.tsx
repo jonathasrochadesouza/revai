@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 
-import { TopBar } from "@/components/top-bar";
+import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import {
   api,
@@ -55,7 +55,7 @@ export default async function EngineSettingsPage() {
   return (
     <>
       <TopBar
-        breadcrumb={[{ label: "Platform", href: "/" }, "Settings", "Engine"]}
+        breadcrumb={[{ label: "Platform", href: "/" }, { label: "Settings", menu: SETTINGS_MENU }, "Engine"]}
       />
       <main className="mx-auto max-w-[820px] px-7 pb-20 pt-9">
         {result.ok ? (

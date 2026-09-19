@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TopBar } from "@/components/top-bar";
+import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
 import { api, ApiError, type ConfigResponse } from "@/lib/api";
 
 import { AppearanceForm } from "./appearance-form";
@@ -18,7 +18,7 @@ export default async function AppearanceSettingsPage() {
 
   return (
     <>
-      <TopBar breadcrumb={[{ label: "Platform", href: "/" }, "Settings", "Appearance"]}>
+      <TopBar breadcrumb={[{ label: "Platform", href: "/" }, { label: "Settings", menu: SETTINGS_MENU }, "Appearance"]}>
         <Link href="/settings/engine" className="rounded-control border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Engine</Link>
       </TopBar>
       <main className="mx-auto w-full max-w-[820px] px-5 pb-20 pt-9 sm:px-7">

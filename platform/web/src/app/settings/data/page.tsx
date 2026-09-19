@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ExportDataPanel, type ReviewExportRow } from "@/components/data/export-data-panel";
-import { TopBar } from "@/components/top-bar";
+import { SETTINGS_MENU, TopBar } from "@/components/top-bar";
 import { api, type DataSummary } from "@/lib/api";
 
 export const metadata = {
@@ -35,7 +35,7 @@ export default async function DataSettingsPage() {
   const result = await load();
   return (
     <>
-      <TopBar breadcrumb={[{ label: "Platform", href: "/" }, "Settings", "Data"]}>
+      <TopBar breadcrumb={[{ label: "Platform", href: "/" }, { label: "Settings", menu: SETTINGS_MENU }, "Data"]}>
         <Link href="/settings/engine" className="rounded-control border border-line-strong px-3 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">Engine</Link>
       </TopBar>
       <main className="mx-auto w-full max-w-[900px] px-5 pb-20 pt-9 sm:px-7">

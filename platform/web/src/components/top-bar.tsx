@@ -6,13 +6,119 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Wordmark } from "@/components/logo";
 import { useUiText } from "@/components/ui-preference-bootstrap";
 
-/** A breadcrumb entry. A bare string renders as plain text; add `href` to link it. */
-export type Crumb = string | { label: string; href: string };
+/** A breadcrumb entry. A bare string renders as plain text; add `href` to link it, or `menu` to turn it into a dropdown. */
+export type Crumb =
+  | string
+  | { label: string; href: string }
+  | { label: string; menu: { label: string; href: string }[] };
+
+/** The settings sub-pages, shared by the breadcrumb and the primary-nav dropdown. */
+export const SETTINGS_MENU: { label: string; href: string }[] = [
+  { label: "Engine", href: "/settings/engine" },
+  { label: "Appearance", href: "/settings/appearance" },
+  { label: "Data", href: "/settings/data" },
+];
+
+function ChevronDown() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className="size-3 shrink-0"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+interface NavDropdownProps {
+  label: string;
+  items: { label: string; href: string }[];
+  /** Current pathname, used to mark the active entry. */
+  current: string;
+  variant: "breadcrumb" | "nav";
+  align: "left" | "right";
+}
+
+/** A trigger that opens a small link menu, used for the Settings entries. */
+function NavDropdown({ label, items, current, variant, align }: NavDropdownProps) {
+  const { t } = useUiText();
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Same dismissal contract as InfoTooltip: outside pointerdown and Escape,
+  // with focus returned to the trigger so keyboard users keep their place.
+  useEffect(() => {
+    if (!open) return;
+    const dismissOutside = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [open]);
+
+  const trigger =
+    variant === "breadcrumb"
+      ? "flex shrink-0 items-center gap-1 rounded-xs font-semibold text-ink transition-colors hover:text-low"
+      : "flex items-center gap-1 rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink";
+
+  return (
+    <span ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        ref={triggerRef}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((wasOpen) => !wasOpen)}
+        className={trigger}
+      >
+        {t(label)}
+        <ChevronDown />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={`absolute top-full z-30 mt-1.5 grid min-w-36 overflow-hidden rounded-control border border-line-strong bg-paper p-1 shadow-sm ${align === "right" ? "right-0" : "left-0"}`}
+        >
+          {items.map((item) => {
+            const active = item.href === current;
+            return (
+              <Link
+                key={item.href}
+                role="menuitem"
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={`rounded-chip px-3 py-2 text-[12px] font-medium transition-colors ${active ? "bg-canvas text-ink" : "text-ink-muted hover:bg-canvas hover:text-ink"}`}
+              >
+                {t(item.label)}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </span>
+  );
+}
 
 interface TopBarProps {
   /** Breadcrumb trail. The last entry always renders as the current page. */
@@ -22,6 +128,7 @@ interface TopBarProps {
 
 export function TopBar({ breadcrumb = [], children }: TopBarProps) {
   const { t } = useUiText();
+  const pathname = usePathname();
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper">
       <div className="mx-auto flex h-14 min-w-0 max-w-[1180px] items-center gap-3 px-4 sm:gap-[18px] sm:px-7">
@@ -39,8 +146,12 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                 // Only crumbs that are neither first nor last collapse on narrow
                 // screens — the current page (last) must always stay visible.
                 const isMiddle = index > 0 && !isLast;
-                const label = t(typeof crumb === "string" ? crumb : crumb.label);
-                const href = typeof crumb === "string" ? undefined : crumb.href;
+                const isObject = typeof crumb === "object";
+                const isMenu = isObject && "menu" in crumb;
+                const rawLabel = isObject ? crumb.label : crumb;
+                const label = t(rawLabel);
+                const href = isObject && "href" in crumb ? crumb.href : undefined;
+                const menu = isMenu ? crumb.menu : undefined;
 
                 return (
                   <span
@@ -66,6 +177,14 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
                       <span aria-current="page" className="truncate">
                         {label}
                       </span>
+                    ) : menu ? (
+                      <NavDropdown
+                        label={rawLabel}
+                        items={menu}
+                        current={pathname}
+                        variant="breadcrumb"
+                        align="left"
+                      />
                     ) : href ? (
                       <Link
                         href={href}
@@ -99,9 +218,13 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           <Link href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
             {t("Appearance")}
           </Link>
-          <Link href="/settings/engine" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            {t("Settings")}
-          </Link>
+          <NavDropdown
+            label="Settings"
+            items={SETTINGS_MENU}
+            current={pathname}
+            variant="nav"
+            align="right"
+          />
         </nav>
 
         <details className="ml-auto shrink-0 md:hidden">
