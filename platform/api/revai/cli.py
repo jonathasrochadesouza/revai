@@ -26,6 +26,7 @@ from revai.git.repo import GitError, current_branch, inspect_project
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
 from revai.pipeline.runner import StageRun, run_deterministic_pipeline
 from revai.providers.registry import build_registry
+from revai.sonarqube.local import resolve_sonar_token
 from revai.storage import (
     ConfigRepository,
     CredentialsRepository,
@@ -267,6 +268,7 @@ async def _run_headless_review(args: argparse.Namespace):
         include_static=mode in {ReviewMode.STATIC, ReviewMode.BOTH},
         scope=scope,
         selected_files=args.selected_files,
+        sonar_token=resolve_sonar_token(CredentialsRepository(settings).load()),
     )
     if mode is not ReviewMode.STATIC and result.chunks:
         provider = build_registry(config, CredentialsRepository(settings).load()).active()

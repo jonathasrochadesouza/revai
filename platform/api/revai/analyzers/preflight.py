@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,7 +18,11 @@ class AnalyzerCapability:
     remediation: str | None = None
 
 
-def preflight_analyzers(project: Project, config: AnalyzerConfig) -> list[AnalyzerCapability]:
+def preflight_analyzers(
+    project: Project,
+    config: AnalyzerConfig,
+    sonar_token: str | None = None,
+) -> list[AnalyzerCapability]:
     repository = Path(project.path)
     checks: list[AnalyzerCapability] = []
     if config.security:
@@ -78,7 +81,7 @@ def preflight_analyzers(project: Project, config: AnalyzerConfig) -> list[Analyz
     if config.sonarqube.enabled:
         ready = bool(
             config.sonarqube.project_key
-            and os.environ.get("SONAR_TOKEN")
+            and sonar_token
             and (
                 resolve_command("sonar-scanner")
                 or resolve_command("mvn")
@@ -93,8 +96,11 @@ def preflight_analyzers(project: Project, config: AnalyzerConfig) -> list[Analyz
                 "ready" if ready else "unavailable",
                 "Scanner, project key and token are available."
                 if ready
-                else "Scanner, project key, or SONAR_TOKEN is missing.",
-                None if ready else "Configure SonarQube and install a supported scanner.",
+                else "Scanner, project key, or SonarQube token is missing.",
+                None
+                if ready
+                else "Run the local SonarQube provisioning or set SONAR_TOKEN, "
+                "and install a supported scanner.",
             )
         )
     return checks

@@ -66,6 +66,7 @@ async def run_deterministic_pipeline(
     include_static: bool = True,
     scope: ReviewScope = ReviewScope.BRANCH_DIFF,
     selected_files: list[str] | None = None,
+    sonar_token: str | None = None,
 ) -> DeterministicResult:
     repository = Path(project.path)
     review = review or Review(
@@ -142,6 +143,7 @@ async def run_deterministic_pipeline(
                 checkstyle_command=project.checkstyle_command,
                 test_command=project.test_command,
                 build_command=project.build_command,
+                sonar_token=sonar_token,
             )
             if include_static
             else []

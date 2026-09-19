@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, Field
 
 from revai.analyzers.preflight import preflight_analyzers
-from revai.api.deps import ConfigRepo, ProjectRepo
+from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo
 from revai.domain.enums import ProviderId, ReviewScope
 from revai.domain.models import Project
 from revai.errors import RevaiError
@@ -23,6 +23,7 @@ from revai.git.repo import (
     snapshot_preview,
     tracked_files,
 )
+from revai.sonarqube.local import resolve_sonar_token
 from revai.system.folder_picker import FolderPickerError, pick_directory
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -246,9 +247,13 @@ def analyzer_preflight(
     project_id: str,
     project_repo: ProjectRepo,
     config_repo: ConfigRepo,
+    credentials_repo: CredentialsRepo,
 ) -> AnalyzerPreflightResponse:
+    config = config_repo.load()
     capabilities = preflight_analyzers(
-        _project(project_repo, project_id), config_repo.load().analyzers
+        _project(project_repo, project_id),
+        config.analyzers,
+        sonar_token=resolve_sonar_token(credentials_repo.load()),
     )
     return AnalyzerPreflightResponse(
         analyzers=[AnalyzerCapabilityResponse(**item.__dict__) for item in capabilities],

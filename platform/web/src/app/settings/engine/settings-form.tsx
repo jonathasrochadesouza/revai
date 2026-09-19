@@ -20,6 +20,7 @@ import { Card, CardBody, CardHeader, CardRow } from "@/components/ui/card";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { NumberControl } from "@/components/ui/number-control";
 import { Switch } from "@/components/ui/switch";
+import { SonarLocalPanel } from "./sonar-local-panel";
 import {
   ApiError,
   api,
@@ -677,7 +678,15 @@ export function SettingsForm({
               />
             </div>
             {draft.analyzers.sonarqube.enabled && (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="mt-3">
+                <SonarLocalPanel
+                  wsl={draft.analyzers.sonarqube.wsl}
+                  onWslChange={(checked) => patch((config) => {
+                    config.analyzers.sonarqube.wsl = checked;
+                    return config;
+                  })}
+                />
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <Field label={t("engine.sonar.serverUrl")} htmlFor="sonarqube-server-url">
                   <input
                     id="sonarqube-server-url"
@@ -735,6 +744,7 @@ export function SettingsForm({
                       return config;
                     })}
                   />
+                </div>
                 </div>
               </div>
             )}

@@ -274,6 +274,21 @@ def _resolve_command(name: str) -> str | None:
     return _resolve_windows_command_from_wsl(name)
 
 
+def wsl_interop_available() -> bool:
+    """Whether this process runs inside WSL with Windows interop enabled."""
+    return os.name != "nt" and Path("/proc/sys/fs/binfmt_misc/WSLInterop").exists()
+
+
+def resolve_windows_executable_from_wsl(name: str) -> str | None:
+    """Find an installed Windows CLI when the API itself runs inside WSL.
+
+    Public wrapper around the WSL fallback used by :func:`_resolve_command`, so
+    other subsystems (e.g. the local SonarQube provisioning) can reach Windows
+    executables through the same tested path.
+    """
+    return _resolve_windows_command_from_wsl(name)
+
+
 def _resolve_windows_command_from_wsl(name: str) -> str | None:
     """Find an installed Windows CLI when the API itself runs inside WSL.
 

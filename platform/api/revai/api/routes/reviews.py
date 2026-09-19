@@ -30,6 +30,7 @@ from revai.pipeline.runner import DeterministicResult, StageRun, run_determinist
 from revai.pipeline.safety import redact_secrets
 from revai.providers.base import UsageStats
 from revai.providers.registry import build_registry
+from revai.sonarqube.local import resolve_sonar_token
 
 router = APIRouter(prefix="/projects/{project_id}/reviews", tags=["reviews"])
 
@@ -112,6 +113,7 @@ async def create_deterministic_review(
     project_id: str,
     request: DeterministicReviewRequest,
     config_repo: ConfigRepo,
+    credentials_repo: CredentialsRepo,
     project_repo: ProjectRepo,
     review_repo: ReviewRepo,
 ) -> DeterministicReviewResponse:
@@ -135,6 +137,7 @@ async def create_deterministic_review(
             include_static=True,
             scope=request.scope,
             selected_files=request.selected_files,
+            sonar_token=resolve_sonar_token(credentials_repo.load()),
         )
     except GitError as exc:
         raise _git_unprocessable(exc) from exc
@@ -231,6 +234,7 @@ async def create_ai_review(
                 include_static=payload.mode is ReviewMode.BOTH,
                 scope=payload.scope,
                 selected_files=payload.selected_files,
+                sonar_token=resolve_sonar_token(credentials_repo.load()),
             )
             result.review.finished_at = None
             result.review.status = ReviewStatus.RUNNING

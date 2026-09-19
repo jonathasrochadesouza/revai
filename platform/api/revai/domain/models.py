@@ -371,19 +371,24 @@ class BudgetConfig(_Base):
 class SonarQubeConfig(_Base):
     """Connection metadata for a self-hosted SonarQube Server / Community Build.
 
-    The token deliberately stays out of YAML. Set ``SONAR_TOKEN`` in the API
-    environment; that avoids putting an external service credential alongside
-    ordinary review preferences.
+    ``project_key`` defaults to ``revai-local`` so the one-screen local setup
+    works without editing anything: the local provisioning flow creates that
+    project in a fresh server.
+
+    The token lives in ``credentials.yaml`` (written by the local provisioning
+    flow) with ``SONAR_TOKEN`` as the external-server fallback; that keeps an
+    external service credential out of ordinary review preferences.
     """
 
     enabled: bool = False
     server_url: str = "http://127.0.0.1:9000"
-    project_key: str | None = None
+    project_key: str | None = "revai-local"
     timeout_s: int = Field(default=300, ge=10, le=3600)
     wait_for_quality_gate: bool = True
     quality_gate_timeout_s: int = Field(default=300, ge=10, le=3600)
     new_code_only: bool = True
     scanner: Literal["auto", "maven", "gradle", "cli"] = "auto"
+    wsl: bool = False
 
 
 class AnalyzerConfig(_Base):
@@ -528,10 +533,29 @@ class ProviderCredential(_Base):
         return f"{self.api_key[:8]}{'•' * 16}{self.api_key[-4:]}"
 
 
+class SonarQubeCredential(_Base):
+    """Secrets for a locally provisioned SonarQube Community Build.
+
+    Written by the provisioning flow (see ``revai.sonarqube.local``) and never
+    included in an API response — routes return :meth:`masked`.
+    """
+
+    token: str = Field(min_length=1, repr=False)
+    admin_password: str = Field(min_length=1, repr=False)
+    created_at: datetime = Field(default_factory=_now)
+
+    def masked(self) -> str:
+        """Enough to recognise the token, not enough to use it."""
+        if len(self.token) <= 12:
+            return "•" * len(self.token)
+        return f"{self.token[:8]}{'•' * 16}{self.token[-4:]}"
+
+
 class Credentials(_Document):
     """``~/.revai/credentials.yaml`` — chmod 600, never inside a project folder."""
 
     providers: dict[ProviderId, ProviderCredential] = Field(default_factory=dict)
+    sonarqube: SonarQubeCredential | None = None
 
     def get(self, provider_id: ProviderId) -> ProviderCredential | None:
         return self.providers.get(provider_id)

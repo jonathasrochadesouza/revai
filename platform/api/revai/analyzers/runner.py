@@ -48,6 +48,7 @@ async def run_analyzers(
     checkstyle_command: list[str] | None = None,
     test_command: list[str] | None = None,
     build_command: list[str] | None = None,
+    sonar_token: str | None = None,
 ) -> list[AnalyzerRun]:
     """Run every enabled analyzer concurrently and isolate tool failures."""
     jobs = []
@@ -70,7 +71,7 @@ async def run_analyzers(
     if config.treesitter:
         jobs.append(_tree_sitter_status())
     if config.sonarqube.enabled:
-        jobs.append(_run_sonarqube(repository, paths, config.sonarqube))
+        jobs.append(_run_sonarqube(repository, paths, config.sonarqube, sonar_token))
     return list(await asyncio.gather(*jobs))
 
 
@@ -312,18 +313,24 @@ async def _run_sonarqube(
     repository: Path,
     paths: list[str],
     config: SonarQubeConfig,
+    sonar_token: str | None,
 ) -> AnalyzerRun:
     """Run a local scanner, then retrieve its normalized server issues.
 
     SonarQube needs a whole-project scan, unlike changed-line linters. A scanner
-    is therefore an explicit opt-in and its token is read only from SONAR_TOKEN.
+    is therefore an explicit opt-in and its token comes from the local
+    provisioning (credentials.yaml) or from SONAR_TOKEN for external servers.
     """
     if not config.project_key:
         return AnalyzerRun("sonarqube", "unavailable", [], 0, "Set a SonarQube project key.")
-    token = os.environ.get("SONAR_TOKEN")
+    token = sonar_token
     if not token:
         return AnalyzerRun(
-            "sonarqube", "unavailable", [], 0, "Set SONAR_TOKEN in the API environment."
+            "sonarqube",
+            "unavailable",
+            [],
+            0,
+            "No SonarQube token. Run the local provisioning or set SONAR_TOKEN.",
         )
     started = time.perf_counter()
     selected = _sonar_command(repository, config)

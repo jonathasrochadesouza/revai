@@ -92,6 +92,7 @@ export interface SonarQubeConfig {
   quality_gate_timeout_s: number;
   new_code_only: boolean;
   scanner: "auto" | "maven" | "gradle" | "cli";
+  wsl: boolean;
 }
 
 export interface UiConfig {
@@ -421,11 +422,94 @@ async function streamReview(
   return completed;
 }
 
-export interface ReviewsResponse {
-  reviews: Review[];
+// --- local SonarQube provisioning ------------------------------------------
+
+export interface SonarDockerStatus {
+  installed: boolean;
+  running: boolean;
+  version: string | null;
+  detail: string | null;
 }
 
-// --- export and insights (phase 7) ---------------------------------------
+export interface SonarStatusResponse {
+  image: string;
+  wsl_detected: boolean;
+  docker: SonarDockerStatus;
+  container: { exists: boolean; running: boolean; state: string | null };
+  server: { up: boolean; version: string | null; url: string };
+  provisioned: boolean;
+  token_masked: string | null;
+}
+
+export type SonarStreamEvent =
+  | { type: "docker_checked"; docker_version?: string }
+  | { type: "pulling"; image: string }
+  | { type: "starting"; existing: boolean }
+  | { type: "server_already_up" }
+  | { type: "waiting_boot" }
+  | { type: "boot_complete"; version?: string }
+  | { type: "already_provisioned"; token_masked: string }
+  | { type: "provisioning" }
+  | { type: "ready"; token_masked: string; server_url: string; project_key: string }
+  | { type: "failed"; error_key: string; params: Record<string, string> };
+
+export interface StreamSonarOptions {
+  signal?: AbortSignal;
+  onEvent?: (event: SonarStreamEvent) => void;
+}
+
+/**
+ * Stream the local SonarQube start flow over SSE and resolve once it is ready.
+ * `failed` events arrive as structured error keys, so the UI can translate.
+ */
+async function startSonar(options: StreamSonarOptions = {}): Promise<void> {
+  const path = "/api/sonarqube/start";
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { Accept: "text/event-stream" },
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    throw new ApiError(await describeFailure(response, path, { method: "POST" }), response.status);
+  }
+  if (!response.body) {
+    throw new ApiError("The SonarQube start stream returned no response body.", response.status);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let settled = false;
+
+  const consume = (block: string) => {
+    const payload = block
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trimStart())
+      .join("\n");
+    if (!payload) return;
+    const event = JSON.parse(payload) as SonarStreamEvent;
+    options.onEvent?.(event);
+    if (event.type === "ready") settled = true;
+    if (event.type === "failed") throw new ApiError(event.error_key, response.status);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? "";
+    blocks.forEach(consume);
+    if (done) break;
+  }
+  if (buffer.trim()) consume(buffer);
+  if (!settled) throw new ApiError("The SonarQube start stream ended before ready.", response.status);
+}
+
+export interface ReviewsResponse {
+  reviews: Review[];
+}// --- export and insights (phase 7) ---------------------------------------
 
 export type InsightRange = "7d" | "30d" | "90d" | "all";
 export type ExportFormat = "json" | "md" | "html" | "sarif";
@@ -603,6 +687,12 @@ export const api = {
     request<ProvidersResponse>(`/api/providers${kind ? `?kind=${kind}` : ""}`),
   verifyProvider: (providerId: ProviderId) =>
     request<ProviderHealth>(`/api/providers/${providerId}/verify`, { method: "POST" }),
+
+  getSonarStatus: () => request<SonarStatusResponse>("/api/sonarqube/status"),
+  stopSonar: () => request<SonarStatusResponse>("/api/sonarqube/stop", { method: "POST" }),
+  deleteSonarCredentials: () =>
+    request<{ deleted: boolean }>("/api/sonarqube/credentials", { method: "DELETE" }),
+  startSonar,
 
   getProjects: () => request<ProjectsResponse>("/api/projects"),
   getProject: (projectId: string) =>

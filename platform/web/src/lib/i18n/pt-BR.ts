@@ -424,6 +424,45 @@ export const ptBR: Record<MessageKey, string> = {
   "engine.sonar.scanner.cli": "CLI genérico",
   "engine.sonar.newCodeOnly": "Apenas issues de código novo",
   "engine.sonar.qualityGate": "Exigir quality gate",
+  "engine.sonar.localTitle": "SonarQube local no Docker",
+  "engine.sonar.localDetail":
+    "Sobe um SonarQube Community Build pronto, com login, projeto e token de análise pré-configurados. Altere os campos acima apenas para um servidor externo.",
+  "engine.sonar.wsl": "Executo o RevAI dentro do WSL",
+  "engine.sonar.wslHint": "Usa o executável do Docker Desktop do Windows via interop do WSL.",
+  "engine.sonar.action.start": "Iniciar SonarQube local",
+  "engine.sonar.action.stop": "Parar container",
+  "engine.sonar.docker": "Docker",
+  "engine.sonar.container": "Container",
+  "engine.sonar.server": "Servidor",
+  "engine.sonar.token": "Token provisionado",
+  "engine.sonar.forgetToken": "Esquecer token",
+  "engine.sonar.progress.docker_checked": "Docker acessível",
+  "engine.sonar.progress.pulling": "Baixando imagem…",
+  "engine.sonar.progress.starting": "Iniciando container…",
+  "engine.sonar.progress.server_already_up": "Servidor já está no ar.",
+  "engine.sonar.progress.waiting_boot": "Aguardando o SonarQube subir…",
+  "engine.sonar.progress.boot_complete": "SonarQube está no ar.",
+  "engine.sonar.progress.provisioning": "Provisionando login, projeto e token…",
+  "engine.sonar.progress.already_provisioned": "Credenciais já armazenadas.",
+  "engine.sonar.progress.ready": "Pronto — token armazenado.",
+  "engine.sonar.errors.sonarqube.docker_not_found":
+    "CLI do Docker não encontrada. Instale o Docker Desktop e mantenha-o em execução.",
+  "engine.sonar.errors.sonarqube.docker_unavailable":
+    "O Docker está instalado, mas o daemon não respondeu. Inicie o Docker Desktop e tente novamente.",
+  "engine.sonar.errors.sonarqube.pull_failed": "Não foi possível baixar a imagem do SonarQube.",
+  "engine.sonar.errors.sonarqube.container_start_failed":
+    "Não foi possível iniciar o container do SonarQube.",
+  "engine.sonar.errors.sonarqube.boot_timeout":
+    "O SonarQube não terminou de subir no tempo limite. Tente novamente — o primeiro boot pode ainda estar em andamento.",
+  "engine.sonar.errors.sonarqube.port_conflict":
+    "Outro servidor responde nesta URL. Aponte a URL do servidor para ele, ou libere a porta.",
+  "engine.sonar.errors.sonarqube.admin_password_unknown":
+    "A senha admin deste servidor não é admin/admin e nenhuma credencial armazenada corresponde. Remova o volume de dados do container para recomeçar.",
+  "engine.sonar.errors.sonarqube.password_change_failed": "Não foi possível trocar a senha do admin.",
+  "engine.sonar.errors.sonarqube.project_create_failed": "Não foi possível criar o projeto.",
+  "engine.sonar.errors.sonarqube.token_failed": "Não foi possível gerar o token de análise.",
+  "engine.sonar.errors.sonarqube.server_unreachable": "O servidor SonarQube parou de responder.",
+  "engine.sonar.errors.sonarqube.start_in_progress": "Um start do SonarQube já está em andamento.",
   "engine.behaviour.skip_noise": "Ignorar ruído automaticamente",
   "engine.behaviour.skip_noise_hint":
     "Descarta lockfiles, código gerado, bundles minificados, snapshots e binários antes de qualquer outra coisa.",

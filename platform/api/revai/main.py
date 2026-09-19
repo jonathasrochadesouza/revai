@@ -20,6 +20,7 @@ from revai.api.routes import health
 from revai.api.routes import projects as project_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
+from revai.api.routes import sonarqube as sonarqube_routes
 from revai.config import Settings, get_settings
 from revai.domain.enums import ReviewStatus
 from revai.errors import RevaiError
@@ -113,6 +114,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(project_routes.router, prefix="/api")
     app.include_router(review_routes.router, prefix="/api")
     app.include_router(export_routes.router, prefix="/api")
+    app.include_router(sonarqube_routes.router, prefix="/api")
 
     app.add_exception_handler(RevaiError, _handle_revai_error)
     app.add_exception_handler(RequestValidationError, _handle_validation_error)
