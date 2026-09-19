@@ -25,6 +25,7 @@ from revai.domain.enums import (
     EngineMode,
     FindingSource,
     FindingStatus,
+    FixState,
     ProviderId,
     ReviewMode,
     ReviewScope,
@@ -102,6 +103,14 @@ class Finding(_Base):
 
     suggested_patch: str | None = None
     status: FindingStatus = FindingStatus.OPEN
+
+    # Fix application state. ``fix_validation`` records what the post-apply
+    # re-check concluded, e.g. "validated (ruff clean)" or "unverified
+    # (analyzer unavailable)" — prose written by the fix service, never shown
+    # to the user as raw tool output.
+    fix_state: FixState = FixState.NONE
+    fix_applied_at: datetime | None = None
+    fix_validation: str | None = None
 
     @model_validator(mode="after")
     def _check_line_range(self) -> Self:
@@ -262,6 +271,11 @@ class Review(_Document):
     # persisted. They make completed reviews faithfully replayable after restart.
     events: list[dict[str, str | int | float | bool | None]] = Field(default_factory=list)
     decisions: list[FindingDecision] = Field(default_factory=list)
+
+    # Repo-relative path → sha256 of the file content in the analysis tree at
+    # review time. The fix service compares against the working tree to refuse
+    # patches whose target file has drifted since the review ran.
+    file_hashes: dict[str, str] = Field(default_factory=dict)
 
     # Populated from git, mirroring the legacy aditional-data.json.
     author: str = "Undefined"

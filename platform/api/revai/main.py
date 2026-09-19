@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from revai.api.routes import agent as agent_routes
 from revai.api.routes import config as config_routes
 from revai.api.routes import exports as export_routes
+from revai.api.routes import fixes as fix_routes
 from revai.api.routes import health
 from revai.api.routes import projects as project_routes
 from revai.api.routes import prompts as prompt_routes
@@ -117,6 +118,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(provider_routes.router, prefix="/api")
     app.include_router(project_routes.router, prefix="/api")
     app.include_router(review_routes.router, prefix="/api")
+    app.include_router(fix_routes.router, prefix="/api")
     app.include_router(export_routes.router, prefix="/api")
     app.include_router(sonarqube_routes.router, prefix="/api")
 

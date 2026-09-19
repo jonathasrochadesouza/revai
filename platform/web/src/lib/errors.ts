@@ -80,6 +80,68 @@ export const ERROR_CATALOG: Record<string, { en: string; pt: string }> = {
     pt: "A exportação em {format} só está disponível no formato atual.",
   },
 
+  // --- fix ---------------------------------------------------------------------
+  "fix.already_applied": {
+    en: "A fix for this finding was already applied to the working tree.",
+    pt: "Uma correção para este achado já foi aplicada à árvore de trabalho.",
+  },
+  "fix.branch_mismatch": {
+    en: "The review ran on branch \"{review_head}\", but the working tree is on \"{current_branch}\". Switch branches and try again.",
+    pt: "A revisão rodou na branch \"{review_head}\", mas a árvore de trabalho está em \"{current_branch}\". Troque de branch e tente novamente.",
+  },
+  "fix.file_changed": {
+    en: "\"{file}\" changed since the review ran. Re-run the review before applying a fix.",
+    pt: "\"{file}\" mudou desde a revisão. Rode a revisão novamente antes de aplicar uma correção.",
+  },
+  "fix.file_missing": {
+    en: "\"{file}\" does not exist in the working tree.",
+    pt: "\"{file}\" não existe na árvore de trabalho.",
+  },
+  "fix.generation_failed": {
+    en: "The AI provider request failed ({detail}).",
+    pt: "A chamada ao provedor de IA falhou ({detail}).",
+  },
+  "fix.invalid_generation": {
+    en: "The model returned a fix that failed validation ({detail}).",
+    pt: "A correção retornada pelo modelo falhou na validação ({detail}).",
+  },
+  "fix.no_change_generated": {
+    en: "The generated fix did not change \"{file}\".",
+    pt: "A correção gerada não alterou \"{file}\".",
+  },
+  "fix.no_patch_available": {
+    en: "This finding has no applicable patch. Generate one first.",
+    pt: "Este achado não tem um patch aplicável. Gere um antes.",
+  },
+  "fix.patch_apply_failed": {
+    en: "Applying the patch failed ({detail}).",
+    pt: "Falha ao aplicar o patch ({detail}).",
+  },
+  "fix.patch_file_mismatch": {
+    en: "The patch targets {patch_files}, not \"{finding_file}\".",
+    pt: "O patch altera {patch_files}, e não \"{finding_file}\".",
+  },
+  "fix.patch_stale": {
+    en: "The patch no longer applies to \"{file}\" ({detail}). Generate a new fix.",
+    pt: "O patch não é mais aplicável a \"{file}\" ({detail}). Gere uma nova correção.",
+  },
+  "fix.patch_too_large": {
+    en: "The generated patch for \"{file}\" is too large to apply.",
+    pt: "O patch gerado para \"{file}\" é grande demais para aplicar.",
+  },
+  "fix.revert_failed": {
+    en: "Applying the fix failed AND reverting it failed. Inspect \"{file}\" manually.",
+    pt: "Aplicar a correção falhou E reverter falhou. Inspecione \"{file}\" manualmente.",
+  },
+  "fix.search_block_not_found": {
+    en: "The generated fix does not match the current content of \"{file}\".",
+    pt: "A correção gerada não corresponde ao conteúdo atual de \"{file}\".",
+  },
+  "fix.validation_failed": {
+    en: "The fix was applied but failed re-validation and was reverted ({detail}).",
+    pt: "A correção foi aplicada, mas falhou na revalidação e foi revertida ({detail}).",
+  },
+
   // --- folder picker ---------------------------------------------------------
   "folder_picker.tk_not_installed": {
     en: "The system folder picker needs tkinter, which is not installed.",

@@ -55,6 +55,7 @@ import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   api,
   type AnalyzerRun,
+  type ApplyFixResult,
   type DeterministicReview,
   type DiffPreview,
   type Finding,
@@ -987,6 +988,32 @@ export function RepositoryInspector({
     }
   };
 
+  const applyFindingFix = async (
+    reviewId: string,
+    findingId: string,
+    dryRun: boolean,
+  ): Promise<ApplyFixResult> => {
+    // When the finding already carries a patch, apply it; without one, the
+    // same handler generates a fix first. The dry-run response of a
+    // generation persists the generated patch, so the confirm step applies
+    // exactly what was previewed.
+    const currentReview = result?.review;
+    const finding = currentReview?.findings.find((item) => item.id === findingId);
+    const hasPatch = Boolean(finding?.suggested_patch);
+    const outcome = hasPatch
+      ? await api.applyFix(project.id, reviewId, findingId, dryRun)
+      : await api.generateFix(project.id, reviewId, findingId, dryRun);
+    if (outcome.applied) {
+      const stored = await api.getProjectReviews(project.id);
+      const refreshed = stored.reviews.find((item) => item.id === reviewId);
+      if (refreshed) {
+        setResult((current) => current ? { ...current, review: refreshed } : current);
+        setHistory((current) => current.map((review) => review.id === refreshed.id ? refreshed : review));
+      }
+    }
+    return outcome;
+  };
+
   return (
     <>
       {!reviewing && !result && (
@@ -1240,6 +1267,7 @@ export function RepositoryInspector({
           cancelled={cancelled}
           branches={{ base, head }}
           onFindingStatus={updateFinding}
+          onApplyFix={applyFindingFix}
         />
       )}
       {result && !reviewing && (
@@ -1419,6 +1447,7 @@ function LiveReviewPanel({
   running,
   branches,
   onFindingStatus,
+  onApplyFix,
 }: {
   result: DeterministicReview | null;
   events: ReviewStreamEvent[];
@@ -1426,6 +1455,7 @@ function LiveReviewPanel({
   running: boolean;
   branches: { base: string; head: string };
   onFindingStatus: (reviewId: string, findingId: string, status: Finding["status"]) => void;
+  onApplyFix: (reviewId: string, findingId: string, dryRun: boolean) => Promise<ApplyFixResult>;
 }) {
   const { t } = useUiText();
   const review = result?.review;
@@ -1638,6 +1668,7 @@ function LiveReviewPanel({
                   key={finding.id}
                   finding={finding}
                   onStatus={(status) => onFindingStatus(review.id, finding.id, status)}
+                  onFix={(dryRun) => onApplyFix(review.id, finding.id, dryRun)}
                 />
               ))}
             </div>

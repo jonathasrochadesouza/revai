@@ -51,6 +51,30 @@ revai review . --base main --head feature/payments \
 
 Available report formats are JSON, Markdown, standalone HTML and SARIF 2.1.0.
 
+## Applying a fix
+
+A finding's suggested patch can be applied to the working tree — always
+unstaged, never committed by RevAI. The fix service refuses to run when the
+active branch differs from the review head or the target file changed since the
+review (recorded content hash), validates the patch with `git apply --check`
+first, and re-runs the analyzer that produced the finding after applying; if
+the rule still fires the change is reverted and nothing is left behind.
+`--dry-run` validates and prints the patch without touching the tree.
+
+```bash
+revai fix . --review <review-id> --finding <finding-id> --dry-run
+revai fix . --review <review-id> --finding <finding-id>
+revai fix . --review <review-id> --finding <finding-id> --generate  # model-generated fix
+```
+
+Exit code `0` means applied (or a valid dry run); `1` means the fix could not
+be applied (stale, branch mismatch, failed re-validation); `2` is a
+configuration or execution error. In the web app the same flow lives on each
+finding card: preview the diff, apply to the working tree, then review with
+`git diff` before committing. When a finding has no patch, `Generate fix`
+asks the configured model for a minimal search/replace edit, converts it to a
+real diff, and applies it through the same validation pipeline.
+
 Kiro reviews require Kiro CLI 2.18 or newer. RevAI passes the configured model
 explicitly and creates a temporary read-only agent with tools and MCP inheritance
 disabled. SonarQube scans prefer Maven or Gradle, wait for server-side processing,

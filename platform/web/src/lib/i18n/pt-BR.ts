@@ -219,6 +219,15 @@ export const ptBR: Record<MessageKey, string> = {
   "review.finding.confidence": "Confiança {percent}%",
   "review.finding.copyPatch": "Copiar patch sugerido",
   "review.finding.patchCopied": "Patch copiado",
+  "review.fix.apply": "Aplicar correção",
+  "review.fix.applied": "Correção aplicada",
+  "review.fix.appliedDetail":
+    "Patch deixado sem stage na árvore de trabalho ({validation}). Revise com `git diff` antes de commitar.",
+  "review.fix.confirm": "Aplicar à árvore de trabalho",
+  "review.fix.generate": "Gerar correção",
+  "review.fix.previewHint": "A mudança fica sem stage; você mesmo commita (ou reverte).",
+  "review.fix.previewTitle": "A correção alteraria: {files}",
+  "review.fix.working": "Aplicando…",
   "review.finding.defaultRationale":
     "Este achado foi reportado pelo analisador selecionado.",
   "review.finding.markFixed": "Marcar como corrigido",

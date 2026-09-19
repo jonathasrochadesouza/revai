@@ -179,6 +179,11 @@ async def run_deterministic_pipeline(
                 f"{len(chunks)} context chunks prepared.",
             )
         )
+        review.file_hashes = _hash_analysis_files(
+            analysis_repository,
+            *(finding.file for finding in findings),
+            *(chunk.path for chunk in chunks),
+        )
 
     review.findings = sorted(
         findings,
@@ -246,6 +251,26 @@ def _on_added_lines(findings: list[Finding], hunks) -> list[Finding]:
             for line in range(finding.line_start, (finding.line_end or finding.line_start) + 1)
         )
     ]
+
+
+def _hash_analysis_files(repository: Path, *paths: str) -> dict[str, str]:
+    """Snapshot the analysis-tree content hash for each path that exists.
+
+    The fix service uses these to refuse patches whose target file changed
+    between the review and the apply attempt. Files that vanished mid-pipeline
+    (or unreadable ones) are simply absent — absence is handled downstream as
+    "unverified", not as an error.
+    """
+    hashes: dict[str, str] = {}
+    for path in dict.fromkeys(paths):
+        candidate = repository / path
+        if not candidate.is_file():
+            continue
+        try:
+            hashes[path] = hashlib.sha256(candidate.read_bytes()).hexdigest()
+        except OSError:
+            continue
+    return hashes
 
 
 def _duration_ms(started: float) -> int:

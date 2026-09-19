@@ -24,7 +24,13 @@ def test_v1_locale_en_becomes_en_us() -> None:
     migrated = migrate_document({"schema_version": 1, "ui": {"locale": "en"}})
 
     assert migrated["ui"]["locale"] == "en-US"
-    assert migrated["schema_version"] == 4
+    assert migrated["schema_version"] == 5
+
+
+def test_v4_documents_pass_through_the_fix_state_migration() -> None:
+    migrated = migrate_document({"schema_version": 4})
+
+    assert migrated["schema_version"] == 5
 
 
 def test_v2_drops_withdrawn_fallback_engine_keys() -> None:
@@ -52,15 +58,15 @@ def test_v3_renames_the_kiro_placeholder_model() -> None:
 
 def test_migrations_are_idempotent_on_current_documents() -> None:
     """A document already on the current shape must pass through untouched."""
-    document = {"schema_version": 4, "engine": {"provider_id": "openrouter"}}
+    document = {"schema_version": 5, "engine": {"provider_id": "openrouter"}}
 
     assert migrate_document(document) == document
 
 
 def test_current_version_is_not_migrated_again() -> None:
-    document = {"schema_version": 4}
+    document = {"schema_version": 5}
 
-    assert migrate_document(document)["schema_version"] == 4
+    assert migrate_document(document)["schema_version"] == 5
 
 
 # ---------------------------------------------------------------------------
@@ -121,5 +127,5 @@ def test_yaml_store_round_trips_a_migrated_document_at_the_current_version(
 
     reloaded = store.read(path)
     assert reloaded is not None
-    assert reloaded.schema_version == 4
+    assert reloaded.schema_version == 5
     assert reloaded.ui.locale == "en-US"

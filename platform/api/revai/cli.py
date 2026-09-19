@@ -24,7 +24,10 @@ from revai.agents.renderer import inject_data, load_template, validate_payload
 from revai.config import Settings, get_settings
 from revai.domain.enums import ProviderId, ReviewMode, ReviewScope, ReviewStatus, Severity
 from revai.domain.models import PipelineStageRecord, PromptOverride, Review, ReviewStats
+from revai.errors import RevaiError
 from revai.export.serializers import render_html, render_json, render_markdown, render_sarif
+from revai.fixes.generator import generate_fix_patch
+from revai.fixes.service import FixPreview, FixResult, apply_finding_fix
 from revai.git.repo import GitError, current_branch, inspect_project
 from revai.pipeline.ai import estimate_input_cost, merge_findings, run_ai_stage
 from revai.pipeline.runner import StageRun, run_deterministic_pipeline
@@ -159,6 +162,25 @@ def build_parser() -> argparse.ArgumentParser:
         default="critical",
     )
     review.add_argument("--no-persist", action="store_true", help="do not save history")
+
+    fix = commands.add_parser(
+        "fix",
+        help="apply a stored finding fix to the working tree (unstaged)",
+    )
+    fix.add_argument("path", type=Path, help="path to the reviewed Git repository")
+    fix.add_argument("--review", required=True, help="review id that produced the finding")
+    fix.add_argument("--finding", required=True, help="finding id to fix")
+    fix.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate the fix and print the patch without touching the working tree",
+    )
+    fix.add_argument(
+        "--generate",
+        action="store_true",
+        help="generate a fix with the configured model when the finding has no stored patch",
+    )
+    fix.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     return parser
 
 
@@ -181,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
         return agent_help()
     if args.command == "review":
         return review_command(args)
+    if args.command == "fix":
+        return fix_command(args)
     parser.error(f"unknown command: {args.command}")
     return 2
 
@@ -366,6 +390,92 @@ def review_command(args: argparse.Namespace) -> int:
     except (GitError, StorageError, RuntimeError, ValueError, OSError) as exc:
         print(f"revai review failed: {exc}", file=sys.stderr)
         return 2
+
+
+def fix_command(args: argparse.Namespace) -> int:
+    """Apply one finding's fix from a stored review, without the web server.
+
+    Exit 0 = applied (or a valid dry run). Exit 1 = the fix could not be
+    applied (stale, branch mismatch, validation failed — a user-actionable
+    outcome, matching ``--fail-on`` semantics). Exit 2 = configuration or
+    execution error.
+    """
+    try:
+        outcome = asyncio.run(_run_headless_fix(args))
+    except RevaiError as exc:
+        if args.json:
+            print(
+                json.dumps(
+                    {"error": {"error_key": exc.error_key, "params": exc.params}},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(f"revai fix failed: {exc.error_key} {exc.params}", file=sys.stderr)
+        return 1
+    except (GitError, StorageError, RuntimeError, ValueError, OSError) as exc:
+        print(f"revai fix failed: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(outcome.model_dump(), ensure_ascii=False, sort_keys=True))
+    elif outcome.dry_run:
+        print(f"Dry run — nothing applied. Files touched: {', '.join(outcome.files)}")
+        print(outcome.patch)
+    else:
+        print(f"Applied fix to {', '.join(outcome.files)} (unstaged).")
+        print(f"Validation: {outcome.validation}")
+        print("Review with `git diff` before committing.")
+    return 0
+
+
+async def _run_headless_fix(args: argparse.Namespace) -> FixPreview | FixResult | None:
+    """Locate project, review and finding, then run the fix service.
+
+    Returns ``None`` when the outcome was an error the caller already printed
+    and should surface as exit code 1 (a real user-actionable failure, not a
+    configuration error).
+    """
+    settings = get_settings()
+    settings.ensure_dirs()
+    project_repo = ProjectRepository(settings)
+    review_repo = ReviewRepository(settings)
+    inspected = inspect_project(args.path.expanduser())
+    project = next(
+        (
+            item
+            for item in project_repo.list()
+            if Path(item.path).resolve() == Path(inspected.path).resolve()
+        ),
+        None,
+    )
+    if project is None:
+        raise ValueError(f"Unknown project path: {inspected.path}")
+    review = review_repo.get(args.review, project.id)
+    if review is None:
+        raise ValueError(f"Unknown review id for this project: {args.review}")
+    finding = next((item for item in review.findings if item.id == args.finding), None)
+    if finding is None:
+        raise ValueError(f"Unknown finding id in review {review.id}: {args.finding}")
+
+    config = ConfigRepository(settings).load().model_copy(deep=True)
+    patch = None
+    if args.generate:
+        provider = build_registry(config, CredentialsRepository(settings).load()).active()
+        if provider is None:
+            raise RuntimeError("The configured AI provider is not available.")
+        health = await provider.health()
+        if not health.is_usable:
+            raise RuntimeError(health.detail or "The configured AI provider is not usable.")
+        generated = await generate_fix_patch(provider, config, project, finding)
+        patch = generated.patch
+
+    result = await apply_finding_fix(
+        project, review, finding, dry_run=args.dry_run, patch=patch
+    )
+    if isinstance(result, FixResult):
+        review_repo.save(review)
+    return result
 
 
 async def _run_headless_review(args: argparse.Namespace):

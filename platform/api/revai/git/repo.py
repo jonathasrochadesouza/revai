@@ -1,4 +1,9 @@
-"""Read-only Git operations used by the Phase 3 project workspace."""
+"""Read-only Git operations used by the Phase 3 project workspace.
+
+The only write operation is :func:`apply_patch`, which stages a user-initiated
+finding fix into the working tree (never staged, never committed); the user
+reviews it with ``git diff`` and decides what to do with it.
+"""
 
 from __future__ import annotations
 
@@ -118,6 +123,46 @@ def _run(
         detail = result.stderr.strip() or result.stdout.strip() or "Git command failed."
         raise GitError("git.command_failed", {"detail": detail})
     return result.stdout
+
+
+def apply_patch(repository: Path, patch: str, *, check: bool = False) -> None:
+    """Apply a unified diff to the working tree, unstaged.
+
+    ``check=True`` performs Git's own dry run: everything validates (context
+    matches, target file is in the expected state) without touching a byte.
+    The patch travels on stdin so an oversized or hostile patch cannot become
+    an argument.
+    """
+    command = ["git", "-C", str(repository), "apply"]
+    if check:
+        command.append("--check")
+    command.extend(["--whitespace=nowarn", "--recount", "-"])
+
+    # Persisted fields are whitespace-stripped, which can amputate a diff's
+    # final newline; Git calls that a corrupt patch. A trailing newline is
+    # always syntactically recoverable, so repair it before handing over.
+    if patch and not patch.endswith("\n"):
+        patch += "\n"
+
+    try:
+        execution, environment = command_for_execution(command)
+        result = subprocess.run(
+            execution,
+            check=False,
+            input=patch.encode("utf-8"),
+            capture_output=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
+            env=environment,
+        )
+    except FileNotFoundError as exc:
+        raise GitError("git.not_installed") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise GitError("git.timed_out", {"timeout_s": _GIT_TIMEOUT_SECONDS}) from exc
+
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        key = "fix.patch_stale" if check else "fix.patch_apply_failed"
+        raise GitError(key, {"detail": detail[:400]})
 
 
 def repository_root(path: Path) -> Path:

@@ -19,6 +19,7 @@ describe("error catalog", () => {
         "budget",
         "credential",
         "export",
+        "fix",
         "folder_picker",
         "git",
         "internal",

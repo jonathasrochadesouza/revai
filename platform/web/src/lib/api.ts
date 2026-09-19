@@ -320,6 +320,17 @@ export interface Finding {
   confidence: number;
   suggested_patch: string | null;
   status: "open" | "fixed" | "dismissed" | "false_positive";
+  fix_state: "none" | "applied";
+  fix_applied_at: string | null;
+  fix_validation: string | null;
+}
+
+export interface ApplyFixResult {
+  applied: boolean;
+  dry_run: boolean;
+  patch: string;
+  files: string[];
+  validation: string | null;
 }
 
 export interface ReviewStats {
@@ -361,6 +372,8 @@ export interface Review {
   stages: PipelineStage[];
   analyzers: AnalyzerRun[];
   events: Array<Record<string, string | number | boolean | null>>;
+  /** Repo-relative path → sha256 of the file content at review time. */
+  file_hashes: Record<string, string>;
   error: string | null;
   created_at: string;
   finished_at: string | null;
@@ -868,6 +881,28 @@ export const api = {
     request<Review>(
       `/api/projects/${projectId}/reviews/${reviewId}/findings/${findingId}`,
       json("PATCH", { status }),
+    ),
+  /** `dryRun` validates and previews without touching the working tree. */
+  applyFix: (
+    projectId: string,
+    reviewId: string,
+    findingId: string,
+    dryRun: boolean,
+  ) =>
+    request<ApplyFixResult>(
+      `/api/projects/${projectId}/reviews/${reviewId}/findings/${findingId}/apply-fix`,
+      json("POST", { dry_run: dryRun }),
+    ),
+  /** Generate a fix with the configured model, then apply it like any other. */
+  generateFix: (
+    projectId: string,
+    reviewId: string,
+    findingId: string,
+    dryRun: boolean,
+  ) =>
+    request<ApplyFixResult>(
+      `/api/projects/${projectId}/reviews/${reviewId}/findings/${findingId}/generate-fix`,
+      json("POST", { dry_run: dryRun }),
     ),
   getInsights: (range: InsightRange = "30d") =>
     request<InsightsResponse>(`/api/insights?range=${range}`),

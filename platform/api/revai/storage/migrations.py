@@ -23,6 +23,8 @@ home — see the notes on each step):
   (``platform/docs/DEFERRED-FALLBACK-PROVIDER.md`` records the design).
 * v3 → v4: Kiro CLI placeholder model ``kiro-default`` renamed to
   ``claude-haiku-4.5``.
+* v4 → v5: fix-application state added (``FixState``, review ``file_hashes``);
+  new fields all carry defaults, so the step is a validation-only no-op.
 """
 
 from __future__ import annotations
@@ -75,10 +77,21 @@ def _migrate_v3_to_v4(document: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
+def _migrate_v4_to_v5(document: dict[str, Any]) -> dict[str, Any]:
+    """Make v4 documents loadable under the fix-application schema.
+
+    ``Finding.fix_state`` / ``fix_applied_at`` / ``fix_validation`` and
+    ``Review.file_hashes`` all have defaults, so v4 documents need no field
+    surgery — a fresh read validates and the next save re-stamps the version.
+    """
+    return document
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
     3: _migrate_v3_to_v4,
+    4: _migrate_v4_to_v5,
 }
 
 

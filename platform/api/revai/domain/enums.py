@@ -11,7 +11,7 @@ from enum import StrEnum
 
 # Bumped whenever a persisted shape changes. Documents carry this so a future
 # release can migrate instead of failing to parse.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class Severity(StrEnum):
@@ -66,6 +66,18 @@ class FindingStatus(StrEnum):
     FIXED = "fixed"
     DISMISSED = "dismissed"
     FALSE_POSITIVE = "false_positive"
+
+
+class FixState(StrEnum):
+    """Whether RevAI applied a suggested patch to the working tree.
+
+    Orthogonal to :class:`FindingStatus`: applying a patch does not mean the
+    finding is fixed — the change lives unstaged in the working tree until the
+    user reviews, commits, or reverts it.
+    """
+
+    NONE = "none"
+    APPLIED = "applied"
 
 
 class ReviewScope(StrEnum):

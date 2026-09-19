@@ -216,6 +216,15 @@ export const enUS = {
   "review.finding.confidence": "Confidence {percent}%",
   "review.finding.copyPatch": "Copy suggested patch",
   "review.finding.patchCopied": "Patch copied",
+  "review.fix.apply": "Apply fix",
+  "review.fix.applied": "Fix applied",
+  "review.fix.appliedDetail":
+    "Patch left unstaged in the working tree ({validation}). Review with `git diff` before committing.",
+  "review.fix.confirm": "Apply to working tree",
+  "review.fix.generate": "Generate fix",
+  "review.fix.previewHint": "The change stays unstaged; you commit it (or revert it) yourself.",
+  "review.fix.previewTitle": "The fix would touch: {files}",
+  "review.fix.working": "Applying…",
   "review.finding.defaultRationale":
     "This finding was reported by the selected analyzer.",
   "review.finding.markFixed": "Mark fixed",
