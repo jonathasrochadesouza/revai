@@ -8,7 +8,7 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 
 const CONTROL =
-  "w-full rounded-control border border-line-strong bg-paper px-3 py-2.5 font-mono text-[12.5px] text-ink outline-none transition-shadow placeholder:text-ink-subtle focus:border-ink focus:shadow-[0_0_0_3px_rgba(9,9,11,0.06)] disabled:bg-canvas disabled:text-ink-subtle";
+  "w-full rounded-control border border-line-strong bg-paper px-3 py-2.5 font-mono text-[12.5px] text-ink outline-none transition-shadow placeholder:text-ink-subtle focus:border-ink focus:shadow-[0_0_0_3px_var(--color-ring)] disabled:bg-canvas disabled:text-ink-subtle";
 
 interface FieldProps {
   label: string;

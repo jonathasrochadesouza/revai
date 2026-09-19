@@ -378,7 +378,7 @@ function EmptyProjects({
           <button
             type="button"
             onClick={onOpen}
-            className="rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-white hover:bg-zinc-800"
+            className="rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover"
           >
             Open repository
           </button>
@@ -651,7 +651,7 @@ function RepositoryDialog({
             <button
               type="submit"
               disabled={busy || !canSubmit}
-              className="flex min-w-[88px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex min-w-[88px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending && <LoaderCircle className="size-3.5 animate-spin" />}
               {pending ? (isOpen ? "Opening" : "Cloning") : isOpen ? "Open" : "Clone"}
@@ -1107,7 +1107,7 @@ export function RepositoryInspector({
                 aiProviderBlocked ||
                 (reviewScope === "selected_files" && selectedFiles.length === 0)
               }
-              className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+              className="flex h-9 min-w-[112px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 text-[11.5px] font-semibold text-paper hover:bg-ink-hover disabled:opacity-50"
             >
               {reviewing ? (
                 <Square className="size-3.5 fill-current" />
@@ -1385,7 +1385,7 @@ function ProjectQualityCommands({
         type="button"
         disabled={saving}
         onClick={() => void save()}
-        className="mt-3 bg-ink px-3 py-2 text-[11px] font-semibold text-white disabled:opacity-50"
+        className="mt-3 bg-ink px-3 py-2 text-[11px] font-semibold text-paper disabled:opacity-50"
       >
         {saving ? t("Saving…") : t("Save project commands")}
       </button>
@@ -1841,7 +1841,7 @@ function CostConfirmation({ preview, model, cap, onCancel, onConfirm }: { previe
       <section role="dialog" aria-modal="true" aria-labelledby="cost-confirmation-title" className="w-full max-w-[440px] border border-line bg-paper shadow-2xl">
         <div className="border-b border-line px-5 py-4"><h2 id="cost-confirmation-title" className="text-[15px] font-semibold">Confirm estimated review cost</h2><p className="mt-1 text-[12px] text-ink-muted">This review exceeds your warning threshold.</p></div>
         <div className="space-y-2 px-5 py-4 text-[12px] text-ink-muted"><p><strong className="text-ink">Model:</strong> {model}</p><p><strong className="text-ink">Scope:</strong> {preview.files.length} files, {formatTokens(preview.estimated_tokens)} estimated tokens</p><p><strong className="text-ink">Estimated input:</strong> ${preview.estimated_cost_usd.toFixed(4)}{cap !== null ? ` of $${cap.toFixed(2)} budget` : ""}</p></div>
-        <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">Cancel</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-white hover:bg-zinc-800">Run review</button></div>
+        <div className="flex justify-end gap-2 border-t border-line px-5 py-4"><button type="button" onClick={onCancel} className="border border-line-strong px-3 py-2 text-[11.5px] font-semibold text-ink-muted hover:bg-canvas">Cancel</button><button type="button" onClick={onConfirm} className="bg-ink px-3 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover">Run review</button></div>
       </section>
     </div>
   );
@@ -1891,13 +1891,13 @@ function DiffViewer({
   }
 
   return (
-    <div className="max-h-[360px] overflow-auto bg-[#fcfcfc]">
+    <div className="max-h-[360px] overflow-auto bg-sunken">
       <pre className="min-w-max py-2 text-[11px] leading-[1.65]">
         {preview.patch.split("\n").map((line, index) => {
           const tone = line.startsWith("+")
-            ? "bg-success-surface text-[#047857]"
+            ? "bg-success-surface text-success"
             : line.startsWith("-")
-              ? "bg-critical-surface text-[#b91c1c]"
+              ? "bg-critical-surface text-critical"
               : line.startsWith("@@")
                 ? "bg-low-surface text-low"
                 : line.startsWith("diff ") || line.startsWith("index ")

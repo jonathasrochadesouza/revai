@@ -82,7 +82,7 @@ export function AppearanceForm({ initial }: { initial: ConfigResponse }) {
                 >
                   <Icon className="mb-5 size-4" strokeWidth={1.8} />
                   <span className="block text-[12px] font-semibold">{label}</span>
-                  <span className={`mt-0.5 block text-[10.5px] ${selected ? "text-zinc-300" : "text-ink-subtle"}`}>{detail}</span>
+                  <span className={`mt-0.5 block text-[10.5px] ${selected ? "text-paper/75" : "text-ink-subtle"}`}>{detail}</span>
                 </button>
               );
             })}

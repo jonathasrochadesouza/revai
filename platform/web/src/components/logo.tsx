@@ -10,14 +10,14 @@ import Link from "next/link";
 export function Logo({ size = 26 }: { size?: number }) {
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-chip bg-ink"
+      className="grid shrink-0 place-items-center rounded-chip bg-ink text-paper"
       style={{ width: size, height: size }}
       aria-hidden
     >
       <svg
         viewBox="0 0 24 24"
         fill="none"
-        stroke="#fff"
+        stroke="currentColor"
         strokeWidth={2.5}
         strokeLinejoin="round"
         style={{ width: size * 0.54, height: size * 0.54 }}
