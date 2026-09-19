@@ -168,17 +168,6 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
         </CardBody>
       </Card>
 
-      <SaveBar
-        dirty={dirty}
-        status={status}
-        summary={t("prompts.unsavedDefaults")}
-        error={error}
-        autoSave={configState.ui.auto_save}
-        onSetAutoSave={decideAutoSave}
-        onSave={() => void save()}
-        onDiscard={discard}
-      />
-
       {/* ---------------- scenarios ---------------- */}
       <Card className="mb-3.5">
         <CardHeader
@@ -207,6 +196,20 @@ export function PromptsForm({ initial, config }: PromptsFormProps) {
           )}
         </CardBody>
       </Card>
+
+      {/* Sticky bar is the LAST child, exactly like the Engine screen: its
+          sticky area then spans the whole page, so it overlays the bottom of
+          the viewport instead of pinning between the two cards. */}
+      <SaveBar
+        dirty={dirty}
+        status={status}
+        summary={t("prompts.unsavedDefaults")}
+        error={error}
+        autoSave={configState.ui.auto_save}
+        onSetAutoSave={decideAutoSave}
+        onSave={() => void save()}
+        onDiscard={discard}
+      />
 
       {confirmReset && (
         <ConfirmDialog
