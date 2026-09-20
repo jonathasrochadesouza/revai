@@ -90,8 +90,7 @@ def test_dry_run_and_apply_round_trip(
     assert finding["suggested_patch"] is None
     _attach_patch(settings, project_id, review["id"])
     fix_url = (
-        f"/api/projects/{project_id}/reviews/{review['id']}"
-        f"/findings/{finding['id']}/apply-fix"
+        f"/api/projects/{project_id}/reviews/{review['id']}/findings/{finding['id']}/apply-fix"
     )
 
     preview = client.post(fix_url, json={"dry_run": True})
@@ -118,12 +117,8 @@ def test_dry_run_and_apply_round_trip(
     assert staged.stdout.strip() == ""
 
     stored = client.get(f"/api/projects/{project_id}/reviews").json()
-    stored_review = next(
-        item for item in stored["reviews"] if item["id"] == review["id"]
-    )
-    stored_finding = next(
-        item for item in stored_review["findings"] if item["id"] == finding["id"]
-    )
+    stored_review = next(item for item in stored["reviews"] if item["id"] == review["id"])
+    stored_finding = next(item for item in stored_review["findings"] if item["id"] == finding["id"])
     assert stored_finding["fix_state"] == "applied"
     assert stored_finding["status"] == "open"
     assert stored_finding["fix_validation"] == "validated (ruff clean)"
@@ -163,8 +158,7 @@ def test_generate_without_provider_reports_unavailable(
     finding = review["findings"][0]
 
     response = client.post(
-        f"/api/projects/{project_id}/reviews/{review['id']}"
-        f"/findings/{finding['id']}/generate-fix",
+        f"/api/projects/{project_id}/reviews/{review['id']}/findings/{finding['id']}/generate-fix",
         json={},
     )
     assert response.status_code == 422

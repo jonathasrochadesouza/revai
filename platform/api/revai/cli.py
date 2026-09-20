@@ -470,9 +470,7 @@ async def _run_headless_fix(args: argparse.Namespace) -> FixPreview | FixResult 
         generated = await generate_fix_patch(provider, config, project, finding)
         patch = generated.patch
 
-    result = await apply_finding_fix(
-        project, review, finding, dry_run=args.dry_run, patch=patch
-    )
+    result = await apply_finding_fix(project, review, finding, dry_run=args.dry_run, patch=patch)
     if isinstance(result, FixResult):
         review_repo.save(review)
     return result

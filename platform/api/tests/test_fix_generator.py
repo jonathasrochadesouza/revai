@@ -88,9 +88,7 @@ def test_search_replace_to_diff_builds_applicable_patch() -> None:
 
 def test_search_replace_rejects_missing_block() -> None:
     with pytest.raises(RevaiError) as caught:
-        search_replace_to_diff(
-            "app.py", "import os\n\nanswer = 42\n", "import sys\n", "x\n"
-        )
+        search_replace_to_diff("app.py", "import os\n\nanswer = 42\n", "import sys\n", "x\n")
     assert caught.value.error_key == "fix.search_block_not_found"
 
 
@@ -103,7 +101,7 @@ def test_search_replace_rejects_no_change() -> None:
 def test_extract_block_repairs_fenced_json() -> None:
     from revai.fixes.generator import _extract_block
 
-    text = "```json\n{\"search\": \"import os\\n\", \"replace\": \"\",}\n```"
+    text = '```json\n{"search": "import os\\n", "replace": "",}\n```'
     block = _extract_block(text)
     assert block.search == "import os\n"
     assert block.replace == ""

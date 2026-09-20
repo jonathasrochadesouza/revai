@@ -132,9 +132,7 @@ async def apply_finding_fix(
     validation, ok = await _revalidate(repository, finding)
     if not ok:
         _restore(repository, backups)
-        raise RevaiError(
-            422, "fix.validation_failed", {"detail": validation, "file": finding.file}
-        )
+        raise RevaiError(422, "fix.validation_failed", {"detail": validation, "file": finding.file})
 
     finding.fix_state = FixState.APPLIED
     finding.fix_applied_at = datetime.now(UTC)
@@ -171,9 +169,7 @@ def _restore(repository: Path, backups: dict[str, bytes]) -> None:
             raise RevaiError(500, "fix.revert_failed", {"file": path}) from exc
 
 
-async def _revalidate(
-    repository: Path, finding: Finding
-) -> tuple[str, bool]:
+async def _revalidate(repository: Path, finding: Finding) -> tuple[str, bool]:
     """Re-run the analyzer that produced the finding; fail if its rule persists.
 
     Returns ``(validation_text, ok)``. Only sources with a mapped analyzer are

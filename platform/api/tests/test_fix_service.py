@@ -79,9 +79,7 @@ def repo(tmp_path: Path) -> Path:
 async def test_dry_run_previews_and_does_not_touch_the_tree(repo: Path) -> None:
     finding = _finding()
 
-    result = await apply_finding_fix(
-        _project(repo), _review(repo, finding), finding, dry_run=True
-    )
+    result = await apply_finding_fix(_project(repo), _review(repo, finding), finding, dry_run=True)
 
     assert isinstance(result, FixPreview)
     assert result.files == ["app.py"]
