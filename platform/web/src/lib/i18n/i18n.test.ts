@@ -10,8 +10,12 @@ import { ptBR } from "@/lib/i18n/pt-BR";
  */
 const SAME_IN_BOTH = new Set([
   "common.engine",
-  "common.prompts",
+  "common.skillsPrompts",
   "common.menu",
+  "skills.tab.skills",
+  "skills.tab.prompts",
+  "skills.marketplace.title",
+  "skills.installed.count",
   "projects.branch",
   "review.base",
   "review.head",

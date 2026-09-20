@@ -167,6 +167,76 @@ export interface PromptsResponse {
   path: string;
 }
 
+// --- marketplace skills (settings › skills) ---------------------------------
+
+export type SkillFocus = "review" | "fix" | "both";
+
+/** One row of the skills.sh search: no description until hydrated. */
+export interface MarketplaceSkill {
+  id: string;
+  name: string;
+  /** GitHub shorthand "owner/repo". */
+  source: string;
+  installs: number | null;
+  description: string;
+  url: string;
+}
+
+export interface MarketplaceResponse {
+  query: string;
+  skills: MarketplaceSkill[];
+}
+
+/** Full SKILL.md content, shown before install. */
+export interface SkillPreview {
+  id: string;
+  name: string;
+  source: string;
+  description: string;
+  body: string;
+  content_sha256: string;
+  license: string | null;
+  path: string;
+  source_url: string;
+}
+
+export interface InstalledSkill {
+  id: string;
+  source: string;
+  name: string;
+  description: string;
+  focus: SkillFocus;
+  enabled: boolean;
+  body: string;
+  content_sha256: string;
+  license: string | null;
+  installs: number | null;
+  source_url: string;
+  installed_at: string;
+  updated_at: string;
+}
+
+export interface InstalledSkillsResponse {
+  skills: InstalledSkill[];
+  path: string;
+}
+
+export interface SkillRefreshResponse {
+  skill: InstalledSkill;
+  updated: boolean;
+}
+
+export interface UpdateCheckEntry {
+  skill_id: string;
+  installed_sha256: string;
+  remote_sha256: string;
+  update_available: boolean;
+}
+
+export interface UpdateCheckResponse {
+  updates: UpdateCheckEntry[];
+}
+
 // --- provider detection (phase 2) ------------------------------------------
 
 export type ProviderKind = "api" | "cli";
@@ -801,6 +871,29 @@ export const api = {
   ) => request<PromptScenario>(`/api/prompts/scenarios/${scenarioId}`, json("PUT", input)),
   deletePromptScenario: (scenarioId: string) =>
     request<void>(`/api/prompts/scenarios/${scenarioId}`, { method: "DELETE" }),
+
+  /** Marketplace skills come from skills.sh; content is pinned on install. */
+  searchMarketplace: (query: string, limit = 24) =>
+    request<MarketplaceResponse>(
+      `/api/skills/marketplace?q=${encodeURIComponent(query)}&limit=${limit}`,
+    ),
+  previewSkill: (source: string, skillId: string) =>
+    request<SkillPreview>(
+      `/api/skills/marketplace/preview?source=${encodeURIComponent(source)}&skill_id=${encodeURIComponent(skillId)}`,
+    ),
+  installSkill: (input: { source: string; skill_id: string; focus: SkillFocus }) =>
+    request<InstalledSkill>("/api/skills/install", json("POST", input)),
+  getInstalledSkills: () => request<InstalledSkillsResponse>("/api/skills"),
+  updateSkill: (
+    skillId: string,
+    input: { enabled?: boolean; focus?: SkillFocus },
+  ) => request<InstalledSkill>(`/api/skills/${skillId}`, json("PUT", input)),
+  refreshSkill: (skillId: string) =>
+    request<SkillRefreshResponse>(`/api/skills/${skillId}/update`, { method: "POST" }),
+  checkSkillUpdates: () =>
+    request<UpdateCheckResponse>("/api/skills/check-updates", { method: "POST" }),
+  uninstallSkill: (skillId: string) =>
+    request<void>(`/api/skills/${skillId}`, { method: "DELETE" }),
 
   /** Pass `kind` to list only CLI agents or only hosted APIs. */
   getProviders: (kind?: ProviderKind) =>

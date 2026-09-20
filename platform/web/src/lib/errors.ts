@@ -272,6 +272,56 @@ export const ERROR_CATALOG: Record<string, { en: string; pt: string }> = {
     pt: "Este endpoint executa revisões com IA; o modo estático pertence ao endpoint estático.",
   },
 
+  // --- skills (marketplace) -----------------------------------------------------
+  "skill.already_installed": {
+    en: "Skill \"{skill_id}\" is already installed.",
+    pt: "A skill \"{skill_id}\" já está instalada.",
+  },
+  "skill.composed_too_large": {
+    en: "Too many enabled skills: together they would add {chars} characters to the prompts (limit {max_chars}).",
+    pt: "Skills ativas demais: somadas, elas adicionariam {chars} caracteres aos prompts (limite de {max_chars}).",
+  },
+  "skill.invalid_id": {
+    en: "\"{skill_id}\" is not a valid skill id.",
+    pt: "\"{skill_id}\" não é um id de skill válido.",
+  },
+  "skill.invalid_source": {
+    en: "\"{source}\" is not a valid source (expected GitHub owner/repo).",
+    pt: "\"{source}\" não é uma origem válida (esperado GitHub owner/repo).",
+  },
+  "skill.marketplace_rate_limited": {
+    en: "The marketplace is rate-limiting us. Try again in about a minute.",
+    pt: "O marketplace está limitando as requisições. Tente de novo em cerca de um minuto.",
+  },
+  "skill.marketplace_unavailable": {
+    en: "Could not reach the skills.sh marketplace. Check your connection and try again.",
+    pt: "Não foi possível acessar o skills.sh. Verifique a conexão e tente novamente.",
+  },
+  "skill.max_enabled": {
+    en: "At most {max_enabled} skills can be active at once (you have {count}).",
+    pt: "No máximo {max_enabled} skills podem ficar ativas ao mesmo tempo (você tem {count}).",
+  },
+  "skill.max_installed": {
+    en: "You already reached the limit of {max_installed} installed skills.",
+    pt: "Você já atingiu o limite de {max_installed} skills instaladas.",
+  },
+  "skill.not_found": {
+    en: "Skill \"{skill_id}\" is not installed.",
+    pt: "A skill \"{skill_id}\" não está instalada.",
+  },
+  "skill.not_found_in_source": {
+    en: "Could not find a SKILL.md for \"{skill_id}\" in \"{source}\".",
+    pt: "Não foi possível encontrar o SKILL.md de \"{skill_id}\" em \"{source}\".",
+  },
+  "skill.query_too_short": {
+    en: "Type at least 2 characters to search the marketplace.",
+    pt: "Digite ao menos 2 caracteres para buscar no marketplace.",
+  },
+  "skill.too_large": {
+    en: "This skill is too large to install.",
+    pt: "Esta skill é grande demais para instalar.",
+  },
+
   // --- sonarqube -----------------------------------------------------------------
   "sonarqube.admin_password_unknown": {
     en: "Could not recover the SonarQube admin password for {server_url}.",

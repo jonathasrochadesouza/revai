@@ -27,6 +27,7 @@ describe("error catalog", () => {
         "prompt_scenario",
         "provider",
         "review",
+        "skill",
         "sonarqube",
         "storage",
         "validation",

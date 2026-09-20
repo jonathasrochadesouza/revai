@@ -85,6 +85,10 @@ class Settings(BaseSettings):
         return self.data_dir / "prompts.yaml"
 
     @property
+    def skills_file(self) -> Path:
+        return self.data_dir / "skills.yaml"
+
+    @property
     def projects_dir(self) -> Path:
         return self.data_dir / "projects"
 

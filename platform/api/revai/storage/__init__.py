@@ -12,6 +12,7 @@ from revai.storage.repositories import (
     ProjectRepository,
     PromptRepository,
     ReviewRepository,
+    SkillRepository,
 )
 from revai.storage.yaml_store import YamlStore, atomic_write
 
@@ -23,6 +24,7 @@ __all__ = [
     "PromptRepository",
     "Repository",
     "ReviewRepository",
+    "SkillRepository",
     "StorageError",
     "YamlStore",
     "atomic_write",

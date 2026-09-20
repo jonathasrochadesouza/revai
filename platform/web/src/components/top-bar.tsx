@@ -22,7 +22,7 @@ export type Crumb =
 /** The settings sub-pages, shared by the breadcrumb and the primary-nav dropdown. */
 export const SETTINGS_MENU: { label: string; href: string }[] = [
   { label: "common.engine", href: "/settings/engine" },
-  { label: "common.prompts", href: "/settings/prompts" },
+  { label: "common.skillsPrompts", href: "/settings/skills" },
   { label: "common.appearance", href: "/settings/appearance" },
   { label: "common.data", href: "/settings/data" },
 ];

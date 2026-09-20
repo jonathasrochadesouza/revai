@@ -32,6 +32,7 @@ from revai.domain.models import (
     Review,
 )
 from revai.domain.prompts import builtin_prompts, normalise_locale
+from revai.domain.skills import SkillSettings
 from revai.storage.base import StorageError
 from revai.storage.yaml_store import YamlStore
 
@@ -128,6 +129,27 @@ class PromptRepository:
         if override is not None:
             system_prompt, user_prompt = override.system_prompt, override.user_prompt
         return PromptOverride(system_prompt=system_prompt, user_prompt=user_prompt)
+
+    def exists(self) -> bool:
+        return self._path.is_file()
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+class SkillRepository:
+    """``skills.yaml``. A missing file means "no marketplace skills installed"."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._path = settings.skills_file
+        self._store: YamlStore[SkillSettings] = YamlStore(SkillSettings)
+
+    def load(self) -> SkillSettings:
+        return self._store.read(self._path) or SkillSettings()
+
+    def save(self, document: SkillSettings) -> SkillSettings:
+        return self._store.write(self._path, document)
 
     def exists(self) -> bool:
         return self._path.is_file()

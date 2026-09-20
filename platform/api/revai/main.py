@@ -23,6 +23,7 @@ from revai.api.routes import projects as project_routes
 from revai.api.routes import prompts as prompt_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
+from revai.api.routes import skills as skill_routes
 from revai.api.routes import sonarqube as sonarqube_routes
 from revai.config import Settings, get_settings
 from revai.domain.enums import ReviewStatus
@@ -115,6 +116,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(agent_routes.router, prefix="/api")
     app.include_router(config_routes.router, prefix="/api")
     app.include_router(prompt_routes.router, prefix="/api")
+    app.include_router(skill_routes.router, prefix="/api")
     app.include_router(provider_routes.router, prefix="/api")
     app.include_router(project_routes.router, prefix="/api")
     app.include_router(review_routes.router, prefix="/api")

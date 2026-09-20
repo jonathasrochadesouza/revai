@@ -22,6 +22,7 @@ from revai.storage.repositories import (
     ProjectRepository,
     PromptRepository,
     ReviewRepository,
+    SkillRepository,
 )
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -39,6 +40,10 @@ def get_prompt_repository(settings: SettingsDep) -> PromptRepository:
     return PromptRepository(settings)
 
 
+def get_skill_repository(settings: SettingsDep) -> SkillRepository:
+    return SkillRepository(settings)
+
+
 def get_project_repository(settings: SettingsDep) -> ProjectRepository:
     return ProjectRepository(settings)
 
@@ -50,6 +55,7 @@ def get_review_repository(settings: SettingsDep) -> ReviewRepository:
 ConfigRepo = Annotated[ConfigRepository, Depends(get_config_repository)]
 CredentialsRepo = Annotated[CredentialsRepository, Depends(get_credentials_repository)]
 PromptRepo = Annotated[PromptRepository, Depends(get_prompt_repository)]
+SkillRepo = Annotated[SkillRepository, Depends(get_skill_repository)]
 ProjectRepo = Annotated[ProjectRepository, Depends(get_project_repository)]
 ReviewRepo = Annotated[ReviewRepository, Depends(get_review_repository)]
 

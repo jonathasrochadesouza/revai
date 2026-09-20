@@ -21,6 +21,7 @@ from revai.api.deps import (
     PromptRepo,
     ReviewLimiterDep,
     ReviewRepo,
+    SkillRepo,
 )
 from revai.domain.enums import FindingStatus, ReviewMode, ReviewScope, ReviewStatus
 from revai.domain.models import (
@@ -31,6 +32,7 @@ from revai.domain.models import (
     Review,
     ReviewStats,
 )
+from revai.domain.skills import compose_prompts
 from revai.errors import RevaiError
 from revai.git.repo import GitError
 from revai.pipeline.ai import BudgetExceededError, estimate_input_cost, merge_findings, run_ai_stage
@@ -40,6 +42,7 @@ from revai.providers.base import UsageStats
 from revai.providers.registry import build_registry
 from revai.sonarqube.local import resolve_sonar_token
 from revai.storage.base import StorageError
+from revai.storage.repositories import SkillRepository
 
 router = APIRouter(prefix="/projects/{project_id}/reviews", tags=["reviews"])
 
@@ -147,6 +150,24 @@ def _resolve_prompt_override(
     return override, scenario_id
 
 
+def _compose_skill_prompts(skill_repo: SkillRepository, override: PromptOverride) -> PromptOverride:
+    """Extend a resolved prompt pair with every enabled skill's sections.
+
+    A broken or unreadable skills file must never fail a review, so storage
+    faults compose without skills rather than raising — the pinned prompts in
+    ``prompts.yaml`` are the contract, skills are an additive enhancement.
+    """
+    try:
+        settings = skill_repo.load()
+    except StorageError:
+        return override
+    system_prompt, user_prompt = compose_prompts(
+        (override.system_prompt, override.user_prompt),
+        settings.enabled_skills(),
+    )
+    return PromptOverride(system_prompt=system_prompt, user_prompt=user_prompt)
+
+
 @router.post(
     "/deterministic",
     response_model=DeterministicReviewResponse,
@@ -200,6 +221,7 @@ async def create_ai_review(
     credentials_repo: CredentialsRepo,
     project_repo: ProjectRepo,
     prompt_repo: PromptRepo,
+    skill_repo: SkillRepo,
     review_repo: ReviewRepo,
     limiter: ReviewLimiterDep,
 ) -> StreamingResponse:
@@ -210,9 +232,8 @@ async def create_ai_review(
         raise RevaiError(status.HTTP_422_UNPROCESSABLE_CONTENT, "review.static_only_endpoint")
 
     config = config_repo.load()
-    prompt_override, scenario_id = _resolve_prompt_override(
-        config, prompt_repo, payload.scenario_id
-    )
+    base_override, scenario_id = _resolve_prompt_override(config, prompt_repo, payload.scenario_id)
+    prompt_override = _compose_skill_prompts(skill_repo, base_override)
     provider = build_registry(config, credentials_repo.load()).active()
     health = None
     if payload.mode is not ReviewMode.STATIC:
