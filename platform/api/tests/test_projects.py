@@ -308,6 +308,84 @@ def test_diff_rejects_an_unknown_branch(client: TestClient, tmp_path: Path) -> N
     assert detail["params"]["ref"] == "does-not-exist"
 
 
+def test_creating_a_cloud_project_leaves_no_clone_on_disk(
+    client: TestClient, tmp_path: Path
+) -> None:
+    source = _repository(tmp_path / "source")
+
+    response = client.post(
+        "/api/projects/cloud",
+        json={"remote_url": source.as_uri()},
+    )
+
+    assert response.status_code == 201
+    project = response.json()
+    assert project["kind"] == "cloud"
+    assert project["path"] is None
+    assert project["remote_url"] == source.as_uri()
+    assert project["base_branch"] == "main"
+    # Nothing survives creation except the tmp_path fixture's own source repo
+    # and the client fixture's `.revai` data directory - no sibling clone
+    # directory is left behind.
+    assert set(tmp_path.iterdir()) == {source, tmp_path / ".revai"}
+
+
+def test_creating_a_cloud_project_accepts_a_base_branch_override(
+    client: TestClient, tmp_path: Path
+) -> None:
+    source = _repository(tmp_path / "source")
+    _git(source, "checkout", "-b", "develop")
+    _git(source, "checkout", "main")
+
+    response = client.post(
+        "/api/projects/cloud",
+        json={"remote_url": source.as_uri(), "base_branch": "develop"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["base_branch"] == "develop"
+
+
+def test_creating_a_cloud_project_from_an_unreachable_remote_is_rejected(
+    client: TestClient, tmp_path: Path
+) -> None:
+    missing = tmp_path / "does-not-exist"
+
+    response = client.post(
+        "/api/projects/cloud",
+        json={"remote_url": missing.as_uri()},
+    )
+
+    assert response.status_code == 422
+    # No project persisted from a failed creation attempt.
+    assert client.get("/api/projects").json()["projects"] == []
+
+
+def test_cloud_project_diff_and_tree_endpoints_report_no_persistent_path(
+    client: TestClient, tmp_path: Path
+) -> None:
+    source = _repository(tmp_path / "source")
+    project_id = client.post("/api/projects/cloud", json={"remote_url": source.as_uri()}).json()[
+        "id"
+    ]
+
+    tree_response = client.get(f"/api/projects/{project_id}/tree")
+    assert tree_response.status_code == 409
+    assert (
+        tree_response.json()["detail"]["error_key"]
+        == "project.cloud_project_has_no_persistent_path"
+    )
+
+    diff_response = client.get(
+        f"/api/projects/{project_id}/diff", params={"base": "main", "head": "main"}
+    )
+    assert diff_response.status_code == 409
+    assert (
+        diff_response.json()["detail"]["error_key"]
+        == "project.cloud_project_has_no_persistent_path"
+    )
+
+
 def test_folder_picker_returns_the_native_absolute_path(
     client: TestClient, tmp_path: Path, monkeypatch
 ) -> None:

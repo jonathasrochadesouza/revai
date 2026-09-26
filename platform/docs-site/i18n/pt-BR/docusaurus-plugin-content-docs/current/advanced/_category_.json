@@ -1,0 +1,9 @@
+{
+  "label": {
+    "message": "Avançado",
+    "description": "The label for category 'advanced' in sidebar docs"
+  },
+  "link.generated-index.description": {
+    "message": "Integração com CI e o modelo de privacidade de dados por trás do RevAI."
+  }
+}

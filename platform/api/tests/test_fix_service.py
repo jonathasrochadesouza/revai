@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from revai.domain.enums import FindingSource, FindingStatus, ReviewScope
+from revai.domain.enums import FindingSource, FindingStatus, ProjectKind, ReviewScope
 from revai.domain.models import Finding, Project, Review
 from revai.errors import RevaiError
 from revai.fixes.service import FixPreview, FixResult, apply_finding_fix
@@ -71,9 +71,29 @@ def _project(path: Path) -> Project:
     return Project(name="demo", path=str(path))
 
 
+def _cloud_project() -> Project:
+    return Project(
+        name="cloud-demo",
+        kind=ProjectKind.CLOUD,
+        path=None,
+        remote_url="https://example.com/demo.git",
+    )
+
+
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
     return _repository(tmp_path / "demo")
+
+
+async def test_cloud_project_findings_reject_fix_without_touching_git(repo: Path) -> None:
+    finding = _finding()
+
+    with pytest.raises(RevaiError) as caught:
+        await apply_finding_fix(_cloud_project(), _review(repo, finding), finding, dry_run=True)
+
+    assert caught.value.error_key == "fix.unavailable_for_cloud_project"
+    # No git operation ran — the source tree is untouched.
+    assert (repo / "app.py").read_text(encoding="utf-8") == "import os\n\nanswer = 42\n"
 
 
 async def test_dry_run_previews_and_does_not_touch_the_tree(repo: Path) -> None:

@@ -20,7 +20,7 @@ import { Card, CardBody, CardHeader, CardRow } from "@/components/ui/card";
 import { Field, Select, TextInput } from "@/components/ui/field";
 import { NumberControl } from "@/components/ui/number-control";
 import { Switch } from "@/components/ui/switch";
-import { SonarLocalPanel } from "./sonar-local-panel";
+import { markConnectionStale } from "@/lib/connection-store";
 import {
   api,
   type AnalyzerConfig,
@@ -28,7 +28,6 @@ import {
   type CredentialSummary,
   type ProviderId,
   type RevaiConfig,
-  type SonarQubeConfig,
 } from "@/lib/api";
 import {
   catalogueFor,
@@ -151,6 +150,9 @@ export function SettingsForm({
         isCustomModel(response.config.engine.provider_id, response.config.engine.model),
       );
       setStatus("saved");
+      // The engine selection and the budget can change whether a review could run
+      // at all, so the connection banner must not keep showing a stale verdict.
+      markConnectionStale();
     } catch (cause) {
       setError(errorText(cause));
       setStatus("error");
@@ -196,6 +198,8 @@ export function SettingsForm({
       setCredentials(response.credentials);
       setApiKey(""); // never keep a secret in component state longer than needed
       setKeyStatus("idle");
+      // A stored key can turn a warning provider into a ready one.
+      markConnectionStale();
     } catch (cause) {
       setKeyError(errorText(cause));
       setKeyStatus("error");
@@ -206,6 +210,7 @@ export function SettingsForm({
     try {
       await api.deleteCredential(providerId);
       setCredentials((current) => current.filter((c) => c.provider_id !== providerId));
+      markConnectionStale();
     } catch (cause) {
       setKeyError(errorText(cause));
     }
@@ -661,96 +666,6 @@ export function SettingsForm({
             ))}
           </div>
 
-          <div className="mt-4 rounded-control border border-line bg-canvas p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <b className="block text-[12.5px] font-medium">{t("engine.sonar.title")}</b>
-                <span className="text-[10.5px] text-ink-subtle">
-                  {t("engine.sonar.detail")}
-                </span>
-              </div>
-              <Switch
-                label={t("engine.sonar.enable")}
-                checked={draft.analyzers.sonarqube.enabled}
-                onChange={(checked) => patch((config) => {
-                  config.analyzers.sonarqube.enabled = checked;
-                  return config;
-                })}
-              />
-            </div>
-            {draft.analyzers.sonarqube.enabled && (
-              <div className="mt-3">
-                <SonarLocalPanel
-                  wsl={draft.analyzers.sonarqube.wsl}
-                  onWslChange={(checked) => patch((config) => {
-                    config.analyzers.sonarqube.wsl = checked;
-                    return config;
-                  })}
-                />
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <Field label={t("engine.sonar.serverUrl")} htmlFor="sonarqube-server-url">
-                  <input
-                    id="sonarqube-server-url"
-                    value={draft.analyzers.sonarqube.server_url}
-                    onChange={(event) => patch((config) => {
-                      config.analyzers.sonarqube.server_url = event.target.value;
-                      return config;
-                    })}
-                    placeholder="http://127.0.0.1:9000"
-                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
-                  />
-                </Field>
-                <Field label={t("engine.sonar.projectKey")} htmlFor="sonarqube-project-key">
-                  <input
-                    id="sonarqube-project-key"
-                    value={draft.analyzers.sonarqube.project_key ?? ""}
-                    onChange={(event) => patch((config) => {
-                      config.analyzers.sonarqube.project_key = event.target.value || null;
-                      return config;
-                    })}
-                    placeholder="company:project"
-                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 font-mono text-[11.5px] outline-none focus:border-ink"
-                  />
-                </Field>
-                <Field label={t("engine.sonar.scanner")} htmlFor="sonarqube-scanner">
-                  <select
-                    id="sonarqube-scanner"
-                    value={draft.analyzers.sonarqube.scanner}
-                    onChange={(event) => patch((config) => {
-                      config.analyzers.sonarqube.scanner = event.target.value as SonarQubeConfig["scanner"];
-                      return config;
-                    })}
-                    className="h-9 w-full rounded-control border border-line-strong bg-paper px-2.5 text-[11.5px] outline-none focus:border-ink"
-                  >
-                    <option value="auto">{t("engine.sonar.scanner.auto")}</option>
-                    <option value="maven">{t("engine.sonar.scanner.maven")}</option>
-                    <option value="gradle">{t("engine.sonar.scanner.gradle")}</option>
-                    <option value="cli">{t("engine.sonar.scanner.cli")}</option>
-                  </select>
-                </Field>
-                <div className="flex items-center gap-5 sm:col-span-2">
-                  <Switch
-                    label={t("engine.sonar.newCodeOnly")}
-                    checked={draft.analyzers.sonarqube.new_code_only}
-                    onChange={(checked) => patch((config) => {
-                      config.analyzers.sonarqube.new_code_only = checked;
-                      return config;
-                    })}
-                  />
-                  <Switch
-                    label={t("engine.sonar.qualityGate")}
-                    checked={draft.analyzers.sonarqube.wait_for_quality_gate}
-                    onChange={(checked) => patch((config) => {
-                      config.analyzers.sonarqube.wait_for_quality_gate = checked;
-                      return config;
-                    })}
-                  />
-                </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="mt-4 border-t border-line pt-1">
             {BEHAVIOUR.map((item) => (
               <CardRow key={item.key} label={t(item.labelKey)} hint={t(item.hintKey)}>
@@ -766,6 +681,21 @@ export function SettingsForm({
                 />
               </CardRow>
             ))}
+            <CardRow
+              label={t("engine.behaviour.showGettingStarted")}
+              hint={t("engine.behaviour.showGettingStarted_hint")}
+            >
+              <Switch
+                label={t("engine.behaviour.showGettingStarted")}
+                checked={!draft.ui.hide_getting_started_checklist}
+                onChange={(checked) =>
+                  patch((config) => {
+                    config.ui.hide_getting_started_checklist = !checked;
+                    return config;
+                  })
+                }
+              />
+            </CardRow>
           </div>
         </CardBody>
       </Card>

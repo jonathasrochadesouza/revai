@@ -15,6 +15,8 @@ export const ptBR: Record<MessageKey, string> = {
   "common.data": "Dados",
   "common.appearance": "Aparência",
   "common.engine": "Engine",
+  "common.apiAndAi": "API e IA",
+  "common.docs": "Documentação",
   "common.skillsPrompts": "Skills e Prompts",
   "common.settings": "Configurações",
   "common.menu": "Menu",
@@ -36,6 +38,32 @@ export const ptBR: Record<MessageKey, string> = {
   // --- toasts ----------------------------------------------------------------
   "toast.dismiss": "Descartar notificação",
 
+  // --- connection banner -----------------------------------------------------
+  "connection.banner.apiDown": "O RevAI não está conseguindo acessar o backend local.",
+  "connection.banner.aiActiveBroken": "{provider} precisa de atenção. {ready} está pronto.",
+  "connection.banner.aiNoneReady": "Nenhum provedor de IA está pronto, então revisões não rodam.",
+  "connection.banner.aiUnknown": "Não foi possível confirmar a conexão com {provider}.",
+  "connection.banner.action": "Resolver",
+  "connection.banner.dismiss": "Descartar aviso de conexão",
+
+  // --- connection screen (settings › API e IA) --------------------------------
+  "connection.checking": "Verificando a conexão…",
+  "connection.checkedAt": "Verificado às {time}",
+  "connection.recheck": "Verificar de novo",
+  "connection.rechecking": "Verificando…",
+  "connection.api.title": "API do backend",
+  "connection.api.version": "Versão",
+  "connection.api.environment": "Ambiente",
+  "connection.api.address": "Endereço",
+  "connection.api.howToStart": "Como subir o backend",
+  "connection.ai.title": "Provedor de IA",
+  "connection.ai.activeProvider": "Provedor configurado",
+  "connection.ai.scoreboard": "{ready} de {total} prontos",
+  "connection.ai.noneReady": "Nenhum provedor se declarou pronto.",
+  "connection.ai.readyList": "Prontos: {providers}",
+  "connection.ai.unknownList": "Não foi possível confirmar: {providers}",
+  "connection.ai.configure": "Configurar a engine",
+
   // --- backend-unreachable screen --------------------------------------------
   "unreachable.eyebrow": "Configurações",
   "unreachable.title": "Backend inacessível",
@@ -43,7 +71,7 @@ export const ptBR: Record<MessageKey, string> = {
   "unreachable.heading": "Nenhum backend respondeu.",
   "unreachable.body.before": "O web app conversa com a API local em",
   "unreachable.body.after":
-    "— inacessível geralmente significa que o serviço do Docker Compose não está em execução.",
+    "— inacessível geralmente significa que o processo da API não está em execução.",
   "unreachable.copyPrompt": "Copiar prompt de diagnóstico para IA",
   "unreachable.copied": "Copiado",
   "unreachable.tryAgain": "Tentar novamente",
@@ -68,6 +96,13 @@ export const ptBR: Record<MessageKey, string> = {
   "projects.cloneFromRemoteDescription":
     "Clone um remoto Git (HTTPS, SSH ou local) para uma pasta à sua escolha.",
   "projects.cloneFromRemoteAction": "Informar URL e pasta",
+  "projects.cloudProject": "Revisar um repositório remoto",
+  "projects.cloudProjectDescription":
+    "Somente na nuvem: o RevAI clona o repositório para a revisão e depois o exclui. Nenhum checkout local permanece.",
+  "projects.cloudProjectAction": "Informar URL e branch",
+  "projects.cloudBadge": "Nuvem",
+  "projects.cloudBadgeTooltip":
+    "Projeto na nuvem — sem checkout local persistente; o repositório é clonado apenas durante uma revisão.",
   "projects.yourProjects": "Seus projetos",
   "projects.filterAll": "Todos",
   "projects.filterActive": "Ativos",
@@ -85,6 +120,9 @@ export const ptBR: Record<MessageKey, string> = {
   "projects.openRepository": "Abrir repositório",
   "projects.gettingStarted": "Primeiros passos",
   "projects.gettingStartedTitle": "Prepare-se para a primeira revisão",
+  "projects.gettingStartedClose": "Fechar checklist",
+  "projects.gettingStartedDontShowAgain": "Não mostrar novamente",
+  "projects.gettingStartedDontShowAgainHint": "Você pode trazê-lo de volta em Configurações → Engine → Comportamento.",
   "projects.stepConfigureEngine": "Configurar uma engine",
   "projects.stepVerifyProvider": "Verificar acesso ao provedor",
   "projects.stepAddRepository": "Adicionar um repositório",
@@ -97,6 +135,12 @@ export const ptBR: Record<MessageKey, string> = {
   "projects.dialog.cloneTitle": "Clonar repositório remoto",
   "projects.dialog.cloneDescription":
     "Escolha um repositório remoto e onde salvar o checkout local dele.",
+  "projects.dialog.cloudTitle": "Revisar um repositório remoto",
+  "projects.dialog.cloudDescription":
+    "O repositório é clonado para a revisão e depois excluído — nenhum checkout local permanece.",
+  "projects.dialog.baseBranchOptional": "Branch base (opcional)",
+  "projects.dialog.cloudFixLimitation":
+    "Sugestões de correção podem ser pré-visualizadas, mas não aplicadas em projetos na nuvem — não há árvore de trabalho persistente para aplicar o patch.",
   "projects.dialog.folderPath": "Caminho da pasta",
   "projects.dialog.repositoryUrl": "URL do repositório",
   "projects.dialog.saveIn": "Salvar em",
@@ -106,6 +150,8 @@ export const ptBR: Record<MessageKey, string> = {
   "projects.dialog.opening": "Abrindo",
   "projects.dialog.clone": "Clonar",
   "projects.dialog.cloning": "Clonando",
+  "projects.dialog.create": "Criar",
+  "projects.dialog.creating": "Criando",
 
   // --- review setup page ----------------------------------------------------
   "review.eyebrow": "Revisão",
@@ -281,6 +327,11 @@ export const ptBR: Record<MessageKey, string> = {
   // --- settings shell -------------------------------------------------------
   "settings.eyebrow": "Configurações",
   "settings.unsavedChanges": "alterações não salvas",
+
+  // --- connection (API e IA) ------------------------------------------------
+  "settings.connection.title": "Conexão de API e IA",
+  "settings.connection.subtitle":
+    "Se o RevAI consegue acessar o backend local e rodar uma revisão agora — e o que fazer quando não consegue.",
 
   // --- appearance -----------------------------------------------------------
   "settings.appearance.title": "Aparência & idioma",
@@ -526,58 +577,6 @@ export const ptBR: Record<MessageKey, string> = {
   "engine.analyser.projectTestsDetail": "configurado por projeto",
   "engine.analyser.projectBuild": "Build do projeto",
   "engine.analyser.projectBuildDetail": "configurado por projeto",
-  "engine.sonar.title": "SonarQube Server / Community Build",
-  "engine.sonar.detail":
-    "Varredura ciente da ferramenta de build, espera do Compute Engine, issues de código novo e quality gate.",
-  "engine.sonar.enable": "Ativar SonarQube",
-  "engine.sonar.serverUrl": "URL do servidor",
-  "engine.sonar.projectKey": "Chave do projeto",
-  "engine.sonar.scanner": "Scanner",
-  "engine.sonar.scanner.auto": "Automático — prefere Maven/Gradle",
-  "engine.sonar.scanner.maven": "Maven",
-  "engine.sonar.scanner.gradle": "Gradle",
-  "engine.sonar.scanner.cli": "CLI genérico",
-  "engine.sonar.newCodeOnly": "Apenas issues de código novo",
-  "engine.sonar.qualityGate": "Exigir quality gate",
-  "engine.sonar.localTitle": "SonarQube local no Docker",
-  "engine.sonar.localDetail":
-    "Sobe um SonarQube Community Build pronto, com login, projeto e token de análise pré-configurados. Altere os campos acima apenas para um servidor externo.",
-  "engine.sonar.wsl": "Executo o RevAI dentro do WSL",
-  "engine.sonar.wslHint": "Usa o executável do Docker Desktop do Windows via interop do WSL.",
-  "engine.sonar.action.start": "Iniciar SonarQube local",
-  "engine.sonar.action.stop": "Parar container",
-  "engine.sonar.docker": "Docker",
-  "engine.sonar.container": "Contêiner",
-  "engine.sonar.server": "Servidor",
-  "engine.sonar.token": "Token provisionado",
-  "engine.sonar.forgetToken": "Esquecer token",
-  "engine.sonar.progress.docker_checked": "Docker acessível",
-  "engine.sonar.progress.pulling": "Baixando imagem…",
-  "engine.sonar.progress.starting": "Iniciando container…",
-  "engine.sonar.progress.server_already_up": "Servidor já está no ar.",
-  "engine.sonar.progress.waiting_boot": "Aguardando o SonarQube subir…",
-  "engine.sonar.progress.boot_complete": "SonarQube está no ar.",
-  "engine.sonar.progress.provisioning": "Provisionando login, projeto e token…",
-  "engine.sonar.progress.already_provisioned": "Credenciais já armazenadas.",
-  "engine.sonar.progress.ready": "Pronto — token armazenado.",
-  "engine.sonar.errors.sonarqube.docker_not_found":
-    "CLI do Docker não encontrada. Instale o Docker Desktop e mantenha-o em execução.",
-  "engine.sonar.errors.sonarqube.docker_unavailable":
-    "O Docker está instalado, mas o daemon não respondeu. Inicie o Docker Desktop e tente novamente.",
-  "engine.sonar.errors.sonarqube.pull_failed": "Não foi possível baixar a imagem do SonarQube.",
-  "engine.sonar.errors.sonarqube.container_start_failed":
-    "Não foi possível iniciar o container do SonarQube.",
-  "engine.sonar.errors.sonarqube.boot_timeout":
-    "O SonarQube não terminou de subir no tempo limite. Tente novamente — o primeiro boot pode ainda estar em andamento.",
-  "engine.sonar.errors.sonarqube.port_conflict":
-    "Outro servidor responde nesta URL. Aponte a URL do servidor para ele, ou libere a porta.",
-  "engine.sonar.errors.sonarqube.admin_password_unknown":
-    "A senha admin deste servidor não é admin/admin e nenhuma credencial armazenada corresponde. Remova o volume de dados do container para recomeçar.",
-  "engine.sonar.errors.sonarqube.password_change_failed": "Não foi possível trocar a senha do admin.",
-  "engine.sonar.errors.sonarqube.project_create_failed": "Não foi possível criar o projeto.",
-  "engine.sonar.errors.sonarqube.token_failed": "Não foi possível gerar o token de análise.",
-  "engine.sonar.errors.sonarqube.server_unreachable": "O servidor SonarQube parou de responder.",
-  "engine.sonar.errors.sonarqube.start_in_progress": "Um start do SonarQube já está em andamento.",
   "engine.behaviour.skip_noise": "Ignorar ruído automaticamente",
   "engine.behaviour.skip_noise_hint":
     "Descarta lockfiles, código gerado, bundles minificados, snapshots e binários antes de qualquer outra coisa.",
@@ -587,6 +586,9 @@ export const ptBR: Record<MessageKey, string> = {
   "engine.behaviour.dedupe_across_sources": "Mesclar achados duplicados",
   "engine.behaviour.dedupe_across_sources_hint":
     "Quando um linter e o modelo reportam o mesmo problema, mantém o de maior confiança e mescla a explicação.",
+  "engine.behaviour.showGettingStarted": "Mostrar checklist \"Prepare-se para a primeira revisão\"",
+  "engine.behaviour.showGettingStarted_hint":
+    "Reabre o checklist de introdução na tela de Projetos após ele ter sido dispensado.",
 
   // --- provider panel -------------------------------------------------------
   "engine.providerStatus": "Status dos provedores",
@@ -713,21 +715,6 @@ export const ptBR: Record<MessageKey, string> = {
   "models.note.fastAndCostEfficient": "rápido e econômico",
   "models.note.strongerReasoning": "raciocínio mais forte",
   "models.note.auto": "Automático",
-
-  // --- review agent -----------------------------------------------------------
-  "agent.cardTitle": "Agente de review (AGENTS.md)",
-  "agent.intro":
-    "Instale o revisor RevAI em um dos seus projetos. Isto escreve um bloco gerenciado no AGENTS.md do projeto e envia um template de relatório HTML standalone (.revai/agent-report.html). O agente permanece somente leitura: só pode escrever revai-findings.json e o relatório.",
-  "agent.project": "Projeto",
-  "agent.engine": "Engine",
-  "agent.preview": "Pré-visualizar",
-  "agent.previewTitle": "Pré-visualização do AGENTS.md",
-  "agent.reportDemo": "Relatório de exemplo",
-  "agent.apply": "Instalar no projeto",
-  "agent.applying": "Instalando…",
-  "agent.applied": "Agente de review instalado.",
-  "agent.existingFile": "O AGENTS.md já existe — o seu conteúdo acima do bloco gerenciado é preservado.",
-  "agent.newFile": "O AGENTS.md ainda não existe — ele será criado.",
 
   // --- logo -----------------------------------------------------------------
   "logo.aria": "RevAI — ir para o painel",

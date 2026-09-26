@@ -24,7 +24,7 @@ Two raise shapes cover the whole API:
 Naming convention for ``error_key``: ``<domain>.<reason>``, snake_case on both
 sides, one key per distinct user-facing situation. Domains in use:
 ``budget``, ``project``, ``review``, ``git``, ``storage``, ``provider``,
-``credential``, ``folder_picker``, ``sonarqube``, ``ai_pipeline``,
+``credential``, ``folder_picker``, ``ai_pipeline``,
 ``validation`` (generic pydantic fallback), ``internal`` (unhandled fallback).
 """
 

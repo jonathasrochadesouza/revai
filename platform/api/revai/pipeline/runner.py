@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import time
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from revai.analyzers.runner import AnalyzerRun, run_analyzers
-from revai.domain.enums import ReviewScope, ReviewStatus
+from revai.domain.enums import ProjectKind, ReviewScope, ReviewStatus
 from revai.domain.models import (
     AnalyzerRecord,
     Finding,
@@ -21,9 +21,11 @@ from revai.domain.models import (
     Review,
     ReviewStats,
 )
+from revai.errors import RevaiError
 from revai.git.repo import (
     current_branch,
     diff_preview,
+    ephemeral_clone,
     materialized_tree,
     review_identities,
     snapshot_preview,
@@ -56,6 +58,23 @@ class DeterministicResult:
     hunks: list[ParsedHunk]
 
 
+def _project_working_directory(project: Project, stack: ExitStack) -> Path:
+    """The directory this run should analyze.
+
+    Local projects already have a persistent path — reuse it directly.
+    Cloud projects have none at rest, so this run clones one into a temp
+    directory that ``stack`` guarantees gets removed when the run's context
+    exits, success or not.
+    """
+    if project.kind is ProjectKind.CLOUD:
+        if project.remote_url is None:
+            raise RevaiError(
+                409, "project.cloud_project_missing_remote_url", {"project_id": project.id}
+            )
+        return stack.enter_context(ephemeral_clone(project.remote_url))
+    return Path(project.require_path())
+
+
 async def run_deterministic_pipeline(
     project: Project,
     config: RevaiConfig,
@@ -66,9 +85,34 @@ async def run_deterministic_pipeline(
     include_static: bool = True,
     scope: ReviewScope = ReviewScope.BRANCH_DIFF,
     selected_files: list[str] | None = None,
-    sonar_token: str | None = None,
 ) -> DeterministicResult:
-    repository = Path(project.path)
+    with ExitStack() as stack:
+        repository = _project_working_directory(project, stack)
+        return await _run_deterministic_pipeline(
+            project,
+            config,
+            repository,
+            base=base,
+            head=head,
+            review=review,
+            include_static=include_static,
+            scope=scope,
+            selected_files=selected_files,
+        )
+
+
+async def _run_deterministic_pipeline(
+    project: Project,
+    config: RevaiConfig,
+    repository: Path,
+    *,
+    base: str,
+    head: str,
+    review: Review | None,
+    include_static: bool,
+    scope: ReviewScope,
+    selected_files: list[str] | None,
+) -> DeterministicResult:
     review = review or Review(
         project_id=project.id,
         scope=ReviewScope.BRANCH_DIFF,
@@ -143,7 +187,6 @@ async def run_deterministic_pipeline(
                 checkstyle_command=project.checkstyle_command,
                 test_command=project.test_command,
                 build_command=project.build_command,
-                sonar_token=sonar_token,
             )
             if include_static
             else []

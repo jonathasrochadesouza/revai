@@ -35,12 +35,6 @@ const SAME_IN_BOTH = new Set([
   "engine.analyser.treesitter",
   "engine.analyser.checkstyle",
   "engine.analyser.checkstyleDetail",
-  "engine.sonar.title",
-  "engine.sonar.docker",
-  "engine.sonar.scanner",
-  "engine.sonar.scanner.maven",
-  "engine.sonar.scanner.gradle",
-  "agent.engine",
   "insights.category.performance",
 ]);
 

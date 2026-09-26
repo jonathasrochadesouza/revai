@@ -140,6 +140,10 @@ class ToastStore {
 
 const store = new ToastStore();
 
+/** Stable empty array: getServerSnapshot must return the same reference
+ * every call, or useSyncExternalStore treats it as a change and loops. */
+const EMPTY_TOASTS: ToastEntry[] = [];
+
 type PushToast = (message: string, tone?: ToastTone) => void;
 
 const ToastContext = createContext<{ push: PushToast }>({
@@ -150,7 +154,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const { t } = useUiText();
   // SSR renders no portal (the store starts empty), so the subscription is
   // client-only by construction and hydration stays consistent.
-  const toasts = useSyncExternalStore(store.subscribe, store.snapshot, () => []);
+  const toasts = useSyncExternalStore(store.subscribe, store.snapshot, () => EMPTY_TOASTS);
   const value = useMemo(() => ({ push: store.push }), []);
 
   return (

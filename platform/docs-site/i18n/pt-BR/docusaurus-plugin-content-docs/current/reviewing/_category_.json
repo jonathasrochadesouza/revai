@@ -1,0 +1,9 @@
+{
+  "label": {
+    "message": "Revisando",
+    "description": "The label for category 'reviewing' in sidebar docs"
+  },
+  "link.generated-index.description": {
+    "message": "Escolha um provedor, rode uma revisão e trabalhe os achados dela."
+  }
+}

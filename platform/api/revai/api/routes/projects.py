@@ -9,8 +9,8 @@ from fastapi import APIRouter, Query, Response, status
 from pydantic import BaseModel, Field
 
 from revai.analyzers.preflight import preflight_analyzers
-from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo
-from revai.domain.enums import ProviderId, ReviewScope
+from revai.api.deps import ConfigRepo, ProjectRepo
+from revai.domain.enums import ProjectKind, ProviderId, ReviewScope
 from revai.domain.models import Project
 from revai.errors import RevaiError
 from revai.git.repo import (
@@ -19,11 +19,11 @@ from revai.git.repo import (
     clone_repository,
     current_branch,
     diff_preview,
+    ephemeral_clone,
     inspect_project,
     snapshot_preview,
     tracked_files,
 )
-from revai.sonarqube.local import resolve_sonar_token
 from revai.system.folder_picker import FolderPickerError, pick_directory
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -38,10 +38,16 @@ class CloneProjectRequest(BaseModel):
     destination_path: str = Field(min_length=1)
 
 
+class CreateCloudProjectRequest(BaseModel):
+    remote_url: str = Field(min_length=1, max_length=2_048)
+    base_branch: str | None = Field(default=None, max_length=255)
+
+
 class ProjectView(BaseModel):
     id: str
     name: str
-    path: str
+    kind: ProjectKind
+    path: str | None
     remote_url: str | None
     base_branch: str
     current_branch: str | None
@@ -115,13 +121,16 @@ def _project(project_repo: ProjectRepo, project_id: str) -> Project:
 
 
 def _view(project: Project) -> ProjectView:
-    path = Path(project.path)
-    try:
-        active = current_branch(path)
-        known_branches = branches(path)
-    except GitError:
-        active = None
-        known_branches = []
+    active: str | None = None
+    known_branches: list[str] = []
+    if project.kind is not ProjectKind.CLOUD:
+        path = Path(project.require_path())
+        try:
+            active = current_branch(path)
+            known_branches = branches(path)
+        except GitError:
+            active = None
+            known_branches = []
 
     return ProjectView(
         **project.model_dump(mode="json"),
@@ -154,7 +163,8 @@ def open_project(
         (
             project
             for project in project_repo.list()
-            if Path(project.path).resolve() == Path(inspected.path).resolve()
+            if project.kind is not ProjectKind.CLOUD
+            and Path(project.require_path()).resolve() == Path(inspected.path).resolve()
         ),
         None,
     )
@@ -177,6 +187,37 @@ def clone_project(
         )
     except GitError as exc:
         raise _unprocessable(exc) from exc
+    return _view(project_repo.save(project))
+
+
+@router.post("/cloud", response_model=ProjectView, status_code=status.HTTP_201_CREATED)
+def create_cloud_project(
+    request: CreateCloudProjectRequest,
+    project_repo: ProjectRepo,
+) -> ProjectView:
+    """Create a project backed by a remote repository, with no persistent
+    local checkout.
+
+    A one-shot clone happens here purely to detect the default branch and
+    languages for the project card and to confirm the remote is reachable —
+    it is discarded immediately, before the ``Project`` is ever saved. Every
+    later review for this project clones again, ephemerally, for that run
+    only.
+    """
+    try:
+        with ephemeral_clone(request.remote_url) as checkout:
+            inspected = inspect_project(
+                checkout, source_url=request.remote_url, kind=ProjectKind.CLOUD
+            )
+    except GitError as exc:
+        raise _unprocessable(exc) from exc
+
+    project = inspected.model_copy(
+        update={
+            "path": None,
+            "base_branch": request.base_branch or inspected.base_branch,
+        }
+    )
     return _view(project_repo.save(project))
 
 
@@ -203,7 +244,7 @@ def update_project(
     project = _project(project_repo, project_id)
     if request.base_branch is not None:
         try:
-            known = branches(Path(project.path))
+            known = branches(Path(project.require_path()))
         except GitError as exc:
             raise _unprocessable(exc) from exc
         if request.base_branch not in known:
@@ -236,7 +277,7 @@ def get_tree(
 ) -> TreeResponse:
     project = _project(project_repo, project_id)
     try:
-        files = tracked_files(Path(project.path), ref)
+        files = tracked_files(Path(project.require_path()), ref)
     except GitError as exc:
         raise _unprocessable(exc) from exc
     return TreeResponse(ref=ref, files=files)
@@ -247,13 +288,11 @@ def analyzer_preflight(
     project_id: str,
     project_repo: ProjectRepo,
     config_repo: ConfigRepo,
-    credentials_repo: CredentialsRepo,
 ) -> AnalyzerPreflightResponse:
     config = config_repo.load()
     capabilities = preflight_analyzers(
         _project(project_repo, project_id),
         config.analyzers,
-        sonar_token=resolve_sonar_token(credentials_repo.load()),
     )
     return AnalyzerPreflightResponse(
         analyzers=[AnalyzerCapabilityResponse(**item.__dict__) for item in capabilities],
@@ -280,10 +319,10 @@ def get_diff(
         )
     try:
         preview = (
-            diff_preview(Path(project.path), base, head)
+            diff_preview(Path(project.require_path()), base, head)
             if scope is ReviewScope.BRANCH_DIFF
             else snapshot_preview(
-                Path(project.path),
+                Path(project.require_path()),
                 head,
                 selected_files=files if scope is ReviewScope.SELECTED_FILES else None,
             )

@@ -26,6 +26,7 @@ from revai.domain.enums import (
     FindingSource,
     FindingStatus,
     FixState,
+    ProjectKind,
     ProviderId,
     ReviewMode,
     ReviewScope,
@@ -33,6 +34,7 @@ from revai.domain.enums import (
     Severity,
 )
 from revai.domain.prompts import PromptLocale
+from revai.errors import RevaiError
 
 
 def _now() -> datetime:
@@ -310,9 +312,17 @@ class Project(_Document):
     id: str = Field(default_factory=_new_id)
     name: str = Field(min_length=1, max_length=120)
 
+    kind: ProjectKind = ProjectKind.LOCAL_OPEN
+
     # Kept as a string rather than Path: it round-trips cleanly through YAML and
     # JSON, and Windows paths survive without escaping surprises.
-    path: str = Field(min_length=1)
+    #
+    # ``None`` only for ``kind == CLOUD`` — that project kind never has a
+    # persistent working tree; one is materialized for the duration of a
+    # single review run and discarded. Use :meth:`require_path` at any call
+    # site that needs a real directory, so a missing path fails with a named
+    # error instead of `Path(None)` raising a confusing `TypeError`.
+    path: str | None = Field(default=None)
     remote_url: str | None = None
 
     # Replaces the hardcoded `develop` in the PowerShell scripts. Detected on
@@ -339,6 +349,44 @@ class Project(_Document):
                 {"name": value},
             )
         return value
+
+    @model_validator(mode="after")
+    def _cloud_projects_have_no_persistent_path(self) -> Self:
+        """A cloud project's ``path`` is meaningless once a review run ends.
+
+        Guarding this at the model boundary means a caller can never
+        accidentally persist a stale directory on a cloud project — it either
+        never had one, or the value would silently rot after cleanup.
+        """
+        if self.kind is ProjectKind.CLOUD and self.path is not None:
+            raise PydanticCustomError(
+                "project.cloud_project_has_persistent_path",
+                "cloud projects must not have a persistent path",
+                {},
+            )
+        if self.kind is not ProjectKind.CLOUD and self.path is None:
+            raise PydanticCustomError(
+                "project.local_project_missing_path",
+                "local projects must have a path",
+                {},
+            )
+        return self
+
+    def require_path(self) -> str:
+        """The persistent working tree path, or a named error if there is none.
+
+        Use this instead of touching ``project.path`` directly at any call
+        site outside of an active review run for a cloud project — it turns
+        "no persistent path" into an explicit, catchable :class:`RevaiError`
+        rather than a `Path(None)` `TypeError` or a silent `Path("")` (cwd).
+        """
+        if self.path is None:
+            raise RevaiError(
+                409,
+                "project.cloud_project_has_no_persistent_path",
+                {"project_id": self.id},
+            )
+        return self.path
 
 
 # ===========================================================================
@@ -386,29 +434,6 @@ class BudgetConfig(_Base):
         return self.max_context_tokens is None
 
 
-class SonarQubeConfig(_Base):
-    """Connection metadata for a self-hosted SonarQube Server / Community Build.
-
-    ``project_key`` defaults to ``revai-local`` so the one-screen local setup
-    works without editing anything: the local provisioning flow creates that
-    project in a fresh server.
-
-    The token lives in ``credentials.yaml`` (written by the local provisioning
-    flow) with ``SONAR_TOKEN`` as the external-server fallback; that keeps an
-    external service credential out of ordinary review preferences.
-    """
-
-    enabled: bool = False
-    server_url: str = "http://127.0.0.1:9000"
-    project_key: str | None = "revai-local"
-    timeout_s: int = Field(default=300, ge=10, le=3600)
-    wait_for_quality_gate: bool = True
-    quality_gate_timeout_s: int = Field(default=300, ge=10, le=3600)
-    new_code_only: bool = True
-    scanner: Literal["auto", "maven", "gradle", "cli"] = "auto"
-    wsl: bool = False
-
-
 class AnalyzerConfig(_Base):
     """The deterministic stage. Every analyzer is optional and costs no tokens."""
 
@@ -421,7 +446,6 @@ class AnalyzerConfig(_Base):
     project_tests: bool = False
     project_build: bool = False
     treesitter: bool = True
-    sonarqube: SonarQubeConfig = Field(default_factory=SonarQubeConfig)
 
     skip_noise: bool = True  # lockfiles, generated, minified, binaries
     changed_lines_only: bool = True  # the +/- rule from the legacy prompt
@@ -440,10 +464,7 @@ class AnalyzerConfig(_Base):
             "project_build",
             "treesitter",
         )
-        enabled = [name for name in flags if getattr(self, name)]
-        if self.sonarqube.enabled:
-            enabled.append("sonarqube")
-        return enabled
+        return [name for name in flags if getattr(self, name)]
 
 
 class EngineConfig(_Base):
@@ -494,6 +515,12 @@ class UiConfig(_Base):
     # ``True`` enables automatic saves; ``False`` is both "off" and "stop asking",
     # which keeps the answer re-visitable in Settings without a second field.
     auto_save: bool | None = None
+
+    # Set when the user dismisses the "Get ready for your first review" popup
+    # from the projects screen, or turns it off directly in Settings > Engine.
+    # Both paths write the same flag, so either one is fully reversible from
+    # the other.
+    hide_getting_started_checklist: bool = False
 
     @field_validator("locale", mode="before")
     @classmethod
@@ -551,29 +578,10 @@ class ProviderCredential(_Base):
         return f"{self.api_key[:8]}{'•' * 16}{self.api_key[-4:]}"
 
 
-class SonarQubeCredential(_Base):
-    """Secrets for a locally provisioned SonarQube Community Build.
-
-    Written by the provisioning flow (see ``revai.sonarqube.local``) and never
-    included in an API response — routes return :meth:`masked`.
-    """
-
-    token: str = Field(min_length=1, repr=False)
-    admin_password: str = Field(min_length=1, repr=False)
-    created_at: datetime = Field(default_factory=_now)
-
-    def masked(self) -> str:
-        """Enough to recognise the token, not enough to use it."""
-        if len(self.token) <= 12:
-            return "•" * len(self.token)
-        return f"{self.token[:8]}{'•' * 16}{self.token[-4:]}"
-
-
 class Credentials(_Document):
     """``~/.revai/credentials.yaml`` — chmod 600, never inside a project folder."""
 
     providers: dict[ProviderId, ProviderCredential] = Field(default_factory=dict)
-    sonarqube: SonarQubeCredential | None = None
 
     def get(self, provider_id: ProviderId) -> ProviderCredential | None:
         return self.providers.get(provider_id)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, status
 from pydantic import BaseModel
 
 from revai.api.deps import ConfigRepo, CredentialsRepo, ProjectRepo, ReviewRepo
+from revai.domain.enums import ProjectKind
 from revai.errors import RevaiError
 from revai.fixes.generator import generate_fix_patch
 from revai.fixes.service import FixPreview, FixResult, apply_finding_fix
@@ -111,6 +112,12 @@ async def generate_fix(
     project, review, finding = await _load_finding(
         project_id, review_id, finding_id, project_repo, review_repo
     )
+    if project.kind is ProjectKind.CLOUD:
+        raise RevaiError(
+            status.HTTP_409_CONFLICT,
+            "fix.unavailable_for_cloud_project",
+            {"project_id": project.id},
+        )
     config = config_repo.load()
     provider = build_registry(config, credentials_repo.load()).active()
     if provider is None:

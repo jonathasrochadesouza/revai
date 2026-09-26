@@ -14,7 +14,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from revai.api.routes import agent as agent_routes
 from revai.api.routes import config as config_routes
 from revai.api.routes import exports as export_routes
 from revai.api.routes import fixes as fix_routes
@@ -24,7 +23,7 @@ from revai.api.routes import prompts as prompt_routes
 from revai.api.routes import providers as provider_routes
 from revai.api.routes import reviews as review_routes
 from revai.api.routes import skills as skill_routes
-from revai.api.routes import sonarqube as sonarqube_routes
+from revai.api.routes import status as status_routes
 from revai.config import Settings, get_settings
 from revai.domain.enums import ReviewStatus
 from revai.errors import RevaiError
@@ -113,7 +112,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health.router, prefix="/api")
-    app.include_router(agent_routes.router, prefix="/api")
+    app.include_router(status_routes.router, prefix="/api")
     app.include_router(config_routes.router, prefix="/api")
     app.include_router(prompt_routes.router, prefix="/api")
     app.include_router(skill_routes.router, prefix="/api")
@@ -122,7 +121,6 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(review_routes.router, prefix="/api")
     app.include_router(fix_routes.router, prefix="/api")
     app.include_router(export_routes.router, prefix="/api")
-    app.include_router(sonarqube_routes.router, prefix="/api")
 
     app.add_exception_handler(RevaiError, _handle_revai_error)
     app.add_exception_handler(RequestValidationError, _handle_validation_error)

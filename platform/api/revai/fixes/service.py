@@ -25,13 +25,12 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from revai.analyzers.runner import run_analyzers
-from revai.domain.enums import FindingSource, FixState
+from revai.domain.enums import FindingSource, FixState, ProjectKind
 from revai.domain.models import (
     AnalyzerConfig,
     Finding,
     Project,
     Review,
-    SonarQubeConfig,
 )
 from revai.errors import RevaiError
 from revai.git.repo import GitError, apply_patch, current_branch
@@ -77,7 +76,13 @@ async def apply_finding_fix(
     ``patch`` overrides the finding's stored ``suggested_patch`` — used when a
     freshly generated fix is applied before it is persisted anywhere.
     """
-    repository = Path(project.path)
+    if project.kind is ProjectKind.CLOUD:
+        # No persistent working tree exists to apply a patch into — cloud
+        # projects only ever materialize a working tree for the duration of
+        # one review run, which has already ended by the time a fix request
+        # can be made. Reject before any git/patch work starts.
+        raise RevaiError(409, "fix.unavailable_for_cloud_project", {"project_id": project.id})
+    repository = Path(project.require_path())
     patch = patch or finding.suggested_patch
     if not patch:
         raise RevaiError(422, "fix.no_patch_available", {"finding_id": finding.id})
@@ -190,7 +195,6 @@ async def _revalidate(repository: Path, finding: Finding) -> tuple[str, bool]:
         project_tests=False,
         project_build=False,
         treesitter=False,
-        sonarqube=SonarQubeConfig(enabled=False),
     )
     setattr(minimal, flag, True)
     runs = await run_analyzers(repository, [finding.file], minimal)

@@ -8,7 +8,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from revai.config import Settings
-from revai.storage.repositories import ConfigRepository, ReviewRepository
+from revai.domain.enums import FindingSource, ProjectKind, ReviewScope
+from revai.domain.models import Finding, Project, Review
+from revai.storage.repositories import ConfigRepository, ProjectRepository, ReviewRepository
 
 
 def _git(path: Path, *args: str) -> None:
@@ -144,6 +146,58 @@ def test_apply_unknown_finding_returns_404(
     )
     assert response.status_code == 404
     assert response.json()["detail"]["error_key"] == "review.finding_not_found"
+
+
+def test_apply_fix_is_rejected_for_a_cloud_project(
+    client: TestClient,
+    settings: Settings,
+) -> None:
+    """A cloud project has no persistent working tree once its review run
+    ends, so fix/apply must be rejected before any git or patch work."""
+    project_repo = ProjectRepository(settings)
+    review_repo = ReviewRepository(settings)
+    project = project_repo.save(
+        Project(
+            name="cloud-demo",
+            kind=ProjectKind.CLOUD,
+            path=None,
+            remote_url="https://example.com/demo.git",
+        )
+    )
+    finding = Finding(
+        severity="medium",
+        category="maintainability",
+        title="Unused import",
+        description="os is imported and never used.",
+        file="app.py",
+        line_start=1,
+        source=FindingSource.RUFF,
+        rule_id="F401",
+        suggested_patch=_F401_PATCH,
+    )
+    review = review_repo.save(
+        Review(
+            project_id=project.id,
+            scope=ReviewScope.BRANCH_DIFF,
+            base_branch="main",
+            head_branch="main",
+            findings=[finding],
+        )
+    )
+
+    apply_response = client.post(
+        f"/api/projects/{project.id}/reviews/{review.id}/findings/{finding.id}/apply-fix",
+        json={"dry_run": True},
+    )
+    assert apply_response.status_code == 409
+    assert apply_response.json()["detail"]["error_key"] == "fix.unavailable_for_cloud_project"
+
+    generate_response = client.post(
+        f"/api/projects/{project.id}/reviews/{review.id}/findings/{finding.id}/generate-fix",
+        json={},
+    )
+    assert generate_response.status_code == 409
+    assert generate_response.json()["detail"]["error_key"] == "fix.unavailable_for_cloud_project"
 
 
 def test_generate_without_provider_reports_unavailable(

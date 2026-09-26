@@ -1,0 +1,9 @@
+{
+  "label": {
+    "message": "Comece aqui",
+    "description": "The label for category 'start-here' in sidebar docs"
+  },
+  "link.generated-index.description": {
+    "message": "Coloque o RevAI rodando localmente e entenda as duas partes que o compõem."
+  }
+}

@@ -316,30 +316,6 @@ POST   /api/export/all                 full .zip
 review and apply explicitly — this preserves the safety posture of the current
 `fix-review-items` prompt.
 
-### 4.8 Review agent (AGENTS.md export)
-
-`revai/agents/` installs the RevAI reviewer into a coding agent's project via the
-AGENTS.md open standard. Three modules:
-
-- `generator.py` — builds the managed block (`revai:begin`/`revai:end` markers):
-  locale-aware persona, `PROMPT_INJECTION_GUARD`, the compact findings contract
-  (subset of `_FindingEnvelope`), the render workflow, and the read-only
-  permission section. Rules from `~/.revai/rules/*.md` are inlined.
-- `installer.py` — writes the merged `AGENTS.md` (idempotent, one-time
-  `.revai-bak` backup) and copies `revai/templates/agent-report.html` to
-  `.revai/agent-report.html`. `dry_run` computes without writing.
-- `renderer.py` — validates a payload (full export envelope or compact
-  `{"findings": [...]}`, strict-first with tolerant fallback), injects it at the
-  template's single `__REVAI_DATA__` placeholder (with `</` escaping), and writes
-  `<branch-slug>-revai.html`. Invalid payloads are never written.
-
-CLI: `revai agent install|render` (`cli.py`). API: `GET /api/agent/preview`,
-`POST /api/agent/apply`, `GET /api/agent/report-demo` (`api/routes/agent.py`).
-The template is the one RevAI report that contains JavaScript — a fixed, offline
-vanilla renderer; the classic `render_html` export stays script-free. The block
-carries engine provenance (provider/model) but never credentials. The two
-permitted agent writes are `revai-findings.json` and the report HTML.
-
 ---
 
 ## 5. Frontend
@@ -386,7 +362,7 @@ Each phase ends in something runnable and testable.
 | **6 · Results** | Finding list, split diff, patch generation, apply-with-confirmation | Self-review of this repository |
 | **7 · Export & insights** | JSON / Markdown / standalone HTML, **Export & data**, dashboard | Legacy JSON round-trips |
 | **8 · CLI adapters** | claude · copilot · kiro, with their asymmetries handled | Each CLI exercised headless |
-| **9 · Packaging** | `docker-compose.yml` (optional), `revai` CLI entrypoint, docs, CI | Fresh-machine install test |
+| **9 · Packaging** | `revai` CLI entrypoint, docs, CI | Fresh-machine install test |
 | **10 · More providers** | Anthropic · OpenAI · Gemini native adapters, Ollama | Same review, four providers, compared |
 
 Phases 0–7 are the product. **8, 9 and 10 are deliberately last** — the CLI adapters

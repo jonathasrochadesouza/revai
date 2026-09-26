@@ -20,6 +20,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+from revai.domain.enums import ProjectKind
 from revai.domain.models import Project
 from revai.shell import command_for_execution
 
@@ -266,11 +267,14 @@ def detect_base_branch(path: Path) -> str:
     raise GitError("git.no_commits_or_branches", {"path": str(path)})
 
 
-def inspect_project(path: Path, *, source_url: str | None = None) -> Project:
+def inspect_project(
+    path: Path, *, source_url: str | None = None, kind: ProjectKind = ProjectKind.LOCAL_OPEN
+) -> Project:
     root = repository_root(path)
     return Project(
         name=root.name,
-        path=str(root),
+        kind=kind,
+        path=None if kind is ProjectKind.CLOUD else str(root),
         remote_url=source_url or remote_url(root),
         base_branch=detect_base_branch(root),
         languages=detect_languages(root),
@@ -286,11 +290,52 @@ def clone_repository(remote: str, destination_root: Path) -> Project:
 
     try:
         _run(None, "clone", "--", remote, str(destination), timeout=120)
-        return inspect_project(destination, source_url=remote)
+        return inspect_project(destination, source_url=remote, kind=ProjectKind.LOCAL_CLONE)
     except Exception:
         if destination.is_dir():
             shutil.rmtree(destination, ignore_errors=True)
         raise
+
+
+@contextmanager
+def ephemeral_clone(remote: str) -> Iterator[Path]:
+    """Clone ``remote`` into a temp directory for the caller's duration only.
+
+    Sibling to :func:`materialized_tree`: same "clone/extract, hand over a
+    ``Path``, delete on any exit" shape, one level up — the whole repository
+    rather than a single ref. Used for cloud projects, which never keep a
+    persistent working tree; every review run (and the one-shot peek at
+    creation time) clones fresh and this guarantees cleanup even when the
+    caller raises or is cancelled, because ``TemporaryDirectory.__exit__``
+    always runs.
+
+    No ``--depth``: a shallow clone can miss the merge base needed for
+    ``git diff base..head``, and the whole point of this project kind is
+    still doing a normal branch-diff review.
+
+    ``git clone`` only creates local branches for the remote's default one;
+    every other head exists merely as ``origin/<branch>``. A cloud review
+    addresses branches the way a local project does (``git diff main..head``
+    against plain branch names), so every remote head is materialised as a
+    local branch before the clone is handed over.
+    """
+    with tempfile.TemporaryDirectory(prefix="revai-cloud-") as directory:
+        destination = Path(directory) / _remote_name(remote)
+        _run(None, "clone", "--", remote, str(destination), timeout=120)
+        # The clone already has HEAD's branch as a local branch; force-fetching
+        # it would be refused ("fetch into current branch"), so it is excluded
+        # and every other remote head is materialised as a local branch.
+        head = current_branch(destination) or ""
+        _run(
+            destination,
+            "fetch",
+            "--prune",
+            "origin",
+            "+refs/heads/*:refs/heads/*",
+            f"^{f'refs/heads/{head}' if head else 'refs/heads/none'}",
+            timeout=120,
+        )
+        yield destination
 
 
 @contextmanager

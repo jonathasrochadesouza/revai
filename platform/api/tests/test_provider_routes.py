@@ -33,6 +33,7 @@ def _fake_cli_detection(monkeypatch: pytest.MonkeyPatch) -> None:
         ProviderId.CLAUDE_CODE: (HealthState.NOT_FOUND, None, "install it"),
         ProviderId.COPILOT_CLI: (HealthState.UNKNOWN, "1.0.69", "copilot login"),
         ProviderId.KIRO_CLI: (HealthState.NEEDS_AUTH, "2.14.1", "kiro-cli login"),
+        ProviderId.OPENCODE_CLI: (HealthState.UNKNOWN, "1.14.33", "opencode auth login"),
     }
 
     async def fake_detect_all() -> list[ProviderHealth]:
@@ -100,7 +101,7 @@ def test_cli_providers_are_adapter_ready(client: TestClient) -> None:
     providers = client.get("/api/providers").json()["providers"]
     clis = [entry for entry in providers if entry["kind"] == "cli"]
 
-    assert len(clis) == 3
+    assert len(clis) == 4
     for entry in clis:
         assert entry["adapter_ready"] is True
 

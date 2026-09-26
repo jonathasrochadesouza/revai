@@ -11,7 +11,7 @@ from enum import StrEnum
 
 # Bumped whenever a persisted shape changes. Documents carry this so a future
 # release can migrate instead of failing to parse.
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 7
 
 
 class Severity(StrEnum):
@@ -56,7 +56,6 @@ class FindingSource(StrEnum):
     CHECKSTYLE = "checkstyle"
     TREESITTER = "treesitter"
     SECURITY = "security"
-    SONARQUBE = "sonarqube"
 
 
 class FindingStatus(StrEnum):
@@ -86,6 +85,21 @@ class ReviewScope(StrEnum):
     BRANCH_DIFF = "branch_diff"
     SELECTED_FILES = "selected_files"
     WHOLE_PROJECT = "whole_project"
+
+
+class ProjectKind(StrEnum):
+    """How a project's repository content reaches disk.
+
+    ``LOCAL_OPEN`` and ``LOCAL_CLONE`` both keep a persistent working tree at
+    ``Project.path``; the difference is only how it got there (user pointed at
+    an existing folder vs. RevAI cloned it). ``CLOUD`` has no persistent path —
+    a working tree is materialized only for the lifetime of one review run and
+    deleted afterward, so ``Project.path`` is always ``None`` at rest.
+    """
+
+    LOCAL_OPEN = "local_open"
+    LOCAL_CLONE = "local_clone"
+    CLOUD = "cloud"
 
 
 class ReviewMode(StrEnum):
@@ -150,6 +164,7 @@ class ProviderId(StrEnum):
     CLAUDE_CODE = "claude_code"
     COPILOT_CLI = "copilot_cli"
     KIRO_CLI = "kiro_cli"
+    OPENCODE_CLI = "opencode_cli"
 
     @property
     def kind(self) -> ProviderKind:
@@ -160,6 +175,7 @@ class ProviderId(StrEnum):
                 ProviderId.CLAUDE_CODE,
                 ProviderId.COPILOT_CLI,
                 ProviderId.KIRO_CLI,
+                ProviderId.OPENCODE_CLI,
             }
             else ProviderKind.API
         )

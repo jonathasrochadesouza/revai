@@ -1,0 +1,8 @@
+{
+  "label": "Start here",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "description": "Get RevAI running locally and understand the two pieces that make it up."
+  }
+}

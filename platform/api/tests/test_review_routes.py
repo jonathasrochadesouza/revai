@@ -118,6 +118,62 @@ def test_deterministic_review_finds_changed_lines_without_tokens(
     assert refreshed_project["last_reviewed_at"] is not None
 
 
+def test_deterministic_review_of_a_cloud_project_leaves_no_clone_behind(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+) -> None:
+    """A cloud project's review clones ephemerally, runs the same pipeline as
+    a local project, and leaves nothing but the persisted `Review` behind."""
+    _ruff_only(settings)
+    source = _repository(tmp_path / "source")
+    _git(source, "checkout", "-b", "feature/unused-import")
+    (source / "app.py").write_text("import os\n\nanswer = 42\n", encoding="utf-8")
+    _git(source, "add", ".")
+    _git(source, "commit", "-m", "add unused import")
+    _git(source, "checkout", "main")
+
+    project = client.post("/api/projects/cloud", json={"remote_url": source.as_uri()}).json()
+    before = set(tmp_path.iterdir())
+
+    response = client.post(
+        f"/api/projects/{project['id']}/reviews/deterministic",
+        json={"base": "main", "head": "feature/unused-import"},
+    )
+
+    assert response.status_code == 201
+    review = response.json()["review"]
+    assert review["status"] == "completed"
+    assert review["stats"]["hunks_total"] == 1
+    # No temp clone directory survives under the source's parent, and the
+    # only new thing on disk anywhere the test can see is the persisted
+    # review — checked via the reviews endpoint, not the filesystem.
+    assert set(tmp_path.iterdir()) == before
+    stored = client.get(f"/api/projects/{project['id']}/reviews").json()
+    assert [item["id"] for item in stored["reviews"]] == [review["id"]]
+
+
+def test_deterministic_review_of_a_cloud_project_with_a_bad_ref_still_cleans_up(
+    client: TestClient,
+    settings: Settings,
+    tmp_path: Path,
+) -> None:
+    """A failure partway through (here: an unknown ref) must not leave the
+    ephemeral clone directory behind."""
+    _ruff_only(settings)
+    source = _repository(tmp_path / "source")
+    project = client.post("/api/projects/cloud", json={"remote_url": source.as_uri()}).json()
+    before = set(tmp_path.iterdir())
+
+    response = client.post(
+        f"/api/projects/{project['id']}/reviews/deterministic",
+        json={"base": "main", "head": "does-not-exist"},
+    )
+
+    assert response.status_code == 422
+    assert set(tmp_path.iterdir()) == before
+
+
 def test_deterministic_review_rejects_an_unknown_project(client: TestClient) -> None:
     response = client.post(
         "/api/projects/missing/reviews/deterministic",

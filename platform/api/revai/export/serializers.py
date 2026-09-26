@@ -126,7 +126,7 @@ def render_sarif(review: Review, project: Project | None) -> bytes:
                         "SRCROOT": {
                             "uri": (
                                 f"{Path(project.path).resolve().as_uri().rstrip('/')}/"
-                                if project
+                                if project and project.path is not None
                                 else "file:///"
                             )
                         }

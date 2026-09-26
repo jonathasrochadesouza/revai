@@ -59,10 +59,6 @@ cd platform/api
 uv tool install .
 revai doctor
 revai serve
-
-# or run both services in non-root, loopback-only containers
-cd platform
-docker compose up --build
 ```
 
 ## Phase 7 in action
@@ -163,7 +159,7 @@ parent radius minus the 1px border so no sliver of background shows in the corne
 | 6 | Results — findings, split diff, patches | deferred |
 | 7 | Export & insights — JSON, Markdown, HTML, metrics | ✅ |
 | 8 | CLI adapters — Claude Code, Copilot, Kiro | ✅ |
-| 9 | Packaging — Docker, CLI entrypoint, CI | ✅ |
+| 9 | Packaging — CLI entrypoint, CI | ✅ |
 | 10 | More providers — Anthropic, OpenAI, Gemini, Ollama | ✅ |
 
 Full reasoning in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

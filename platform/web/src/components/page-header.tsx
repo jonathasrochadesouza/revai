@@ -2,18 +2,20 @@
 
 import { useUiText } from "@/components/ui-preference-bootstrap";
 
-type SettingsPage = "appearance" | "engine" | "data";
+type SettingsPage = "appearance" | "engine" | "data" | "connection";
 
 const TITLES: Record<SettingsPage, string> = {
   appearance: "settings.appearance.title",
   engine: "settings.engine.title",
   data: "data.title",
+  connection: "settings.connection.title",
 };
 
 const SUBTITLES: Record<SettingsPage, string> = {
   appearance: "settings.appearance.subtitle",
   engine: "settings.engine.subtitle.before",
   data: "data.subtitle",
+  connection: "settings.connection.subtitle",
 };
 
 /** Page intro for the settings sub-pages, rendered server-side and translated client-side. */

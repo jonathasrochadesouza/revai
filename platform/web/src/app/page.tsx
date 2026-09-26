@@ -1,4 +1,3 @@
-import { ApiStatusBadge } from "@/components/api-status-badge";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { TopBar } from "@/components/top-bar";
 import { api, type Project } from "@/lib/api";
@@ -26,9 +25,10 @@ export default async function Home() {
 
   return (
     <>
-      <TopBar breadcrumb={["common.platform", "common.projects"]}>
-        <ApiStatusBadge connected={state.connected} />
-      </TopBar>
+      {/* No connection chip here: the global banner covers the failure case on every
+          screen, and the detail lives on Settings › API & AI. The load failure is
+          still reported by the workspace itself. */}
+      <TopBar breadcrumb={["common.platform", "common.projects"]} />
       <ProjectWorkspace
         initialProjects={state.projects}
         initialError={state.reason}

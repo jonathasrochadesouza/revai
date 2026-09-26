@@ -21,9 +21,12 @@ class AnalyzerCapability:
 def preflight_analyzers(
     project: Project,
     config: AnalyzerConfig,
-    sonar_token: str | None = None,
 ) -> list[AnalyzerCapability]:
-    repository = Path(project.path)
+    # Cloud projects have no persistent working tree to inspect outside of a
+    # review run — `repository` stays `None` and every filesystem-dependent
+    # check below degrades to "cannot be checked without running a review"
+    # rather than crashing on a missing path.
+    repository = Path(project.path) if project.path is not None else None
     checks: list[AnalyzerCapability] = []
     if config.security:
         supported = {"Python", "Java", "JavaScript", "TypeScript"} & set(project.languages)
@@ -39,7 +42,10 @@ def preflight_analyzers(
     if config.ruff:
         checks.append(_module("ruff", "ruff", "Install the pipeline dependencies."))
     if config.eslint:
-        ready = (repository / "node_modules" / "eslint" / "bin" / "eslint.js").is_file()
+        ready = (
+            repository is not None
+            and (repository / "node_modules" / "eslint" / "bin" / "eslint.js").is_file()
+        )
         checks.append(
             AnalyzerCapability(
                 "eslint",
@@ -50,7 +56,9 @@ def preflight_analyzers(
         )
     if config.semgrep:
         executable = resolve_command("semgrep")
-        rule = (repository / ".semgrep.yml").is_file() or (repository / ".semgrep.yaml").is_file()
+        rule = repository is not None and (
+            (repository / ".semgrep.yml").is_file() or (repository / ".semgrep.yaml").is_file()
+        )
         ready = bool(executable and rule)
         checks.append(
             AnalyzerCapability(
@@ -76,31 +84,6 @@ def preflight_analyzers(
                 "treesitter",
                 "tree_sitter_language_pack",
                 "Install RevAI pipeline dependencies.",
-            )
-        )
-    if config.sonarqube.enabled:
-        ready = bool(
-            config.sonarqube.project_key
-            and sonar_token
-            and (
-                resolve_command("sonar-scanner")
-                or resolve_command("mvn")
-                or resolve_command("gradle")
-                or (repository / "mvnw").is_file()
-                or (repository / "gradlew").is_file()
-            )
-        )
-        checks.append(
-            AnalyzerCapability(
-                "sonarqube",
-                "ready" if ready else "unavailable",
-                "Scanner, project key and token are available."
-                if ready
-                else "Scanner, project key, or SonarQube token is missing.",
-                None
-                if ready
-                else "Run the local SonarQube provisioning or set SONAR_TOKEN, "
-                "and install a supported scanner.",
             )
         )
     return checks

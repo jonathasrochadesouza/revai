@@ -17,16 +17,32 @@ def test_git_bash_wraps_exact_argv_without_interpolating_review_content(monkeypa
 
     wrapped, environment = command_for_execution(command)
 
+    # Every argument is quoted inside the `-c` script: MSYS bash re-parses the
+    # trailing argv, so bare `$(...)`, globs and braces would be expanded.
     assert wrapped == [
         r"C:\Program Files\Git\bin\bash.exe",
         "--noprofile",
         "--norc",
         "-c",
-        'exec "$@"',
-        "revai-command",
-        *command,
+        "exec kiro-cli chat '$(must-not-run) Review app.py'",
     ]
     assert environment == session.environment
+
+
+def test_git_bash_wrapper_is_injection_safe(monkeypatch) -> None:
+    """Quoted arguments must survive bash's second parse byte-for-byte."""
+    session = GitBashSession(
+        executable=r"C:\Program Files\Git\bin\bash.exe",
+        environment={"PATH": "/usr/bin"},
+    )
+    monkeypatch.setattr("revai.shell.git_bash_session", lambda: session)
+    tricky = ["echo", "a{b,c}d", "*", "with space"]
+    wrapped, environment = command_for_execution(tricky)
+
+    result = subprocess.run(wrapped, capture_output=True, text=True, env=environment)
+
+    assert result.returncode == 0
+    assert result.stdout == "a{b,c}d * with space\n"
 
 
 def test_git_bash_resolves_kiro_cli_from_its_own_path(monkeypatch) -> None:

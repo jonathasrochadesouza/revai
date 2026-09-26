@@ -9,9 +9,16 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { ConnectionBanner } from "@/components/connection-banner";
 import { Wordmark } from "@/components/logo";
 import { useUiText } from "@/components/ui-preference-bootstrap";
 import { Loader } from "@/components/ui/loader";
+
+/**
+ * The documentation site is a separate Docusaurus deployment, not a route in
+ * this app — override at build time if it is hosted elsewhere.
+ */
+const DOCS_SITE_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "http://127.0.0.1:3001";
 
 /** A breadcrumb entry. A bare string renders as plain text (a catalog key is translated); add `href` to link it, or `menu` to turn it into a dropdown. */
 export type Crumb =
@@ -19,12 +26,31 @@ export type Crumb =
   | { label: string; href: string }
   | { label: string; menu: { label: string; href: string }[] };
 
-/** The settings sub-pages, shared by the breadcrumb and the primary-nav dropdown. */
+/**
+ * The settings sub-pages, shared by the breadcrumb and the primary-nav dropdown.
+ *
+ * One list, two surfaces: a settings page added here appears in both, and cannot
+ * appear in one while missing from the other.
+ */
 export const SETTINGS_MENU: { label: string; href: string }[] = [
   { label: "common.engine", href: "/settings/engine" },
+  { label: "common.apiAndAi", href: "/settings/connection" },
   { label: "common.skillsPrompts", href: "/settings/skills" },
   { label: "common.appearance", href: "/settings/appearance" },
   { label: "common.data", href: "/settings/data" },
+];
+
+/**
+ * Top-level destinations.
+ *
+ * Deliberately short: settings sub-pages live in the dropdown only. `Data` and
+ * `Appearance` used to appear in both places, which made the header longer without
+ * making anything easier to find.
+ */
+const PRIMARY_NAV: { label: string; href: string; external?: boolean }[] = [
+  { label: "common.projects", href: "/" },
+  { label: "common.insights", href: "/insights" },
+  { label: "common.docs", href: DOCS_SITE_URL, external: true },
 ];
 
 /**
@@ -38,6 +64,7 @@ function NavLink({
   role,
   ariaCurrent,
   onClick,
+  external,
   children,
 }: {
   href: string;
@@ -45,9 +72,26 @@ function NavLink({
   role?: string;
   ariaCurrent?: "page";
   onClick?: () => void;
+  external?: boolean;
   children: ReactNode;
 }) {
   const { pending } = useLinkStatus();
+  if (external) {
+    // A separately deployed site: a full navigation, not a client-side route,
+    // so `next/link`'s prefetch/pending machinery does not apply here.
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        role={role}
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 ${className}`}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
     <Link
       href={href}
@@ -231,18 +275,16 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           aria-label={t("common.primaryNavigation")}
           className="ml-auto hidden items-center gap-1 md:flex"
         >
-          <NavLink href="/" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            {t("common.projects")}
-          </NavLink>
-          <NavLink href="/insights" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            {t("common.insights")}
-          </NavLink>
-          <NavLink href="/settings/data" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            {t("common.data")}
-          </NavLink>
-          <NavLink href="/settings/appearance" className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink">
-            {t("common.appearance")}
-          </NavLink>
+          {PRIMARY_NAV.map((item) => (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              external={item.external}
+              className="rounded-control px-2.5 py-1.5 text-[12px] font-medium text-ink-muted transition-colors hover:bg-canvas hover:text-ink"
+            >
+              {t(item.label)}
+            </NavLink>
+          ))}
           <NavDropdown
             label="common.settings"
             items={SETTINGS_MENU}
@@ -256,12 +298,29 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           <summary className="cursor-pointer list-none rounded-control border border-line-strong px-2.5 py-1.5 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">
             {t("common.menu")}
           </summary>
+          {/* The same destinations as the wide layout, from the same two lists. */}
           <nav aria-label={t("common.primaryNavigation")} className="absolute right-5 top-[52px] z-30 grid min-w-40 overflow-hidden rounded-control border border-line-strong bg-paper p-1 shadow-sm">
-            <Link href="/" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("common.projects")}</Link>
-            <Link href="/insights" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("common.insights")}</Link>
-            <Link href="/settings/data" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("common.data")}</Link>
-            <Link href="/settings/appearance" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("common.appearance")}</Link>
-            <Link href="/settings/engine" className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink">{t("common.settings")}</Link>
+            {[...PRIMARY_NAV, ...SETTINGS_MENU].map((item) =>
+              "external" in item && item.external ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink"
+                >
+                  {t(item.label)}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-chip px-3 py-2 text-[12px] font-medium text-ink-muted hover:bg-canvas hover:text-ink"
+                >
+                  {t(item.label)}
+                </Link>
+              ),
+            )}
           </nav>
         </details>
 
@@ -269,6 +328,11 @@ export function TopBar({ breadcrumb = [], children }: TopBarProps) {
           <div className="flex items-center gap-2.5">{children}</div>
         )}
       </div>
+
+      {/* Below the navigation row but inside the sticky header, so a connection
+          problem stays visible while the page scrolls. Renders nothing at all
+          while probing or healthy. */}
+      <ConnectionBanner />
     </header>
   );
 }

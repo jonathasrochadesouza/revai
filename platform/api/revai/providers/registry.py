@@ -17,7 +17,12 @@ from revai.providers.api.ollama import OllamaProvider
 from revai.providers.api.openai import OpenAIProvider
 from revai.providers.api.openrouter import OpenRouterProvider
 from revai.providers.base import Provider, ProviderHealth
-from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
+from revai.providers.cli import (
+    ClaudeCodeProvider,
+    CopilotCliProvider,
+    KiroCliProvider,
+    OpencodeCliProvider,
+)
 
 
 class ProviderRegistry:
@@ -63,6 +68,8 @@ class ProviderRegistry:
             return CopilotCliProvider()
         if provider_id is ProviderId.KIRO_CLI:
             return KiroCliProvider()
+        if provider_id is ProviderId.OPENCODE_CLI:
+            return OpencodeCliProvider()
         return None
 
     def _base_url_for(self, provider_id: ProviderId) -> str | None:
@@ -94,6 +101,7 @@ class ProviderRegistry:
                 ProviderId.CLAUDE_CODE,
                 ProviderId.COPILOT_CLI,
                 ProviderId.KIRO_CLI,
+                ProviderId.OPENCODE_CLI,
             )
         ]
         healths = await asyncio.gather(

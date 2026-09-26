@@ -93,7 +93,7 @@ async def generate_fix_patch(
     Raises ``RevaiError`` with stable ``fix.*`` keys for every dead end; the
     caller either previews or applies the returned patch unchanged.
     """
-    target = Path(project.path) / finding.file
+    target = Path(project.require_path()) / finding.file
     if not target.is_file():
         raise RevaiError(422, "fix.file_missing", {"file": finding.file})
     content = target.read_text(encoding="utf-8", errors="replace")

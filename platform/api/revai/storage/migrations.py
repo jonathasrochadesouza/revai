@@ -25,6 +25,12 @@ home — see the notes on each step):
   ``claude-haiku-4.5``.
 * v4 → v5: fix-application state added (``FixState``, review ``file_hashes``);
   new fields all carry defaults, so the step is a validation-only no-op.
+* v5 → v6: ``Project.kind`` added. Backfilled from ``remote_url`` for
+  existing project documents (``local_clone`` if set, else ``local_open``);
+  every other document type has no ``remote_url``/``path`` pair and passes
+  through unchanged.
+* v6 → v7: the withdrawn SonarQube analyzer keys dropped from ``analyzers``
+  (the whole local SonarQube feature was removed from the system).
 """
 
 from __future__ import annotations
@@ -87,11 +93,39 @@ def _migrate_v4_to_v5(document: dict[str, Any]) -> dict[str, Any]:
     return document
 
 
+def _migrate_v5_to_v6(document: dict[str, Any]) -> dict[str, Any]:
+    """Backfill ``Project.kind`` for documents written before it existed.
+
+    Only project documents have both ``path`` and ``remote_url`` at the top
+    level; every other document type (config, credentials, prompts, skills,
+    reviews) is left untouched by this check, so this migration is safe to
+    run unconditionally on any document.
+    """
+    if "path" in document and "remote_url" in document:
+        document.setdefault("kind", "local_clone" if document.get("remote_url") else "local_open")
+    return document
+
+
+def _migrate_v6_to_v7(document: dict[str, Any]) -> dict[str, Any]:
+    """Drop the withdrawn SonarQube analyzer configuration.
+
+    The local SonarQube feature was removed from the system, so its whole
+    ``analyzers.sonarqube`` block is dead weight: a config written by an older
+    build fails validation with ``extra_forbidden`` unless it is dropped here.
+    """
+    analyzers = document.get("analyzers")
+    if isinstance(analyzers, dict):
+        analyzers.pop("sonarqube", None)
+    return document
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
     3: _migrate_v3_to_v4,
     4: _migrate_v4_to_v5,
+    5: _migrate_v5_to_v6,
+    6: _migrate_v6_to_v7,
 }
 
 

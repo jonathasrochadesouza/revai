@@ -19,7 +19,12 @@ from revai.providers.base import (
     ProviderEvent,
     ProviderHealth,
 )
-from revai.providers.cli import ClaudeCodeProvider, CopilotCliProvider, KiroCliProvider
+from revai.providers.cli import (
+    ClaudeCodeProvider,
+    CopilotCliProvider,
+    KiroCliProvider,
+    OpencodeCliProvider,
+)
 from revai.providers.detection import CLI_SPECS, CliSpec, detect_all_clis, detect_cli
 from revai.providers.registry import ProviderRegistry, build_registry
 
@@ -36,6 +41,7 @@ __all__ = [
     "OllamaProvider",
     "OpenAIProvider",
     "OpenRouterProvider",
+    "OpencodeCliProvider",
     "Provider",
     "ProviderError",
     "ProviderEvent",

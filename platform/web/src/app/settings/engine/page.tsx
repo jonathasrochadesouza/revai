@@ -17,7 +17,6 @@ import {
 } from "@/lib/api";
 
 import { EnginePageHeader } from "./engine-unavailable";
-import { AgentPanel } from "./agent-panel";
 import { SettingsForm } from "./settings-form";
 
 export const metadata = {
@@ -66,7 +65,6 @@ export default async function EngineSettingsPage() {
               initialCredentials={result.credentials.credentials}
               credentialsPath={result.credentials.path}
             />
-            <AgentPanel />
           </>
         ) : (
           <BackendUnreachable reason={result.reason} apiBaseUrl={API_BASE_URL} />

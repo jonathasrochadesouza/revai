@@ -173,6 +173,24 @@ export const PROVIDER_CATALOGUE: ProviderCatalogue[] = [
       { id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "stronger reasoning" },
     ],
   },
+  {
+    id: "opencode_cli",
+    label: "opencode",
+    adapterReady: true,
+    // opencode speaks 75+ providers via models.dev, so a fixed list would be
+    // wrong more often than right.
+    allowsCustomModel: true,
+    models: [
+      {
+        id: "anthropic/claude-sonnet-4-5",
+        label: "Claude Sonnet 4.5",
+        note: "balanced",
+        recommended: true,
+      },
+      { id: "anthropic/claude-opus-4-5", label: "Claude Opus 4.5", note: "highest quality" },
+      { id: "openai/gpt-5.1-codex", label: "GPT-5.1 Codex", note: "frontier coding" },
+    ],
+  },
 ];
 
 export function catalogueFor(providerId: ProviderId): ProviderCatalogue | undefined {
@@ -181,7 +199,7 @@ export function catalogueFor(providerId: ProviderId): ProviderCatalogue | undefi
 
 /** Providers offered for a given execution mode. */
 export function providersForMode(mode: "api" | "cli"): ProviderCatalogue[] {
-  const cliProviders: ProviderId[] = ["claude_code", "copilot_cli", "kiro_cli"];
+  const cliProviders: ProviderId[] = ["claude_code", "copilot_cli", "kiro_cli", "opencode_cli"];
   return PROVIDER_CATALOGUE.filter((provider) =>
     mode === "cli"
       ? cliProviders.includes(provider.id)

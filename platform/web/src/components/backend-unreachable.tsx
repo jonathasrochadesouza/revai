@@ -23,16 +23,16 @@ export function buildTroubleshootingPrompt(reason: string): string {
     `Technical detail: ${reason}`,
     "",
     "Troubleshooting steps:",
-    "1. Check whether the Docker Compose service `api` is running: `docker compose ps`.",
-    "2. If it is not, start it: `docker compose up -d`.",
+    "1. Check whether the API process is running (it should print its own startup log).",
+    "2. If it is not, start it: `cd platform/api && uv run revai-api`.",
     "3. Verify the API answers on http://127.0.0.1:8799/api/health.",
-    "4. If it still fails, inspect the logs: `docker compose logs api --tail=100`.",
+    "4. If it still fails, run `revai doctor` for a storage/config diagnostic.",
     "",
     "Diagnose why the RevAI api service on port 8799 is not reachable and propose the fix.",
   ].join("\n");
 }
 
-const COMPOSE_COMMANDS = ["docker compose ps", "docker compose logs api --tail=100"];
+const RECOVERY_COMMANDS = ["cd platform/api", "uv run revai-api"];
 
 export function BackendUnreachable({ reason, apiBaseUrl }: { reason: string; apiBaseUrl: string }) {
   const { t } = useUiText();
@@ -74,7 +74,7 @@ export function BackendUnreachable({ reason, apiBaseUrl }: { reason: string; api
               {t("unreachable.body.after")}
             </p>
             <pre className="mb-3 overflow-x-auto rounded-chip border border-line bg-paper px-3 py-2.5 font-mono text-[11.5px] leading-relaxed">
-              {COMPOSE_COMMANDS.join("\n")}
+              {RECOVERY_COMMANDS.join("\n")}
             </pre>
             <p className="truncate font-mono text-[11px] text-ink-subtle" title={reason}>
               {reason}

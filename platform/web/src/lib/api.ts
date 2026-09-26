@@ -49,7 +49,8 @@ export type ProviderId =
   | "ollama"
   | "claude_code"
   | "copilot_cli"
-  | "kiro_cli";
+  | "kiro_cli"
+  | "opencode_cli";
 
 export interface EngineConfig {
   mode: EngineMode;
@@ -79,22 +80,9 @@ export interface AnalyzerConfig {
   project_tests: boolean;
   project_build: boolean;
   treesitter: boolean;
-  sonarqube: SonarQubeConfig;
   skip_noise: boolean;
   changed_lines_only: boolean;
   dedupe_across_sources: boolean;
-}
-
-export interface SonarQubeConfig {
-  enabled: boolean;
-  server_url: string;
-  project_key: string | null;
-  timeout_s: number;
-  wait_for_quality_gate: boolean;
-  quality_gate_timeout_s: number;
-  new_code_only: boolean;
-  scanner: "auto" | "maven" | "gradle" | "cli";
-  wsl: boolean;
 }
 
 export interface UiConfig {
@@ -103,6 +91,8 @@ export interface UiConfig {
   confirm_expensive_reviews: boolean;
   /** null = the user has not answered the auto-save offer yet. */
   auto_save: boolean | null;
+  /** Dismissed via the "Get ready for your first review" popup or its close button. */
+  hide_getting_started_checklist: boolean;
 }
 
 export interface RevaiConfig {
@@ -271,12 +261,48 @@ export interface ProvidersResponse {
   active_is_usable: boolean;
 }
 
+// --- aggregated connection status ------------------------------------------
+
+/**
+ * How usable the AI half of the product is.
+ *
+ * Driven by the *configured* provider, not by "anything that happens to work": a
+ * review runs with `engine.provider_id`, so a ready Ollama does not rescue an
+ * Anthropic without a key. `unknown` is its own verdict because GitHub Copilot CLI
+ * cannot report its auth state — worth warning about, never a claimed failure.
+ */
+export type AiVerdict = "ok" | "active_broken" | "none_ready" | "unknown";
+
+export interface StatusResponse {
+  api: { status: "ok"; app: string; version: string; environment: string };
+  ai: {
+    active_provider_id: ProviderId;
+    active_state: HealthState;
+    active_usable: boolean;
+    active_version: string | null;
+    active_detail: string | null;
+    active_remediation: string | null;
+    ready_provider_ids: ProviderId[];
+    unknown_provider_ids: ProviderId[];
+    total: number;
+    verdict: AiVerdict;
+  };
+  /** When the oldest section in this response was collected. */
+  checked_at: string;
+  from_cache: boolean;
+  ttl_s: number;
+}
+
 // --- projects and Git (phase 3) -------------------------------------------
+
+export type ProjectKind = "local_open" | "local_clone" | "cloud";
 
 export interface Project {
   id: string;
   name: string;
-  path: string;
+  kind: ProjectKind;
+  /** `null` only for `kind === "cloud"` — no persistent working tree exists at rest. */
+  path: string | null;
   remote_url: string | null;
   base_branch: string;
   current_branch: string | null;
@@ -302,25 +328,6 @@ export interface AnalyzerPreflight {
 
 export interface ProjectsResponse {
   projects: Project[];
-}
-
-export interface AgentPreview {
-  project_id: string;
-  project_name: string;
-  project_path: string;
-  agents_md_path: string;
-  agents_md_exists: boolean;
-  agents_md: string;
-  engine: string;
-}
-
-export interface AgentApplyResult {
-  project_id: string;
-  agents_md: string;
-  template: string;
-  agents_md_created: boolean;
-  backup_created: boolean;
-  block_replaced: boolean;
 }
 
 export interface FolderPickerResponse {
@@ -368,8 +375,7 @@ export type FindingSource =
   | "eslint"
   | "gitleaks"
   | "checkstyle"
-  | "treesitter"
-  | "sonarqube";
+  | "treesitter";
 
 export type ReviewMode = "static" | "ai_assisted" | "both";
 export type ReviewScope = "branch_diff" | "selected_files" | "whole_project";
@@ -570,92 +576,6 @@ async function streamReview(
   return completed;
 }
 
-// --- local SonarQube provisioning ------------------------------------------
-
-export interface SonarDockerStatus {
-  installed: boolean;
-  running: boolean;
-  version: string | null;
-  detail: string | null;
-}
-
-export interface SonarStatusResponse {
-  image: string;
-  wsl_detected: boolean;
-  docker: SonarDockerStatus;
-  container: { exists: boolean; running: boolean; state: string | null };
-  server: { up: boolean; version: string | null; url: string };
-  provisioned: boolean;
-  token_masked: string | null;
-}
-
-export type SonarStreamEvent =
-  | { type: "docker_checked"; docker_version?: string }
-  | { type: "pulling"; image: string }
-  | { type: "starting"; existing: boolean }
-  | { type: "server_already_up" }
-  | { type: "waiting_boot" }
-  | { type: "boot_complete"; version?: string }
-  | { type: "already_provisioned"; token_masked: string }
-  | { type: "provisioning" }
-  | { type: "ready"; token_masked: string; server_url: string; project_key: string }
-  | { type: "failed"; error_key: string; params: Record<string, string> };
-
-export interface StreamSonarOptions {
-  signal?: AbortSignal;
-  onEvent?: (event: SonarStreamEvent) => void;
-}
-
-/**
- * Stream the local SonarQube start flow over SSE and resolve once it is ready.
- * `failed` events arrive as structured error keys, so the UI can translate.
- */
-async function startSonar(options: StreamSonarOptions = {}): Promise<void> {
-  const path = "/api/sonarqube/start";
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    cache: "no-store",
-    headers: { Accept: "text/event-stream" },
-    signal: options.signal,
-  });
-  if (!response.ok) {
-    throw await toApiError(response, path, { method: "POST" });
-  }
-  if (!response.body) {
-    throw new ApiError("The SonarQube start stream returned no response body.", response.status);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let settled = false;
-
-  const consume = (block: string) => {
-    const payload = block
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith("data:"))
-      .map((line) => line.slice(5).trimStart())
-      .join("\n");
-    if (!payload) return;
-    const event = JSON.parse(payload) as SonarStreamEvent;
-    options.onEvent?.(event);
-    if (event.type === "ready") settled = true;
-    if (event.type === "failed")
-      throw new ApiError(event.error_key, response.status, event.error_key, event.params);
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const blocks = buffer.split(/\r?\n\r?\n/);
-    buffer = blocks.pop() ?? "";
-    blocks.forEach(consume);
-    if (done) break;
-  }
-  if (buffer.trim()) consume(buffer);
-  if (!settled) throw new ApiError("The SonarQube start stream ended before ready.", response.status);
-}
-
 export interface ReviewsResponse {
   reviews: Review[];
 }// --- export and insights (phase 7) ---------------------------------------
@@ -839,6 +759,15 @@ export const api = {
   health: () => request<HealthResponse>("/api/health"),
   runtime: () => request<RuntimeInfo>("/api/runtime"),
 
+  /**
+   * Backend and AI provider state in one cached call.
+   *
+   * `refresh` bypasses the server-side cache and costs a full CLI sweep, so it is
+   * only ever sent for an explicit user action.
+   */
+  getStatus: (refresh = false) =>
+    request<StatusResponse>(`/api/status${refresh ? "?refresh=true" : ""}`),
+
   getConfig: () => request<ConfigResponse>("/api/config"),
   saveConfig: (config: RevaiConfig) =>
     request<ConfigResponse>("/api/config", json("PUT", config)),
@@ -901,12 +830,6 @@ export const api = {
   verifyProvider: (providerId: ProviderId) =>
     request<ProviderHealth>(`/api/providers/${providerId}/verify`, { method: "POST" }),
 
-  getSonarStatus: () => request<SonarStatusResponse>("/api/sonarqube/status"),
-  stopSonar: () => request<SonarStatusResponse>("/api/sonarqube/stop", { method: "POST" }),
-  deleteSonarCredentials: () =>
-    request<{ deleted: boolean }>("/api/sonarqube/credentials", { method: "DELETE" }),
-  startSonar,
-
   getProjects: () => request<ProjectsResponse>("/api/projects"),
   getProject: (projectId: string) =>
     request<Project>(`/api/projects/${projectId}`),
@@ -922,6 +845,15 @@ export const api = {
       json("POST", {
         remote_url: remoteUrl,
         destination_path: destinationPath,
+      }),
+    ),
+  /** No persistent local checkout: the remote is cloned ephemerally for each review run only. */
+  createCloudProject: (remoteUrl: string, baseBranch?: string) =>
+    request<Project>(
+      "/api/projects/cloud",
+      json("POST", {
+        remote_url: remoteUrl,
+        base_branch: baseBranch || null,
       }),
     ),
   pickProjectFolder: () =>
@@ -1000,15 +932,6 @@ export const api = {
   getInsights: (range: InsightRange = "30d") =>
     request<InsightsResponse>(`/api/insights?range=${range}`),
   getDataSummary: () => request<DataSummary>("/api/data"),
-
-  getAgentPreview: (projectId: string) =>
-    request<AgentPreview>(
-      `/api/agent/preview?project_id=${encodeURIComponent(projectId)}`,
-    ),
-  applyAgent: (projectId: string) =>
-    request<AgentApplyResult>("/api/agent/apply", json("POST", { project_id: projectId })),
-  /** URL of the rendered sample report, for embedding in an <iframe>. */
-  agentReportDemoUrl: () => `${API_BASE_URL}/api/agent/report-demo`,
 
   exportAllData,
 };

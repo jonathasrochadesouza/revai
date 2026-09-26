@@ -11,7 +11,7 @@ from pathlib import Path
 
 from revai.providers.base import AnalysisRequest, FailedEvent
 from revai.providers.detection import CliSpec, resolve_executable
-from revai.shell import command_for_execution
+from revai.shell import bash_exec_failure, command_for_execution
 
 _ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 _ERROR_LIMIT = 600
@@ -52,6 +52,10 @@ def _run_cli_command_blocking(
         return CliCommandResult(None, "", "", timed_out=True)
     except (OSError, ValueError) as exc:
         return CliCommandResult(None, "", "", launch_error=f"{type(exc).__name__}: {exc}")
+
+    bash_error = bash_exec_failure(completed)
+    if bash_error:
+        return CliCommandResult(None, "", "", launch_error=bash_error)
 
     return CliCommandResult(
         exit_code=completed.returncode,

@@ -28,7 +28,6 @@ describe("error catalog", () => {
         "provider",
         "review",
         "skill",
-        "sonarqube",
         "storage",
         "validation",
       ].sort(),

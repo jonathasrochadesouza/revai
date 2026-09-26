@@ -42,7 +42,7 @@ from pathlib import Path
 
 from revai.domain.enums import ProviderId, ProviderKind
 from revai.providers.base import HealthState, ProviderHealth
-from revai.shell import command_for_execution, git_bash_session, resolve_command
+from revai.shell import bash_exec_failure, command_for_execution, git_bash_session, resolve_command
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +154,23 @@ CLI_SPECS: tuple[CliSpec, ...] = (
         ),
         executable_env="REVAI_KIRO_CLI_PATH",
     ),
+    CliSpec(
+        provider_id=ProviderId.OPENCODE_CLI,
+        label="opencode",
+        executables=("opencode",),
+        # `opencode auth list` reports per-provider credentials, not a single
+        # signed-in/out state for whichever provider a review will actually use, so
+        # exit code and shape alone would not answer the right question.
+        auth_args=None,
+        install_hint="npm install -g opencode-ai",
+        login_hint="opencode auth login",
+        notes=(
+            "Lists credentials per provider rather than one signed-in state, so "
+            "RevAI reports its auth state as unknown rather than guessing which "
+            "provider a review will use."
+        ),
+        executable_env="REVAI_OPENCODE_CLI_PATH",
+    ),
 )
 
 
@@ -216,6 +233,10 @@ def _run_command_blocking(
         # Reached when the path is stale or not executable. Not an exception the
         # caller should have to handle — it is a detection result.
         return CommandResult(None, "", "", launch_error=f"{type(exc).__name__}: {exc}")
+
+    bash_error = bash_exec_failure(completed)
+    if bash_error:
+        return CommandResult(None, "", "", launch_error=bash_error)
 
     return CommandResult(
         exit_code=completed.returncode,
@@ -283,7 +304,7 @@ def resolve_windows_executable_from_wsl(name: str) -> str | None:
     """Find an installed Windows CLI when the API itself runs inside WSL.
 
     Public wrapper around the WSL fallback used by :func:`_resolve_command`, so
-    other subsystems (e.g. the local SonarQube provisioning) can reach Windows
+    other subsystems can reach Windows
     executables through the same tested path.
     """
     return _resolve_windows_command_from_wsl(name)

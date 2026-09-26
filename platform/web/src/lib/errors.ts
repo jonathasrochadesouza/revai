@@ -322,60 +322,6 @@ export const ERROR_CATALOG: Record<string, { en: string; pt: string }> = {
     pt: "Esta skill é grande demais para instalar.",
   },
 
-  // --- sonarqube -----------------------------------------------------------------
-  "sonarqube.admin_password_unknown": {
-    en: "Could not recover the SonarQube admin password for {server_url}.",
-    pt: "Não foi possível recuperar a senha de administrador do SonarQube em {server_url}.",
-  },
-  "sonarqube.boot_timeout": {
-    en: "SonarQube did not finish booting in time ({server_url}).",
-    pt: "O SonarQube não terminou de iniciar a tempo ({server_url}).",
-  },
-  "sonarqube.container_start_failed": {
-    en: "Could not start the SonarQube container.",
-    pt: "Não foi possível iniciar o contêiner do SonarQube.",
-  },
-  "sonarqube.docker_not_found": {
-    en: "Docker was not found. Install Docker Desktop to run SonarQube locally.",
-    pt: "O Docker não foi encontrado. Instale o Docker Desktop para rodar o SonarQube localmente.",
-  },
-  "sonarqube.docker_unavailable": {
-    en: "The Docker daemon is not responding ({detail}).",
-    pt: "O daemon do Docker não está respondendo ({detail}).",
-  },
-  "sonarqube.no_credentials": {
-    en: "SonarQube credentials are not provisioned yet.",
-    pt: "As credenciais do SonarQube ainda não foram provisionadas.",
-  },
-  "sonarqube.password_change_failed": {
-    en: "Could not change the SonarQube admin password ({server_url}).",
-    pt: "Não foi possível alterar a senha de administrador do SonarQube ({server_url}).",
-  },
-  "sonarqube.port_conflict": {
-    en: "Another service already answers on {server_url}.",
-    pt: "Outro serviço já responde em {server_url}.",
-  },
-  "sonarqube.project_create_failed": {
-    en: "Could not create SonarQube project \"{project_key}\".",
-    pt: "Não foi possível criar o projeto SonarQube \"{project_key}\".",
-  },
-  "sonarqube.pull_failed": {
-    en: "Could not pull the SonarQube image.",
-    pt: "Não foi possível baixar a imagem do SonarQube.",
-  },
-  "sonarqube.server_unreachable": {
-    en: "SonarQube at {server_url} is unreachable ({detail}).",
-    pt: "O SonarQube em {server_url} está inacessível ({detail}).",
-  },
-  "sonarqube.start_in_progress": {
-    en: "A SonarQube start flow is already running.",
-    pt: "Um fluxo de inicialização do SonarQube já está em andamento.",
-  },
-  "sonarqube.token_failed": {
-    en: "Could not generate the SonarQube token for {server_url}.",
-    pt: "Não foi possível gerar o token do SonarQube em {server_url}.",
-  },
-
   // --- storage ---------------------------------------------------------------------
   "storage.empty_identifier": {
     en: "An empty identifier cannot name a stored document.",

@@ -165,6 +165,25 @@ def test_auto_save_is_undecided_by_default(client: TestClient) -> None:
     assert config["ui"]["auto_save"] is None
 
 
+def test_getting_started_checklist_is_visible_by_default(client: TestClient) -> None:
+    config = client.get("/api/config").json()["config"]
+
+    assert config["ui"]["hide_getting_started_checklist"] is False
+
+
+def test_getting_started_checklist_dismissal_is_reversible(client: TestClient) -> None:
+    """Closing the popup and re-enabling it from Settings both go through this flag."""
+    payload = client.get("/api/config").json()["config"]
+
+    payload["ui"]["hide_getting_started_checklist"] = True
+    response = client.put("/api/config", json=payload)
+    assert response.json()["config"]["ui"]["hide_getting_started_checklist"] is True
+
+    payload["ui"]["hide_getting_started_checklist"] = False
+    response = client.put("/api/config", json=payload)
+    assert response.json()["config"]["ui"]["hide_getting_started_checklist"] is False
+
+
 def test_auto_save_accepts_all_three_states(client: TestClient) -> None:
     """Undecided, enabled and dismissed are all first-class values."""
     payload = client.get("/api/config").json()["config"]

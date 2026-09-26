@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { useUiText } from "@/components/ui-preference-bootstrap";
 import { useApiErrorText } from "@/lib/use-api-error-text";
+import { markConnectionStale } from "@/lib/connection-store";
 import {
   api,
   isUsable,
@@ -133,6 +134,8 @@ export function ProviderPanel({ activeProviderId }: ProviderPanelProps) {
       // user can try again. Blanking the list would lose the other results.
     } finally {
       setVerifying(null);
+      // A fresh probe may contradict what the banner is currently claiming.
+      markConnectionStale();
     }
   }
 

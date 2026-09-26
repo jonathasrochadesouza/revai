@@ -27,7 +27,6 @@ from revai.domain.models import (
     RevaiConfig,
     Review,
     ReviewStats,
-    SonarQubeConfig,
     UiConfig,
 )
 
@@ -52,6 +51,5 @@ __all__ = [
     "ReviewStats",
     "ReviewStatus",
     "Severity",
-    "SonarQubeConfig",
     "UiConfig",
 ]

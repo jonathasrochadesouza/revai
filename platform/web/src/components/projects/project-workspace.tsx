@@ -12,6 +12,7 @@ import {
   CircleDollarSign,
   CircleX,
   ClipboardCheck,
+  Cloud,
   Code2,
   Copy,
   FolderOpen,
@@ -72,7 +73,7 @@ import {
 } from "@/lib/api";
 
 type ProjectFilter = "all" | "active" | "archived";
-type DialogMode = "open" | "clone" | null;
+type DialogMode = "open" | "clone" | "cloud" | null;
 
 const AVATAR_TONES = [
   "bg-low-surface text-low border-low-line",
@@ -89,6 +90,20 @@ function initials(name: string): string {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+}
+
+/** Distinguishes a cloud project — no persistent local checkout — wherever a project name is shown. */
+function CloudBadge() {
+  const { t } = useUiText();
+  return (
+    <span
+      title={t("projects.cloudBadgeTooltip")}
+      className="inline-flex shrink-0 items-center gap-1 rounded-chip border border-low-line bg-low-surface px-1.5 py-0.5 text-[9.5px] font-semibold text-low"
+    >
+      <Cloud className="size-3" strokeWidth={2} />
+      {t("projects.cloudBadge")}
+    </span>
+  );
 }
 
 function relativeDate(value: string, renderedAt: string, t: (key: string, params?: Record<string, string | number>) => string): string {
@@ -139,7 +154,7 @@ export function ProjectWorkspace({
       return (
         !normalized ||
         project.name.toLowerCase().includes(normalized) ||
-        project.path.toLowerCase().includes(normalized) ||
+        (project.path?.toLowerCase().includes(normalized) ?? false) ||
         project.current_branch?.toLowerCase().includes(normalized)
       );
     });
@@ -190,7 +205,7 @@ export function ProjectWorkspace({
 
       <OnboardingChecklist hasProjects={projects.length > 0} />
 
-      <section aria-label={t("projects.addRepository")} className="mb-8 grid gap-3 md:grid-cols-2">
+      <section aria-label={t("projects.addRepository")} className="mb-8 grid gap-3 md:grid-cols-3">
         <EntryAction
           icon={<HardDrive className="size-5" strokeWidth={1.8} />}
           title={t("projects.openLocalFolder")}
@@ -204,6 +219,13 @@ export function ProjectWorkspace({
           description={t("projects.cloneFromRemoteDescription")}
           action={t("projects.cloneFromRemoteAction")}
           onClick={() => setDialog("clone")}
+        />
+        <EntryAction
+          icon={<Cloud className="size-5" strokeWidth={1.8} />}
+          title={t("projects.cloudProject")}
+          description={t("projects.cloudProjectDescription")}
+          action={t("projects.cloudProjectAction")}
+          onClick={() => setDialog("cloud")}
         />
       </section>
 
@@ -255,11 +277,12 @@ export function ProjectWorkspace({
                   {initials(project.name)}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-[13.5px] font-semibold">
+                  <span className="flex items-center gap-1.5 truncate text-[13.5px] font-semibold">
                     {project.name}
+                    {project.kind === "cloud" && <CloudBadge />}
                   </span>
                   <span className="numeric block truncate text-[10.5px] text-ink-subtle">
-                    {project.path}
+                    {project.path ?? project.remote_url}
                   </span>
                 </span>
               </span>
@@ -382,6 +405,9 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
   const [providerReady, setProviderReady] = useState<boolean | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const collapseInitialized = useRef(false);
 
   useEffect(() => {
@@ -418,29 +444,55 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
     }
   }, [loaded, allDone]);
 
-  if (!loaded) return null;
+  if (!loaded || dismissed || config?.ui.hide_getting_started_checklist) return null;
+
+  async function confirmClose() {
+    setConfirmingClose(false);
+    setDismissed(true);
+    if (!dontShowAgain || !config) return;
+    try {
+      const next = structuredClone(config);
+      next.ui.hide_getting_started_checklist = true;
+      await api.saveConfig(next);
+    } catch {
+      // Closing the card still works for this session even if the preference
+      // fails to persist — the user can retry from Settings › Engine.
+    }
+  }
 
   return (
     <section className="mb-6 border border-line bg-paper px-5 py-4" aria-label={t("projects.gettingStarted")}>
-      <button
-        type="button"
-        onClick={() => setCollapsed((current) => !current)}
-        aria-expanded={!collapsed}
-        className={`flex w-full items-center gap-2 text-left ${collapsed ? "" : "mb-3"}`}
-      >
-        <ClipboardCheck className="size-4 text-low" />
-        <h2 className="flex-1 text-[13px] font-semibold">{t("projects.gettingStartedTitle")}</h2>
+      <div className={`flex w-full items-center gap-2 ${collapsed ? "" : "mb-3"}`}>
+        <button
+          type="button"
+          onClick={() => setCollapsed((current) => !current)}
+          aria-expanded={!collapsed}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
+          <ClipboardCheck className="size-4 text-low" />
+          <h2 className="flex-1 text-[13px] font-semibold">{t("projects.gettingStartedTitle")}</h2>
+          {allDone && (
+            <span className="rounded-chip bg-success-surface px-2 py-0.5 text-[10px] font-medium text-success">
+              {t("projects.complete")}
+            </span>
+          )}
+          {collapsed ? (
+            <ChevronDown className="size-4 text-ink-subtle" />
+          ) : (
+            <ChevronUp className="size-4 text-ink-subtle" />
+          )}
+        </button>
         {allDone && (
-          <span className="rounded-chip bg-success-surface px-2 py-0.5 text-[10px] font-medium text-success">
-            {t("projects.complete")}
-          </span>
+          <button
+            type="button"
+            onClick={() => setConfirmingClose(true)}
+            aria-label={t("projects.gettingStartedClose")}
+            className="rounded-control p-1.5 text-ink-subtle hover:bg-canvas hover:text-ink"
+          >
+            <X className="size-4" />
+          </button>
         )}
-        {collapsed ? (
-          <ChevronDown className="size-4 text-ink-subtle" />
-        ) : (
-          <ChevronUp className="size-4 text-ink-subtle" />
-        )}
-      </button>
+      </div>
       {!collapsed && (
         <div className="grid gap-2 sm:grid-cols-3">
           {steps.map((step) => (
@@ -451,6 +503,69 @@ function OnboardingChecklist({ hasProjects }: { hasProjects: boolean }) {
               <span>{step.label}</span>
             </a>
           ))}
+        </div>
+      )}
+      {confirmingClose && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setConfirmingClose(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="getting-started-close-title"
+            className="w-full max-w-[380px] rounded-panel border border-line bg-paper shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+              <h2 id="getting-started-close-title" className="text-[14px] font-semibold">
+                {t("projects.gettingStartedClose")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setConfirmingClose(false)}
+                aria-label={t("common.closeDialog")}
+                className="rounded-control p-1.5 text-ink-subtle hover:bg-canvas hover:text-ink"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <label className="flex items-start gap-2 text-[12px] text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={dontShowAgain}
+                  onChange={(event) => setDontShowAgain(event.target.checked)}
+                  className="mt-0.5 size-3.5"
+                />
+                <span>
+                  {t("projects.gettingStartedDontShowAgain")}
+                  <br />
+                  <span className="text-[11px] text-ink-subtle">
+                    {t("projects.gettingStartedDontShowAgainHint")}
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConfirmingClose(false)}
+                className="rounded-control px-3 py-1.5 text-[11.5px] font-semibold text-ink-subtle hover:bg-canvas"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmClose()}
+                className="rounded-control bg-ink px-3 py-1.5 text-[11.5px] font-semibold text-paper hover:bg-ink-hover"
+              >
+                {t("projects.gettingStartedClose")}
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </section>
@@ -471,6 +586,7 @@ function RepositoryDialog({
   const errorText = useApiErrorText();
   const [value, setValue] = useState("");
   const [destination, setDestination] = useState("");
+  const [baseBranch, setBaseBranch] = useState("");
   const [pending, setPending] = useState(false);
   const [browsing, setBrowsing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -485,7 +601,9 @@ function RepositoryDialog({
       const project =
         mode === "open"
           ? await api.openProject(value.trim())
-          : await api.cloneProject(value.trim(), destination.trim());
+          : mode === "clone"
+            ? await api.cloneProject(value.trim(), destination.trim())
+            : await api.createCloudProject(value.trim(), baseBranch.trim());
       onCreated(project);
     } catch (cause) {
       toast.push(errorText(cause));
@@ -498,9 +616,10 @@ function RepositoryDialog({
   };
 
   const isOpen = mode === "open";
+  const isCloud = mode === "cloud";
   const busy = pending || browsing;
   const canSubmit = Boolean(
-    value.trim() && (isOpen || destination.trim()),
+    value.trim() && (isOpen || isCloud || destination.trim()),
   );
 
   const browse = async () => {
@@ -536,12 +655,18 @@ function RepositoryDialog({
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
             <h2 id="repository-dialog-title" className="text-[15px] font-semibold">
-              {isOpen ? t("projects.dialog.openTitle") : t("projects.dialog.cloneTitle")}
+              {isOpen
+                ? t("projects.dialog.openTitle")
+                : isCloud
+                  ? t("projects.dialog.cloudTitle")
+                  : t("projects.dialog.cloneTitle")}
             </h2>
             <p className="mt-1 text-[12px] text-ink-muted">
               {isOpen
                 ? t("projects.dialog.openDescription")
-                : t("projects.dialog.cloneDescription")}
+                : isCloud
+                  ? t("projects.dialog.cloudDescription")
+                  : t("projects.dialog.cloneDescription")}
             </p>
           </div>
           <button
@@ -589,7 +714,7 @@ function RepositoryDialog({
               </button>
             )}
           </div>
-          {!isOpen && (
+          {mode === "clone" && (
             <>
               <label
                 className="mb-1.5 mt-4 block text-[11.5px] font-semibold"
@@ -623,6 +748,27 @@ function RepositoryDialog({
               </div>
             </>
           )}
+          {isCloud && (
+            <>
+              <label
+                className="mb-1.5 mt-4 block text-[11.5px] font-semibold"
+                htmlFor="repository-base-branch"
+              >
+                {t("projects.dialog.baseBranchOptional")}
+              </label>
+              <input
+                id="repository-base-branch"
+                value={baseBranch}
+                onChange={(event) => setBaseBranch(event.target.value)}
+                placeholder="main"
+                disabled={busy}
+                className="h-10 w-full rounded-control border border-line-strong bg-paper px-3 font-mono text-[12px] outline-none placeholder:text-ink-subtle focus:border-ink disabled:bg-canvas"
+              />
+              <p className="mt-2 text-[11px] text-ink-muted">
+                {t("projects.dialog.cloudFixLimitation")}
+              </p>
+            </>
+          )}
           <div className="mt-5 flex justify-end gap-2">
             <button
               type="button"
@@ -638,7 +784,17 @@ function RepositoryDialog({
               className="flex min-w-[88px] items-center justify-center gap-2 rounded-control bg-ink px-3.5 py-2 text-[11.5px] font-semibold text-paper hover:bg-ink-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               {pending && <LoaderCircle className="size-3.5 animate-spin" />}
-              {pending ? (isOpen ? t("projects.dialog.opening") : t("projects.dialog.cloning")) : isOpen ? t("projects.dialog.open") : t("projects.dialog.clone")}
+              {pending
+                ? isOpen
+                  ? t("projects.dialog.opening")
+                  : isCloud
+                    ? t("projects.dialog.creating")
+                    : t("projects.dialog.cloning")
+                : isOpen
+                  ? t("projects.dialog.open")
+                  : isCloud
+                    ? t("projects.dialog.create")
+                    : t("projects.dialog.clone")}
             </button>
           </div>
         </form>
@@ -1023,9 +1179,10 @@ export function RepositoryInspector({
             <p className="mb-0.5 flex items-center gap-2 text-[13.5px] font-semibold">
               <FolderGit2 className="size-4 text-low" strokeWidth={1.8} />
               <span className="truncate">{project.name}</span>
+              {project.kind === "cloud" && <CloudBadge />}
             </p>
             <p className="numeric truncate text-[10.5px] text-ink-subtle">
-              {project.path}
+              {project.path ?? project.remote_url}
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -1266,6 +1423,7 @@ export function RepositoryInspector({
           running={reviewing}
           cancelled={cancelled}
           branches={{ base, head }}
+          isCloudProject={project.kind === "cloud"}
           onFindingStatus={updateFinding}
           onApplyFix={applyFindingFix}
         />
@@ -1446,6 +1604,7 @@ function LiveReviewPanel({
   cancelled,
   running,
   branches,
+  isCloudProject,
   onFindingStatus,
   onApplyFix,
 }: {
@@ -1454,6 +1613,8 @@ function LiveReviewPanel({
   cancelled: boolean;
   running: boolean;
   branches: { base: string; head: string };
+  /** Cloud projects have no persistent working tree — fix/apply is unavailable, so the actions are hidden. */
+  isCloudProject: boolean;
   onFindingStatus: (reviewId: string, findingId: string, status: Finding["status"]) => void;
   onApplyFix: (reviewId: string, findingId: string, dryRun: boolean) => Promise<ApplyFixResult>;
 }) {
@@ -1668,7 +1829,7 @@ function LiveReviewPanel({
                   key={finding.id}
                   finding={finding}
                   onStatus={(status) => onFindingStatus(review.id, finding.id, status)}
-                  onFix={(dryRun) => onApplyFix(review.id, finding.id, dryRun)}
+                  onFix={isCloudProject ? undefined : (dryRun) => onApplyFix(review.id, finding.id, dryRun)}
                 />
               ))}
             </div>

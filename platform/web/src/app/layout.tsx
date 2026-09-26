@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ConnectionProvider } from "@/components/connection-provider";
 import { ToastProvider } from "@/components/toast-provider";
 import { UiPreferenceProvider } from "@/components/ui-preference-bootstrap";
 import "./globals.css";
@@ -40,8 +41,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <UiPreferenceProvider>
           {/* ToastProvider wraps the app so every client component can push,
-              and sits inside the locale provider because it translates. */}
-          <ToastProvider>{children}</ToastProvider>
+              and sits inside the locale provider because it translates.
+              ConnectionProvider wraps both: it is the one component that
+              survives navigation, which is what keeps a single probe, the
+              debounce and a dismissal alive across route changes. */}
+          <ConnectionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ConnectionProvider>
         </UiPreferenceProvider>
       </body>
     </html>
