@@ -29,17 +29,17 @@ paste it into any agent session.
 
 ## ✨ Features
 
-- 🎯 **Diff-only review** — only the changed lines of your patch are reviewed,
+- **Diff-only review** — only the changed lines of your patch are reviewed,
   not the whole codebase.
-- 📚 **Universal rubric + stack playbooks** — backend, frontend, mobile, data
+- **Universal rubric + stack playbooks** — backend, frontend, mobile, data
   engineering, ML/data science, and games.
-- 🧩 **Your rules win** — `.revai/rules.md` or `CODING_STANDARDS.md` overrides
+- **Your rules win** — `.revai/rules.md` or `CODING_STANDARDS.md` overrides
   the built-in baseline.
-- 📊 **Interactive HTML report** — Quality Gate, severity/file filters,
+- **Interactive HTML report** — Quality Gate, severity/file filters,
   skip/restore, dark/light theme — opened in your browser automatically.
-- 🔁 **Two-way fix loop** — say *"fix CR-03"* to your agent, or click
+- **Two-way fix loop** — say *"fix CR-03"* to your agent, or click
   **Copy prompt** in the report and paste it into any agent session.
-- 🪶 **Zero dependencies** — Node.js ≥ 18 built-ins only; no `npm install`.
+- **Zero dependencies** — Node.js ≥ 18 built-ins only; no `npm install`.
 
 ## 📦 Install
 
@@ -137,8 +137,6 @@ skills/revai/
     ├── rubric.md         # universal review baseline
     └── stack-playbooks.md # per-stack review playbooks
 ```
-
-`legacy/` holds the deprecated PowerShell pipeline, kept for history only.
 
 ## 📄 License
 
