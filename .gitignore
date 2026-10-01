@@ -1,0 +1,24 @@
+# revai local artifacts (generated reports/patches; consumers add this too — see README)
+.revai/
+
+# Personal agent tooling (never published; owner keeps these outside the repo)
+.agents/
+.opencode/
+.kilo/
+.claude/
+AGENTS.md
+
+# Legacy worktrees left behind by third-party tooling
+worktrees/
+
+# Node
+node_modules/
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Project
+openspec/
+legacy/
