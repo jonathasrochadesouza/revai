@@ -1609,17 +1609,40 @@
         }
 
         const savedConfig = loadSavedConfig() || APP_CONFIG;
+        const savedSeverity = savedConfig.selectedSeverity;
+        const savedFile = savedConfig.selectedFile;
 
         let state = {
-            search: '',
-            selectedSeverity: 'all',
-            selectedFile: null,
+            search: typeof savedConfig.search === 'string' ? savedConfig.search : '',
+            selectedSeverity:
+                typeof savedSeverity === 'string' && (savedSeverity === 'all' || SEVERITY[savedSeverity])
+                    ? savedSeverity
+                    : 'all',
+            selectedFile:
+                typeof savedFile === 'string' &&
+                REVIEW_META.files.some(function (file) { return file.path === savedFile; })
+                    ? savedFile
+                    : null,
             isDark: savedConfig.theme === 'dark',
-            actionableOpen: true,
-            nitpicksOpen: false,
-            skippedOpen: false,
+            actionableOpen:
+                typeof savedConfig.actionableOpen === 'boolean' ? savedConfig.actionableOpen : true,
+            nitpicksOpen:
+                typeof savedConfig.nitpicksOpen === 'boolean' ? savedConfig.nitpicksOpen : false,
+            skippedOpen:
+                typeof savedConfig.skippedOpen === 'boolean' ? savedConfig.skippedOpen : false,
             skipped: {}
         };
+
+        function saveFilterState() {
+            saveConfig({
+                search: state.search,
+                selectedSeverity: state.selectedSeverity,
+                selectedFile: state.selectedFile,
+                actionableOpen: state.actionableOpen,
+                nitpicksOpen: state.nitpicksOpen,
+                skippedOpen: state.skippedOpen
+            });
+        }
 
         function esc(str) {
             return String(str).replace(/[&<>"']/g, function (m) {
@@ -1918,9 +1941,11 @@
             return (
                 '<div class="file-select-wrap">' +
                     '<select class="file-select" id="file-select" onchange="handleSelectFile(this.value)" aria-label="Filter by file">' +
-                        '<option value="">All files (' + findings.length + ')</option>' +
+                        '<option value=""' + (state.selectedFile ? '' : ' selected') + '>All files (' + findings.length + ')</option>' +
                         REVIEW_META.files.map(function (file) {
-                            return '<option value="' + esc(file.path) + '">' + esc(file.path) + '</option>';
+                            return '<option value="' + esc(file.path) + '"' +
+                                (state.selectedFile === file.path ? ' selected' : '') +
+                                '>' + esc(file.path) + '</option>';
                         }).join('') +
                     '</select>' +
                 '</div>'
@@ -2179,6 +2204,7 @@
         let searchTimeout;
         function handleSearch(event) {
             state.search = event.target.value;
+            saveFilterState();
             const clearBtn = document.getElementById('sfb-clear-btn');
             if (clearBtn) clearBtn.style.display = state.search ? '' : 'none';
             clearTimeout(searchTimeout);
@@ -2189,6 +2215,7 @@
 
         function clearSearch() {
             state.search = '';
+            saveFilterState();
             const input = document.getElementById('findings-search');
             if (input) { input.value = ''; input.focus(); }
             const clearBtn = document.getElementById('sfb-clear-btn');
@@ -2198,11 +2225,13 @@
 
         function handleSeverityFilter(sev) {
             state.selectedSeverity = sev;
+            saveFilterState();
             renderResults();
         }
 
         function handleFileFilter(file) {
             state.selectedFile = state.selectedFile === file ? null : file;
+            saveFilterState();
             const select = document.getElementById('file-select');
             if (select) select.value = state.selectedFile || '';
             renderResults();
@@ -2210,7 +2239,16 @@
 
         function handleSelectFile(value) {
             state.selectedFile = value || null;
+            saveFilterState();
             renderResults();
+        }
+
+        function resetFilters() {
+            state.search = '';
+            state.selectedSeverity = 'all';
+            state.selectedFile = null;
+            saveFilterState();
+            render();
         }
 
         const GROUP_STATE_KEYS = { actionable: 'actionableOpen', nitpicks: 'nitpicksOpen', skipped: 'skippedOpen' };
@@ -2219,6 +2257,7 @@
             const key = GROUP_STATE_KEYS[name];
             if (!key) return;
             state[key] = !state[key];
+            saveFilterState();
             const group = document.getElementById('group-' + name);
             if (group) {
                 group.classList.toggle('open', state[key]);
@@ -2315,6 +2354,9 @@
             if (state.selectedFile) {
                 const name = state.selectedFile.slice(state.selectedFile.lastIndexOf('/') + 1);
                 chips.push('<button class="chip" onclick="handleSelectFile(\'\')" title="Remove filter">' + xIconSVG + esc(name) + '</button>');
+            }
+            if (state.search || state.selectedSeverity !== 'all' || state.selectedFile) {
+                chips.push('<button class="chip" onclick="resetFilters()" title="Reset filters">' + xIconSVG + 'Reset filters</button>');
             }
 
             let groupsHtml = '';
