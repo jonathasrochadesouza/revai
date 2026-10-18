@@ -13,7 +13,7 @@ Diff-only review · Interactive HTML report · Two-way fix loop
 [![GitHub Stars](https://img.shields.io/github/stars/jonathasrochadesouza/revai?style=flat&logo=github&labelColor=181717)](https://github.com/jonathasrochadesouza/revai/stargazers)
 [![agent skills](https://img.shields.io/badge/agent%20skills-skills.sh-8A2BE2)](https://skills.sh)
 
-[**Install**](#-install) · [**Usage**](#-usage) · [**Troubleshooting**](#-troubleshooting) · [**License**](#-license)
+[**Demo**](#-demo) · [**Install**](#-install) · [**Usage**](#-usage) · [**Troubleshooting**](#-troubleshooting) · [**License**](#-license)
 
 </div>
 
@@ -40,6 +40,24 @@ paste it into any agent session.
 - **Two-way fix loop** — say *"fix CR-03"* to your agent, or click
   **Copy prompt** in the report and paste it into any agent session.
 - **Zero dependencies** — Node.js ≥ 18 built-ins only; no `npm install`.
+
+## 🎬 Demo
+
+revai reviewing a FastAPI demo branch with planted issues — the agent catches a
+SQL injection and a command injection, opens an interactive report, then fixes
+the findings on request:
+
+<p align="center">
+  <img src="docs/images/revai-demo-review-report.gif" alt="revai interactive report — Quality Gate, findings, filters" width="800" />
+</p>
+<p align="center">
+  <img src="docs/images/revai-demo-fix-loop.gif" alt="revai fix loop — resolve findings by ID, Quality Gate recalculates" width="800" />
+</p>
+
+<p align="center">
+  Full walkthrough (running the API, the report tour, every fix applied):
+  <a href="docs/demo.md"><strong>docs/demo.md</strong></a>
+</p>
 
 ## 📦 Install
 
